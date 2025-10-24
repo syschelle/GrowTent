@@ -18,7 +18,10 @@ void taskCheckBMESensor(void *parameter){
       lastHumidity = bme.readHumidity();
       float svp = 0.6108f * exp((17.27f * lastTemperature) / (lastTemperature + 237.3f));
       lastVPD = svp - (lastHumidity / 100.0f) * svp;
-      Serial.println("[SENSOR] Last Sensorupdate Temperature: " + String(lastTemperature) + " °C, Humidity: " + String(lastHumidity) + " %, VPD: " + String(lastVPD) + " kPa");
+
+      handleEnv();
+
+      Serial.println("[SENSOR] Last Sensorupdate Temperature: " + String(lastTemperature, 1) + " °C, Humidity: " + String(lastHumidity, 0) + " %, VPD: " + String(lastVPD, 1) + " kPa");
     }
     // delay  10 seconds
     delay(10000); 
