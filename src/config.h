@@ -57,3 +57,13 @@ String tzInfo = "";
 
 // day of month for last NTP sync
 RTC_DATA_ATTR int lastSyncDay = -1;
+
+// Last published sensor values
+float lastTemperature = NAN;
+float lastHumidity = NAN;
+float lastVPD = NAN;
+// Growth phase configuration
+const char* phaseNames[5] = { "", "Seedling/Clone", "Vegetative", "Flowering", "Drying"};
+int curPhase;
+// Default VPD targets per phase
+const float defaultVPDs[5] = { 0.0f, 0.8f, 1.2f, 1.4f, 1.0f };

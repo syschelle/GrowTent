@@ -103,4 +103,15 @@ const char* cssContent = R"rawliteral(
     /* Card */
     .card{background:var(--muted);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 
+    /* Gauge layout (no external CSS) */
+    .gauges-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit, minmax(240px,1fr));align-items:start}
+    .gauge-card{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--muted)}
+    .g-title{font-weight:700;margin-bottom:6px}
+    .gauge{width:100%;max-width:360px;margin:auto}
+    .g-arc{stroke:var(--border);stroke-width:8;fill:none;stroke-linecap:round}
+    .g-needle{stroke:var(--header);stroke-width:2}
+    .g-pivot{fill:var(--header)}
+    .g-label{text-align:center;margin-top:6px;font-weight:700}
+    .g-minmax{display:flex;justify-content:space-between;font-size:.85rem;opacity:.85;margin-top:4px}
+
 )rawliteral";
