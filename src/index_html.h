@@ -34,7 +34,7 @@ static const char I18N_EN[] PROGMEM = R"json(
 
 const char* htmlPage = R"rawliteral(
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
@@ -53,7 +53,8 @@ const char* htmlPage = R"rawliteral(
   <div class="layout">
     <nav class="sidebar" id="sidebar">
       <a class="navlink" data-page="status"   data-i18n="nav.status">Status</a>
-      <a class="navlink" data-page="settings" data-i18n="nav.settings">Einstellungen</a>
+      <a class="navlink" data-page="runsettings" data-i18n="nav.runsetting">Betriebseinstellungenn</a>
+      <a class="navlink" data-page="settings" data-i18n="nav.settings">Systemeinstellungen</a>
       <a class="navlink" data-page="factory" data-i18n="nav.factory">Werkseinstellung</a>
     </nav>
 
@@ -64,12 +65,16 @@ const char* htmlPage = R"rawliteral(
     <!-- status section -->
     <section id="status" class="page active card">
       <h1 data-i18n="status.title">Status</h1>
-      <p data-i18n="status.ok">System läuft normal ✅</p>
     </section>
     
+    <!-- runsettings section -->
+    <section id="runsettings" class="page card">
+      <h1 data-i18n="runsetting.title">Betriebseinstellungen</h1>
+    </section>
+
     <!-- setting section -->
     <section id="settings" class="page card">
-      <h1 data-i18n="settings.title">Einstellungen</h1>
+      <h1 data-i18n="settings.title">Systemeinstellungen</h1>
       <div class="form-group">
         <label for="language" data-i18n="settings.language">Sprache:</label>
         <select id="language"></select>
@@ -106,7 +111,7 @@ const char* htmlPage = R"rawliteral(
     </section>
 
     <!-- factory reset section -->
-    <section id="factory" class="page active card">
+    <section id="factory" class="page card">
       <form action="/factory-reset" method="post" id="factoryResetForm">
         <h1 data-i18n="factory.title">Werkseinstellungen</h1>
         <input type="hidden" name="confirm" value="1">

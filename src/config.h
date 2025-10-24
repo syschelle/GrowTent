@@ -1,5 +1,8 @@
 #pragma once
 #include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
 
 // WiFi Access Point credentials
 const char* KEY_APSSID = "new growtent";
@@ -16,11 +19,22 @@ static const char* KEY_UNIT    = "unit";
 static const char* KEY_TFMT    = "timeFmt";
 static const char* KEY_NTPSRV  = "ntpSrv";
 
-// Relay pin definitions
-static constexpr uint8_t RELAY1_PIN = 32;
-static constexpr uint8_t RELAY2_PIN = 33;
-static constexpr uint8_t RELAY3_PIN = 25;
-static constexpr uint8_t RELAY4_PIN = 26;
+// Include sensor libraries
+#define BME_ADDR 0x76
+Adafruit_BME280 bme;
+bool bmeAvailable = false;
+
+// Relay Configuration
+#define NUM_RELAYS 4
+const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26 };
+
+// human designations for the relays
+static const char* relayNames[NUM_RELAYS] = {
+	"left fan",
+	"right fan",
+	"pod fan",
+	"humidifier fan"
+};
 
 // Global configuration variables
 String boxName = "GrowTent";

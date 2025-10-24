@@ -24,16 +24,19 @@ const char* jsContent = R"rawliteral(
   addJSON('i18n-de', {
     "a11y.menu": "Menü öffnen/schließen",
 
-    "settings.unsaved": "Änderungen – bitte speichern"
+    "settings.unsaved": "Änderungen – bitte speichern",
 
     "nav.status": "Status",
-    "nav.settings": "Einstellungen",
+    "nav.runsetting": "Betriebseinstellungen",
+    "nav.settings": "Systemeinstellungen",
     "nav.factory": "Werkseinstellungen",
 
     "status.title": "Status",
     "status.ok": "System läuft normal ✅",
 
-    "settings.title": "Einstellungen",
+    "runsetting.title": "Betriebseinstellungen",
+
+    "settings.title": "Systemeinstellungen",
     "settings.language": "Sprache:",
     "settings.theme": "Theme:",
     "settings.themeLight": "Hell",
@@ -56,14 +59,17 @@ const char* jsContent = R"rawliteral(
   addJSON('i18n-en', {
     "a11y.menu": "Open/close menu",
     
-    "settings.unsaved": "Changes pending – please save"
+    "settings.unsaved": "Changes pending – please save",
 
     "nav.status": "Status",
-    "nav.settings": "Settings",
+    "nav.runsetting": "Operating Settings",
+    "nav.settings": "System Settings",
     "nav.factory": "Factory Reset",
 
     "status.title": "Status",
     "status.ok": "System is running ✅",
+
+    "runsetting.title": "Operating settings",
 
     "settings.title": "Settings",
     "settings.language": "Language:",

@@ -13,6 +13,7 @@ const char* cssContent = R"rawliteral(
       --border:#2a2a2a; --muted:#1f1f1f; --link:#9ec1ff;
       --primary-hover: #1e40af;
     }
+    .hidden { display:none; }
     *{box-sizing:border-box}
     html{font-size:16px}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
