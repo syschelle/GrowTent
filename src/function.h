@@ -90,23 +90,3 @@ void handleFactoryReset() {
   delay(2000);
   ESP.restart();
 }
-
-// Update sensor values if due
-static void handleEnv() {
-
-  // Build JSON string directly
-  String json = "{";
-  if (!isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
-    json += "\"tempC\":" + String(lastTemperature, 1);
-    json += ",\"hum\":"  + String(lastHumidity, 0);
-    json += ",\"vpd\":"  + String(lastVPD, 3);
-  } else {
-    json += "\"tempC\":null,\"hum\":null,\"vpd\":null";
-  }
-  json += ",\"ts\":" + String(millis());
-  json += "}";
-
-  // Send it directly
-  server.sendHeader("Cache-Control", "no-store");
-  server.send(200, "application/json", json);
-}

@@ -59,9 +59,13 @@ String tzInfo = "";
 RTC_DATA_ATTR int lastSyncDay = -1;
 
 // Last published sensor values
-float lastTemperature = NAN;
-float lastHumidity = NAN;
-float lastVPD = NAN;
+volatile float lastTemperature = NAN;
+volatile float lastHumidity = NAN;
+volatile float lastVPD = NAN;
+// Timestamp of last sensor read
+const uint32_t READ_INTERVAL_MS = 1000;
+uint32_t lastRead = 0;
+
 // Growth phase configuration
 const char* phaseNames[5] = { "", "Seedling/Clone", "Vegetative", "Flowering", "Drying"};
 int curPhase;

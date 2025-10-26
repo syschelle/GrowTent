@@ -1,6 +1,17 @@
 // index_html.h
 #pragma once
 
+// Favicon (base64-encoded)
+const char FAVICON_ICO_BASE64[] PROGMEM = 
+"AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAA"
+"AAAAAAD///8Af39/AFhYWAAgICAATU1NAH5+fgBQUFAAZGRkADY2NgB9fX0ARUVFAFlZWQA/Pz8A"
+"bm5uAERERABra2sAenp6AEpKSgA7OzsAioqKAFtbWwBVVVUAISEhADAwMAD+/v4AAAAAAAAAAAAA"
+"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAACAAIAAgACAgICAAIAAgICAgACA"
+"AICAgIAAgACAgICAAIAAgICAgACAAICAgIAAgACAgICAAIAAgICAgACAAICAgIAAgACAgICAAIAA"
+"gICAgACAAICAgIAAgACAgICAAIAAgICAgACAAICAgIAAgACAgICAAIAAgICAgACAAICAgIAAgAAA"
+"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAA"
+"//8AAP//AAD//wAA//8AAP//AAD//wAA";
+
 // ------- i18n: manifest + Sprachen (separat, eigene Routen) -------
 static const char I18N_MANIFEST[] PROGMEM = R"json(
 {
@@ -64,47 +75,10 @@ const char* htmlPage = R"rawliteral(
 
     <!-- status section -->
     <section id="status" class="page active card">
-      <h1 data-i18n="status.title">Status</h1>
-      <div class="gauges-grid">
-        <!-- Temperature -->
-        <div class="gauge-card">
-          <div class="g-title" data-i18n="status.temp">Temperature</div>
-          <div class="gauge">
-            <svg viewBox="0 0 100 60" aria-label="Temperature Gauge">
-              <path d="M10,60 A40,40 0 0 1 90,60" class="g-arc"/>
-              <line x1="50" y1="60" x2="50" y2="22" class="g-needle" id="gTempNeedle"/>
-              <circle cx="50" cy="60" r="3" class="g-pivot"/>
-            </svg>
-            <div class="g-label"><span id="gTempVal">--</span> <span id="gTempUnit">°C</span></div>
-            <div class="g-minmax"><span id="gTempMin">0°C</span><span id="gTempMax">50°C</span></div>
-          </div>
-        </div>
-        <!-- Humidity -->
-        <div class="gauge-card">
-          <div class="g-title" data-i18n="status.hum">Humidity</div>
-          <div class="gauge">
-            <svg viewBox="0 0 100 60" aria-label="Humidity Gauge">
-              <path d="M10,60 A40,40 0 0 1 90,60" class="g-arc"/>
-              <line x1="50" y1="60" x2="50" y2="22" class="g-needle" id="gHumNeedle"/>
-              <circle cx="50" cy="60" r="3" class="g-pivot"/>
-            </svg>
-            <div class="g-label"><span id="gHumVal">--</span> <span>%</span></div>
-            <div class="g-minmax"><span>0%</span><span>100%</span></div>
-          </div>
-        </div>
-        <!-- VPD -->
-        <div class="gauge-card">
-          <div class="g-title">VPD</div>
-          <div class="gauge">
-            <svg viewBox="0 0 100 60" aria-label="VPD Gauge">
-              <path d="M10,60 A40,40 0 0 1 90,60" class="g-arc"/>
-              <line x1="50" y1="60" x2="50" y2="22" class="g-needle" id="gVpdNeedle"/>
-              <circle cx="50" cy="60" r="3" class="g-pivot"/>
-            </svg>
-            <div class="g-label"><span id="gVpdVal">--</span> <span>kPa</span></div>
-            <div class="g-minmax"><span>0</span><span>3</span></div>
-          </div>
-        </div>
+      <div class="grid">
+        <label for="temperature" data-i18n="status.lastTemperature">Temperatur</label><div class="value" id="tempSpan">–</div>°C
+        <label for="humidity" data-i18n="status.lasthumidity">rel. Feuchte</label><div class="value" id="humSpan">–</div>%
+        <label for="vpd" data-i18n="status.lastvpd">VPD</label><div class="value" id="vpdSpan">–</div>kPa
       </div>
     </section>
     

@@ -1,5 +1,6 @@
 // main.cpp
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <WiFi.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -103,9 +104,48 @@ void setup() {
     server.send(200, "text/css", cssContent);
   });
   server.on("/script.js", []() {
-    server.send(200, "text/javascript", jsContent);
+    server.send(200, "application/javascript", jsContent);
+  });
+   // route for pure sensor data. for update on the fly in the web page.
+  server.on("/sensordata", HTTP_GET, []() {
+    // JSON building: { "temperature": 21.5, "humidity": 45.3, "vpd": 1.23 }
+    JsonDocument doc; doc;
+
+    if (bmeAvailable) {
+      float t = bme.readTemperature();
+      float h = bme.readHumidity();
+      float svp = 0.6108f * exp((17.27f * t) / (t + 237.3f));
+      float vpd = svp - (h / 100.0f) * svp;
+
+      String json = "{";
+      if (!isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
+
+        json += "\"temperature\":" + String(lastTemperature, 1);
+        json += ",\"humidity\":"  + String(lastHumidity, 0);
+        json += ",\"vpd\":"  + String(lastVPD, 1);
+      } else {
+        // Always send valid JSON, even if sensor is not ready
+        json += "\"ok\":false";
+        json += ",\"temperature\":null,\"humidity\":null,\"vpd\":null";
+      }
+      json += "}";
+
+      server.sendHeader("Cache-Control", "no-store");
+      server.send(200, "application/json", json);
+
+      String payload;
+      serializeJson(doc, payload);
+      server.send(200, "application/json", payload);
+    }
   });
   server.on("/factory-reset", handleFactoryReset);
+  server.onNotFound([](){
+    Serial.printf("404 Not Found: %s (method %d)\n", server.uri().c_str(), (int)server.method());
+  });
+  server.on("/favicon.ico", HTTP_GET, []() {
+    String data = FAVICON_ICO_BASE64;
+    server.send(200, "image/x-icon;base64", data);
+  });
 
   // start webserver
   server.begin();
