@@ -27,10 +27,14 @@ const char* jsContent = R"rawliteral(
     "nav.status": "Status",
     "nav.runsetting": "Betriebseinstellungen",
     "nav.settings": "Systemeinstellungen",
+    "nav.logging": "Systemprotokoll",
     "nav.factory": "Werkseinstellungen",
     "status.title": "Status",
-    "status.lasttemperature": "Temperatur",
-    "status.lasthumidity": "Luftfeuchte",
+    "status.updated": "Letztes Update:",
+    "status.download": "History herunterladen",
+    "status.lastTemperature": "akt. Temperatur",
+    "status.lasthumidity": "akt. Luftfeuchte",
+    "status.lastvpd": "akt. VPD",
     "runsetting.title": "Betriebseinstellungen",
     "settings.title": "Systemeinstellungen",
     "settings.language": "Sprache:",
@@ -47,6 +51,7 @@ const char* jsContent = R"rawliteral(
     "settings.tempUnit": "Temperatur-Einheit:",
     "settings.celsius": "°C (Celsius)",
     "settings.fahrenheit": "°F (Fahrenheit)",
+    "logging.title": "Systemprotokoll",
     "factory.title": "Werkseinstellungen",
     "factory.reset": "Zurücksetzen / Neustart"
   });
@@ -57,10 +62,14 @@ const char* jsContent = R"rawliteral(
     "nav.status": "Status",
     "nav.runsetting": "Operating Settings",
     "nav.settings": "System Settings",
+    "nav.logging": "System Log",
     "nav.factory": "Factory Reset",
     "status.title": "Status",
-    "status.lastTemperature": "Temperature",
-    "status.lasthumidity": "Humidity",  
+    "status.updated": "Last update:",
+    "status.download": "Download History",
+    "status.lastTemperature": "current Temperature",
+    "status.lasthumidity": "current Humidity",
+    "status.lastvpd": "current VPD",
     "runsetting.title": "Operating settings",
     "settings.title": "Settings",
     "settings.language": "Language:",
@@ -77,19 +86,25 @@ const char* jsContent = R"rawliteral(
     "settings.tempUnit": "Temperature unit:",
     "settings.celsius": "°C (Celsius)",
     "settings.fahrenheit": "°F (Fahrenheit)",
+    "logging.title": "Logging Settings",
     "factory.title": "Factory Settings",
     "factory.reset": "Reset / Restart"
   });
 })();
 
-// Run after DOM is ready (important if this file is loaded in <head> or without `defer`)
+// Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
+
+  // ---------- Small DOM helpers ----------
+  const $  = (id) => document.getElementById(id);
+  const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+  const isNum = x => typeof x === 'number' && !Number.isNaN(x);
 
   // ---------- Sidebar & SPA ----------
   const mqDesktop = window.matchMedia('(min-width:1024px)');
-  const sidebar   = document.getElementById('sidebar');
-  const overlay   = document.getElementById('overlay');
-  const burgerBtn = document.getElementById('hamburgerBtn');
+  const sidebar   = $('sidebar');
+  const overlay   = $('overlay');
+  const burgerBtn = $('hamburgerBtn');
   const pages     = document.querySelectorAll('.page');
 
   function openSidebar(){ if(mqDesktop.matches) return; sidebar?.classList.add('sidebar--open'); overlay?.classList.add('overlay--show'); burgerBtn?.setAttribute('aria-expanded','true'); }
@@ -102,13 +117,21 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', e => { if(e.key === 'Escape') closeSidebar(); });
   mqDesktop.addEventListener('change', syncLayout);
 
+  // SPA navigation + call onPageChanged
+  function activatePage(id){
+    pages.forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.navlink').forEach(a => a.removeAttribute('aria-current'));
+    const pageEl = $(id);
+    if (pageEl) pageEl.classList.add('active');
+    const currentLink = sidebar?.querySelector(`.navlink[data-page="${id}"]`);
+    currentLink?.setAttribute('aria-current', 'page');
+    onPageChanged(id);
+  }
+
   sidebar?.addEventListener('click', e => {
     const link = e.target.closest('.navlink'); if(!link) return;
     const id = link.getAttribute('data-page');
-    pages.forEach(p => p.classList.remove('active'));
-    document.getElementById(id)?.classList.add('active');
-    sidebar.querySelectorAll('.navlink').forEach(a => a.removeAttribute('aria-current'));
-    link.setAttribute('aria-current', 'page');
+    activatePage(id);
     closeSidebar();
   });
   syncLayout();
@@ -117,7 +140,7 @@ window.addEventListener('DOMContentLoaded', () => {
   function applyTheme(theme){
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
-    const sel = document.getElementById('theme');
+    const sel = $('theme');
     if (sel && sel.value !== theme) sel.value = theme;
   }
   (function initTheme(){
@@ -125,7 +148,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     applyTheme(saved || (prefersDark ? 'dark' : 'light'));
   })();
-  document.getElementById('theme')?.addEventListener('change', e => applyTheme(e.target.value));
+  $('theme')?.addEventListener('change', e => applyTheme(e.target.value));
 
   // ---------- Date / Time helpers ----------
   function pad2(n){ return String(n).padStart(2,'0'); }
@@ -144,50 +167,32 @@ window.addEventListener('DOMContentLoaded', () => {
   function getCurTimeFmt(){ return localStorage.getItem('timeFormat') || getDefaultTimeFormatFor(currentLang || 'de'); }
   function renderHeaderDateTime(){
     const d=new Date();
-    const hd=document.getElementById('headerDate');
-    const ht=document.getElementById('headerTime');
+    const hd=$('headerDate');
+    const ht=$('headerTime');
     if(!hd || !ht) return;
     hd.textContent = formatDateWithPattern(d, getCurDateFmt());
     ht.textContent = formatTimeWithPattern(d, getCurTimeFmt());
   }
-  document.getElementById('dateFormat')?.addEventListener('change', e => { localStorage.setItem('dateFormat', e.target.value); renderHeaderDateTime(); });
-  document.getElementById('timeFormat')?.addEventListener('change', e => { localStorage.setItem('timeFormat', e.target.value); renderHeaderDateTime(); });
+  $('dateFormat')?.addEventListener('change', e => { localStorage.setItem('dateFormat', e.target.value); renderHeaderDateTime(); });
+  $('timeFormat')?.addEventListener('change', e => { localStorage.setItem('timeFormat', e.target.value); renderHeaderDateTime(); });
   setInterval(renderHeaderDateTime, 1000);
 
-  // ---------- Temperature unit ----------
+  // ---------- Temperature unit (optional text conversions) ----------
   function getTempUnit(){ return localStorage.getItem('tempUnit') || (currentLang === 'en' ? 'F' : 'C'); }
   function setTempUnit(unit){
     localStorage.setItem('tempUnit', unit);
-    const sel=document.getElementById('tempUnit'); if(sel && sel.value !== unit) sel.value = unit;
-    renderTemperatures();
+    const sel=$('tempUnit'); if(sel && sel.value !== unit) sel.value = unit;
   }
-  function convertCelsiusString(strC, unit){
-    if(!strC) return '';
-    if(unit === 'C') return strC.replace(/°F/g,'°C').replace(/°\s*$/,' °C');
-    const swapped=strC.replace(/°C/g,'°F');
-    return swapped.replace(/(\d+(?:\.\d+)?)/g,(m)=>{
-      const c=parseFloat(m); if(Number.isNaN(c)) return m;
-      const f=c*9/5+32;
-      return (Math.abs(f-Math.round(f))<0.05)? String(Math.round(f)) : f.toFixed(1);
-    });
-  }
-  function renderTemperatures(){
-    const unit=getTempUnit();
-    document.querySelectorAll('[data-temp]').forEach(el=>{
-      const src=el.getAttribute('data-temp');
-      el.textContent=convertCelsiusString(src, unit);
-    });
-  }
-  document.getElementById('tempUnit')?.addEventListener('change', e => setTempUnit(e.target.value));
+  $('tempUnit')?.addEventListener('change', e => setTempUnit(e.target.value));
 
   // ---------- i18n (inline scripts) ----------
   let manifest=null, I18N={}, currentLang='de';
   function readJsonTag(id){
-    const el=document.getElementById(id); if(!el) throw new Error('Missing tag: '+id);
+    const el=$(id); if(!el) throw new Error('Missing tag: '+id);
     return JSON.parse(el.textContent.trim());
   }
   function buildLanguageSelect(activeCode){
-    const sel=document.getElementById('language'); if(!sel) return;
+    const sel=$('language'); if(!sel) return;
     sel.innerHTML='';
     (manifest.languages || [{code:'de',name:'Deutsch'},{code:'en',name:'English'}]).forEach(({code,name})=>{
       const opt=document.createElement('option'); opt.value=code; opt.textContent=name||code.toUpperCase(); sel.appendChild(opt);
@@ -202,23 +207,22 @@ window.addEventListener('DOMContentLoaded', () => {
       const val=I18N[key];
       if(val!==undefined){ if(attr){ el.setAttribute(attr,val); } else { el.textContent=val; } }
     });
-    const df=document.getElementById('dateFormat');
+    const df=$('dateFormat');
     if(df){ const saved=localStorage.getItem('dateFormat')||getDefaultDateFormatFor(currentLang); if(df.value!==saved) df.value=saved; }
-    const tf=document.getElementById('timeFormat');
+    const tf=$('timeFormat');
     if(tf){ const saved=localStorage.getItem('timeFormat')||getDefaultTimeFormatFor(currentLang); if(tf.value!==saved) tf.value=saved; }
-    const tu=document.getElementById('tempUnit'); if(tu){ const savedTU=getTempUnit(); if(tu.value!==savedTU) tu.value=savedTU; }
+    const tu=$('tempUnit'); if(tu){ const savedTU=getTempUnit(); if(tu.value!==savedTU) tu.value=savedTU; }
     renderHeaderDateTime();
-    renderTemperatures();
   }
   function setLanguage(code){
     try{ I18N = readJsonTag('i18n-'+code); currentLang = code; }
-    catch{ I18N = readJsonTag('i18n-de'); currentLang = 'de'; }
+    catch{ I18N = readJsonTag('i18n-de');  currentLang = 'de'; }
     localStorage.setItem('lang', currentLang);
     if(!localStorage.getItem('dateFormat')) localStorage.setItem('dateFormat', getDefaultDateFormatFor(currentLang));
     if(!localStorage.getItem('timeFormat')) localStorage.setItem('timeFormat', getDefaultTimeFormatFor(currentLang));
     if(!localStorage.getItem('tempUnit'))   localStorage.setItem('tempUnit', currentLang === 'en' ? 'F' : 'C');
     applyTranslations();
-    const sel=document.getElementById('language'); if(sel && sel.value !== currentLang) sel.value = currentLang;
+    const sel=$('language'); if(sel && sel.value !== currentLang) sel.value = currentLang;
   }
   (function initI18n(){
     try{ manifest = readJsonTag('i18n-manifest'); }
@@ -229,36 +233,87 @@ window.addEventListener('DOMContentLoaded', () => {
     buildLanguageSelect(initial);
     setLanguage(initial);
   })();
-  
-  // function, load JSON from /sensordata
+
+  // ---------- Sensor fetch (/sensordata) ----------
   async function updateSensorValues() {
     try {
-	    const response = await fetch('/sensordata');
-	    if (!response.ok) {
-		    console.error('Error retrieving sensor data:', response.status);
-		    return;
-	    }
-	    const data = await response.json();
-	    // If the sensor is not available, possibly set to 'N/A'.
-	    if (data.temperature !== null) {
-		    document.getElementById('tempSpan').textContent = data.temperature.toFixed(1);
-		    document.getElementById('humSpan').textContent  = data.humidity.toFixed(0);
-		    document.getElementById('vpdSpan').textContent  = data.vpd.toFixed(1);
-	    } else {
-		    document.getElementById('tempSpan').textContent = 'N/A';
-		    document.getElementById('humSpan').textContent  = 'N/A';
-		    document.getElementById('vpdSpan').textContent  = 'N/A';
-	    }
+      const response = await fetch('/sensordata', { cache: 'no-store' });
+      if (!response.ok) {
+        console.error('Error retrieving sensor data:', response.status);
+        setNA();
+        return;
+      }
+      const data = await response.json();
+
+      if (isNum(data.temperature)) { setText('tempSpan', data.temperature.toFixed(1)); }
+      else                         { setText('tempSpan', 'N/A'); }
+
+      if (isNum(data.humidity))    { setText('humSpan',  data.humidity.toFixed(0)); }
+      else                         { setText('humSpan',  'N/A'); }
+
+      if (isNum(data.vpd))         { setText('vpdSpan',  data.vpd.toFixed(1)); }
+      else                         { setText('vpdSpan',  'N/A'); }
+
+      const cap =
+        (typeof data.captured === 'string' && data.captured.length) ? data.captured :
+        (isNum(data.ts) ? new Date(data.ts).toLocaleString() : 'N/A');
+      setText('capturedSpan', cap);
+
     } catch (error) {
-	    console.error('Exception in updateSensorValues():', error);
+      console.error('Exception in updateSensorValues():', error);
+      setNA();
     }
   }
+  function setNA(){
+    setText('tempSpan', 'N/A');
+    setText('humSpan',  'N/A');
+    setText('vpdSpan',  'N/A');
+    setText('capturedSpan', 'N/A');
+  }
+  // Poll every 10s and once immediately
+  setInterval(updateSensorValues, 10000);
+  updateSensorValues();
 
-//Retrieve again every X seconds (e.g. every 10 seconds)
-setInterval(updateSensorValues, 10000); // 10000 ms = 10 seconds
+  // ---------- Embedded Web-Log ----------
+  let logTimer = null;
 
-//Call it directly when loading, so that fresh values are already present when opening.
-window.addEventListener('load', updateSensorValues);
+  async function fetchWebLog() {
+    try {
+      const r = await fetch('/api/logbuffer', { cache: 'no-store' });
+      if (!r.ok) return;
+      const t = await r.text();
+      const pre = $('weblog');
+      if (pre) {
+        pre.textContent = t || '—';
+        pre.scrollTop = pre.scrollHeight; // auto-scroll to bottom
+      }
+    } catch (e) {
+      console.warn('weblog fetch failed', e);
+    }
+  }
+  function startWebLog() {
+    if (logTimer) return;
+    fetchWebLog();
+    logTimer = setInterval(fetchWebLog, 2000);
+  }
+  function stopWebLog() {
+    if (!logTimer) return;
+    clearInterval(logTimer);
+    logTimer = null;
+  }
+  $('clearLogBtn')?.addEventListener('click', async () => {
+    try {
+      await fetch('/api/logbuffer/clear', { method: 'POST' });
+      fetchWebLog();
+    } catch {}
+  });
+
+  // Fire on page changes (status => start log polling)
+  function onPageChanged(activeId) {
+    if (activeId === 'status') startWebLog(); else stopWebLog();
+  }
+  // Initial: assume status is active on load
+  onPageChanged('status');
 
 }); // end DOMContentLoaded
 )rawliteral";

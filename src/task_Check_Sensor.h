@@ -12,19 +12,8 @@ extern Adafruit_BME280 bme;
 
 void taskCheckBMESensor(void *parameter){
   for (;;) {
-    // Read sensor temperatur, humidity and vpd
-    if (bmeAvailable) {
-      unsigned long now = millis();
-      if (now - lastRead >= READ_INTERVAL_MS) {
-        lastRead = now;
-        lastTemperature = bme.readTemperature();
-        lastHumidity = bme.readHumidity();
-        float svp = 0.6108f * exp((17.27f * lastTemperature) / (lastTemperature + 237.3f));
-        lastVPD = svp - (lastHumidity / 100.0f) * svp;
-
-        Serial.println("[SENSOR] Last Sensorupdate Temperature: " + String(lastTemperature, 1) + " °C, Humidity: " + String(lastHumidity, 0) + " %, VPD: " + String(lastVPD, 1) + " kPa");
-      }
-    }
+    // Read sensor temperatur, humidity and vpd every 10 seconds
+    readSensorData();
     // delay  10 seconds
     delay(10000); 
   }

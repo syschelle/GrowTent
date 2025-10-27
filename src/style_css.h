@@ -20,7 +20,6 @@ const char* cssContent = R"rawliteral(
     a{color:var(--link)}
     h1{font-size:clamp(1.25rem,1.2vw+1rem,1.8rem);margin:0 0 .75rem}
     p,label,input,select,button{font-size:clamp(.95rem,.4vw+.85rem,1.05rem)}
-
     /* Header */
     .header{
       position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;
@@ -56,8 +55,49 @@ const char* cssContent = R"rawliteral(
     .navlink{display:block;padding:12px 18px;text-decoration:none;color:#fff}
     .navlink:hover{background:rgba(255,255,255,.08)}
     .navlink[aria-current='page']{background:rgba(255,255,255,.12)}
+    .navlinkside{
+      display:block; padding: 12px 14px; color: #1e40af; text-decoration: none; transition: background .2s;
+    }
+    .navlinkside:hover{ background: rgba(255,255,255,.08); text-decoration: underline }
+    .navlinkside[aria-current="page"]{ background: rgba(255,255,255,.14) }
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility 0s linear .3s;z-index:20}
     .overlay--show{opacity:1;visibility:visible;pointer-events:auto;transition-delay:0s}
+
+    .weblog-card{
+      margin-top:16px;
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+    .weblog-head{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom: 8px;
+    }
+    .weblog-actions{ display:flex; gap:8px }
+    .weblog{
+      height: 240px; overflow:auto;
+      margin:0; padding:10px;
+      background: var(--muted-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      white-space: pre-wrap;
+    }
+    .btn{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--muted);
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .15s, filter .15s;
+    }
+    .btn:hover{ transform: translateY(-1px) }
+    .btn:active{ transform: none }
 
     /* Content / Layout */
     .content{padding:clamp(14px,1.5vw,24px)}
@@ -103,15 +143,45 @@ const char* cssContent = R"rawliteral(
     /* Card */
     .card{background:var(--muted);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
 
-    /* Gauge layout (no external CSS) */
-    .gauges-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit, minmax(240px,1fr));align-items:start}
-    .gauge-card{border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--muted)}
-    .g-title{font-weight:700;margin-bottom:6px}
-    .gauge{width:100%;max-width:360px;margin:auto}
-    .g-arc{stroke:var(--border);stroke-width:8;fill:none;stroke-linecap:round}
-    .g-needle{stroke:var(--header);stroke-width:2}
-    .g-pivot{fill:var(--header)}
-    .g-label{text-align:center;margin-top:6px;font-weight:700}
-    .g-minmax{display:flex;justify-content:space-between;font-size:.85rem;opacity:.85;margin-top:4px}
+    /* Status: last update under the status text */
+    .last-update {
+      margin: 6px 0 14px;
+      opacity: .9;
+    }
+
+    /* Three columns side by side, responsive */
+    .metrics-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .metric {
+      flex: 1 1 220px;              /* wraps on smaller screens */
+      min-width: 200px;
+      border: 1px solid var(--border, #ddd);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: var(--muted, #fafafa);
+    }
+
+    .metric-label {
+      font-size: .95rem;
+      opacity: .85;
+      margin-bottom: 6px;
+    }
+
+    .metric-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .metric-value .unit {
+      font-size: 1rem;
+      opacity: .8;
+    }
 
 )rawliteral";

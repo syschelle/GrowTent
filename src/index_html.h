@@ -64,9 +64,10 @@ const char* htmlPage = R"rawliteral(
   <div class="layout">
     <nav class="sidebar" id="sidebar">
       <a class="navlink" data-page="status"   data-i18n="nav.status">Status</a>
-      <a class="navlink" data-page="runsettings" data-i18n="nav.runsetting">Betriebseinstellungenn</a>
+      <a class="navlink" data-page="runsettings" data-i18n="nav.runsetting">Betriebseinstellungen</a>
       <a class="navlink" data-page="settings" data-i18n="nav.settings">Systemeinstellungen</a>
-      <a class="navlink" data-page="factory" data-i18n="nav.factory">Werkseinstellung</a>
+      <a class="navlink" data-page="logging" data-i18n="nav.logging">Systemprotokoll</a>
+      <a class="navlink" data-page="factory" data-i18n="nav.factory">Werkseinstellungen</a>
     </nav>
 
   <div class="overlay" id="overlay"></div>
@@ -75,10 +76,38 @@ const char* htmlPage = R"rawliteral(
 
     <!-- status section -->
     <section id="status" class="page active card">
-      <div class="grid">
-        <label for="temperature" data-i18n="status.lastTemperature">Temperatur</label><div class="value" id="tempSpan">–</div>°C
-        <label for="humidity" data-i18n="status.lasthumidity">rel. Feuchte</label><div class="value" id="humSpan">–</div>%
-        <label for="vpd" data-i18n="status.lastvpd">VPD</label><div class="value" id="vpdSpan">–</div>kPa
+      <h1 data-i18n="status.title">Status</h1>
+      <!-- Letztes Update direkt unter dem Statustext -->
+      <p class="last-update">
+        <span data-i18n="status.updated">Letztes Update:</span>
+        <span id="capturedSpan">--</span>
+      </p>
+      <p style="margin-top:10px">
+        <a class="btn" href="/download/history" data-i18n="status.download">CSV herunterladen</a>
+      </p>
+
+      <!-- 3 values side by side -->
+      <div class="metrics-row">
+        <div class="metric">
+          <div class="metric-label" data-i18n="status.lastTemperature">Temperatur</div>
+          <div class="metric-value">
+            <span id="tempSpan">–</span><span class="unit">°C</span>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-label" data-i18n="status.lasthumidity">rel. Feuchte</div>
+          <div class="metric-value">
+            <span id="humSpan">–</span><span class="unit">%</span>
+          </div>
+        </div>
+
+        <div class="metric">
+          <div class="metric-label" data-i18n="status.lastvpd">VPD</div>
+          <div class="metric-value">
+            <span id="vpdSpan">–</span><span class="unit">kPa</span>
+          </div>
+        </div>
       </div>
     </section>
     
@@ -123,6 +152,21 @@ const char* htmlPage = R"rawliteral(
         </select>
       </div>
       <button class="primary" id="saveBtn" data-i18n="settings.save">Speichern</button>
+    </section>
+
+    <!-- system log section -->
+    <section id="logging" class="page card">
+      <h1 data-i18n="logging.title">Systemprotokoll</h1>
+      <div class="weblog-card">
+        <div class="weblog-head">
+          <strong>System-Log</strong>
+          <div class="weblog-actions">
+            <a class="btn" href="/download/log">CSV/TXT Download</a>
+            <button class="btn" id="clearLogBtn" type="button" title="Log löschen">Clear</button>
+          </div>
+        </div>
+        <pre id="weblog" class="weblog" aria-live="polite" aria-label="Laufende Logausgabe">…</pre>
+      </div>
     </section>
 
     <!-- factory reset section -->

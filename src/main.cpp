@@ -13,12 +13,17 @@
 #include <style_css.h>
 #include <java_script.h>
 #include <time.h>
+#include <LittleFS.h>
+#include <deque>
 
 // tasks
 #include <task_Check_Sensor.h>
 
 Preferences preferences;
 WebServer server(80);
+
+// define weblog buffer variable
+std::deque<String> logBuffer;
 
 //function prototypes
 void handleSave();
@@ -28,37 +33,41 @@ void handleSave();
 // setup function
 void setup() {
   Serial.begin(115200);
+  
+  if (!LittleFS.begin(true)) {
+    Serial.println(F("[LITTLEFS] LittleFS mount failed"));
+  } else {
+    Serial.println(F("[LITTLEFS] LittleFS mounted"));
+  }
 
-  preferences.begin(PREF_NS, false);
-  String ssid = preferences.isKey(KEY_SSID) ? preferences.getString(KEY_SSID) : String();
-  String password = preferences.isKey(KEY_PASS) ? preferences.getString(KEY_PASS) : String();
-  preferences.end();
-  Serial.println();
+  // read stored preferences
+  readPreferenes();
 
   // If no SSID is stored, start SoftAP mode
-  if (ssid == "") {
+  if (ssidName == "") {
       espMode = true;
       startSoftAP();
   }
 
   // Try to connect to stored WiFi credentials
-  if (ssid != "") {
-    WiFi.begin(ssid.c_str(), password.c_str());
-    Serial.print("[WIFI] Connecting to: ");
-    Serial.print(ssid + " ");
+  if (ssidName != "") {
+    WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
+    logPrint("[WIFI] Connecting to: ");
+    logPrint(ssidName + " ");
 
     unsigned long startAttemptTime = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
       delay(500);
-      Serial.print(".");
-      Serial.println();
+      logPrint(".");
     }
 
     // Check connection status
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("[WIFI] Connected! ");
-      Serial.print("[WIFI] IP-Address: ");
-      Serial.println(WiFi.localIP());
+      logPrint("[WIFI] Connected! ");
+      logPrint("[WIFI] IP-Address: " + WiFi.localIP().toString());
+
+      // Sync NTP time
+      syncDateTime();
 
       // Initialize relay outputs (LOW = OFF)
       for (int i = 0; i < NUM_RELAYS; i++) {
@@ -71,11 +80,11 @@ void setup() {
 
       while (millis() - startTime < 10000) {
         if (bme.begin(BME_ADDR)) {
-          Serial.println("[SENSOR] BME280 successfully initialized!");
+          logPrint("[SENSOR] BME280 successfully initialized!");
           bmeAvailable = true;
           break;
         } else {
-          Serial.println("[SENSOR] BME280 not found, retrying in 500 ms");
+          logPrint("[SENSOR] BME280 not found, retrying in 500 ms");
           delay(500);
         }
       }
@@ -92,7 +101,7 @@ void setup() {
       
     } else {
       // if not connected, start SoftAP mode
-      Serial.println("[WIFI] Failed to connect. Starting SoftAP mode...");
+      logPrint("[WIFI] Failed to connect. Starting SoftAP mode...");
       startSoftAP();
     }
   }
@@ -100,56 +109,45 @@ void setup() {
   // funtion handlers
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSave);
+  // route for CSS
   server.on("/style.css", []() {
     server.send(200, "text/css", cssContent);
   });
+  // route for JS
   server.on("/script.js", []() {
     server.send(200, "application/javascript", jsContent);
   });
    // route for pure sensor data. for update on the fly in the web page.
   server.on("/sensordata", HTTP_GET, []() {
-    // JSON building: { "temperature": 21.5, "humidity": 45.3, "vpd": 1.23 }
-    JsonDocument doc; doc;
-
-    if (bmeAvailable) {
-      float t = bme.readTemperature();
-      float h = bme.readHumidity();
-      float svp = 0.6108f * exp((17.27f * t) / (t + 237.3f));
-      float vpd = svp - (h / 100.0f) * svp;
-
-      String json = "{";
-      if (!isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
-
-        json += "\"temperature\":" + String(lastTemperature, 1);
-        json += ",\"humidity\":"  + String(lastHumidity, 0);
-        json += ",\"vpd\":"  + String(lastVPD, 1);
-      } else {
-        // Always send valid JSON, even if sensor is not ready
-        json += "\"ok\":false";
-        json += ",\"temperature\":null,\"humidity\":null,\"vpd\":null";
-      }
-      json += "}";
-
-      server.sendHeader("Cache-Control", "no-store");
-      server.send(200, "application/json", json);
-
-      String payload;
-      serializeJson(doc, payload);
-      server.send(200, "application/json", payload);
-    }
+    // Read sensor data and send as JSON
+    String jsonSensorData = readSensorData();
+    server.send(200, "application/json; charset=utf-8", jsonSensorData);
   });
+  // route for factory reset
   server.on("/factory-reset", handleFactoryReset);
+  // route for getting the history log as JSON
+  server.on("/history", HTTP_GET, handleHistory);
   server.onNotFound([](){
     Serial.printf("404 Not Found: %s (method %d)\n", server.uri().c_str(), (int)server.method());
   });
+  // route for downloading the history log as CSV file
+  server.on("/download/history", HTTP_GET, handleDownloadHistory);
+  // route for favicon.ico
   server.on("/favicon.ico", HTTP_GET, []() {
     String data = FAVICON_ICO_BASE64;
     server.send(200, "image/x-icon;base64", data);
   });
+  // API endpoints for log buffer
+  server.on("/api/logbuffer", HTTP_GET, handleApiLogBuffer);
+  // API endpoint to clear log buffer
+  server.on("/api/logbuffer/clear", HTTP_POST, handleClearLog);
+  // API endpoint to download log buffer
+  server.on("/log", HTTP_GET, handleDownloadLog);
+
 
   // start webserver
   server.begin();
-  Serial.println("[APP] Web server started");
+  logPrint("[APP] Web server started");
 }
 
 // loop function
@@ -168,7 +166,7 @@ void loop() {
   struct tm timeinfo;
   if (getLocalTime(&timeinfo)) {
     if (timeinfo.tm_hour == 1 && timeinfo.tm_min == 0 && timeinfo.tm_mday != lastSyncDay) {
-      Serial.println("Performing daily NTP sync...");
+      logPrint("Performing daily NTP sync...");
       configTzTime(tzInfo.c_str(), ntpServer.c_str());
       lastSyncDay = timeinfo.tm_mday;
     }
