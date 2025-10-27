@@ -28,7 +28,6 @@ std::deque<String> logBuffer;
 //function prototypes
 void handleSave();
 void startSoftAP();
-void handleSave();
 
 // setup function
 void setup() {
@@ -41,7 +40,7 @@ void setup() {
   }
 
   // read stored preferences
-  readPreferenes();
+  readPreferences();
 
   // If no SSID is stored, start SoftAP mode
   if (ssidName == "") {
@@ -74,6 +73,10 @@ void setup() {
       pinMode(relayPins[i], OUTPUT);
       digitalWrite(relayPins[i], LOW);
       }
+      
+      // Initialize status LED
+      pinMode(STATUS_LED_PIN, OUTPUT);
+      digitalWrite(STATUS_LED_PIN, LOW);
       
       // Initialize BME280 sensor
       unsigned long startTime = millis();
@@ -157,7 +160,7 @@ void loop() {
 
   // Load NTP server and timezone info from Preferences
   preferences.begin(PREF_NS, true);
-  tzInfo = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String(DEFAULT_TZ_INFO);
+  tzInfo = preferences.isKey(KEY_TZINFO) ? preferences.getString(KEY_TZINFO) : String(DEFAULT_TZ_INFO);
   ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
   preferences.end();
   

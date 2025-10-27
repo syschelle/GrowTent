@@ -78,8 +78,7 @@ void handleRoot() {
 }
 
 // Read stored preferences
-void readPreferenes() {
-  preferences.begin(PREF_NS, true);
+void readPreferences() {
   preferences.begin(PREF_NS, false);
   ssidName = preferences.isKey(KEY_SSID) ? preferences.getString(KEY_SSID) : String();
   ssidPassword = preferences.isKey(KEY_PASS) ? preferences.getString(KEY_PASS) : String();
@@ -89,7 +88,7 @@ void readPreferenes() {
   unit = preferences.isKey(KEY_UNIT) ? preferences.getString(KEY_UNIT) : String("metric");
   timeFormat = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String("24h");
   ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
-  tzInfo = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String(DEFAULT_TZ_INFO);
+  tzInfo = preferences.isKey(KEY_TZINFO) ? preferences.getString(KEY_TZINFO) : String(DEFAULT_TZ_INFO);
   preferences.end();
   Serial.println("[PREF] Preferences loaded:");
 }

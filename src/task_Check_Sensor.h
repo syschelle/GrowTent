@@ -1,5 +1,5 @@
-//check ever 30 seconds the current vpd with target vpd, if current vpd higer than taget vpd then power on the humidifyer shelly
-//after 11 second the shelly for the humidifyer turns automaticly off. Configure that in the Webinterface oft the shelly (auto off).
+//check every 30 seconds the current vpd with target vpd, if current vpd higher than target vpd then power on the humidifier shelly
+//after 11 seconds the shelly for the humidifier turns automatically off. Configure that in the Webinterface of the shelly (auto off).
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>

@@ -24,6 +24,7 @@ static const char* KEY_THEME   = "theme";
 static const char* KEY_UNIT    = "unit";
 static const char* KEY_TFMT    = "timeFmt";
 static const char* KEY_NTPSRV  = "ntpSrv";
+static const char* KEY_TZINFO  = "tzInfo";
 
 // Include sensor libraries
 #define BME_ADDR 0x76
