@@ -114,11 +114,63 @@ const char* htmlPage = R"rawliteral(
     <!-- runsettings section -->
     <section id="runsettings" class="page card">
       <h1 data-i18n="runsetting.title">Betriebseinstellungen</h1>
+
+      <div class="form-group">
+        <label for="targetTemp" data-i18n="runsetting.targetTemp">Soll-Temperatur:</label>
+        <select id="targetTemp">
+          <option value="15">15 °C</option>
+          <option value="15.5">15.5 °C</option>
+          <option value="16">16 °C</option>
+          <option value="16.5">16.5 °C</option>
+          <option value="17">17 °C</option>
+          <option value="17.5">17.5 °C</option>
+          <option value="18">18 °C</option>
+          <option value="18.5">18.5 °C</option>
+          <option value="19">19 °C</option>
+          <option value="19.5">19.5 °C</option>
+          <option value="20">20 °C</option>
+          <option value="20.5">20.5 °C</option>
+          <option value="21">21 °C</option>
+          <option value="21.5">21.5 °C</option>
+          <option value="22">22 °C</option>
+          <option value="22.5">22.5 °C</option>
+          <option value="23">23 °C</option>
+          <option value="23.5">23.5 °C</option>
+          <option value="24">24 °C</option>
+          <option value="24.5">24.5 °C</option>
+          <option value="25">25 °C</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="targetVPD" data-i18n="runsetting.targetVPD">Soll-VPD:</label>
+          <select id="targetVPD">
+            <option value="0.5">0.5 kPa</option>
+            <option value="0.6">0.6 kPa</option>
+            <option value="0.7">0.7 kPa</option>
+            <option value="0.8">0.8 kPa</option>
+            <option value="0.9">0.9 kPa</option>
+            <option value="1.0">1.0 kPa</option>
+            <option value="1.1">1.1 kPa</option>
+            <option value="1.2">1.2 kPa</option>
+            <option value="1.3">1.3 kPa</option>
+            <option value="1.4">1.4 kPa</option>
+            <option value="1.5">1.5 kPa</option>
+            <option value="1.6">1.6 kPa</option>
+            <option value="1.8">1.8 kPa</option>
+            <option value="2.0">2.0 kPa</option>
+          </select>
+      </div>
+      <button class="primary" id="saverunsettingsBtn" data-i18n="settings.save">Speichern</button>
     </section>
 
     <!-- setting section -->
     <section id="settings" class="page card">
       <h1 data-i18n="settings.title">Systemeinstellungen</h1>
+      <div class="form-group">
+        <label for="boxName" data-i18n="settings.boxName">Boxname:</label>
+        <input type="text" data-i18n="settings.boxName.ph" id="boxName" data-i18n-attr="placeholder">
+      </div>
       <div class="form-group">
         <label for="language" data-i18n="settings.language">Sprache:</label>
         <select id="language"></select>
@@ -151,7 +203,7 @@ const char* htmlPage = R"rawliteral(
           <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
         </select>
       </div>
-      <button class="primary" id="saveBtn" data-i18n="settings.save">Speichern</button>
+      <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>
     </section>
 
     <!-- system log section -->
