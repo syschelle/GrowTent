@@ -1,4 +1,4 @@
-// java_script.h
+// java_script.h 
 #pragma once
 
 // Pure JavaScript payload (no <script> tags, no HTML comments)
@@ -10,6 +10,7 @@ const char* jsContent = R"rawliteral(
     s.type = 'application/json';
     s.id   = id;
     s.textContent = JSON.stringify(obj);
+    let currentLang = localStorage.getItem('lang') || 'de';
     document.head.appendChild(s);
   };
 
@@ -36,11 +37,23 @@ const char* jsContent = R"rawliteral(
     "status.lasthumidity": "akt. Luftfeuchte",
     "status.lastvpd": "akt. VPD",
     "runsetting.title": "Betriebseinstellungen",
+    "runsetting.startGrow": "Startdatum:",
+    "runsetting.startFlower": "Startdatum Blüte:",
+    "runsetting.startDry": "Startdatum Trocknung:",
+    "runsetting.phase": "aktuelle Phase:",
+    "runsetting.phase.seed": "STECKLING/KLON",
+    "runsetting.phase.grow": "VEGETATIV",
+    "runsetting.phase.flower": "BLÜTE",
+    "runsetting.phase.dry": "TROCKNUNG",
     "runsetting.targetTemp": "Soll-Temperatur",
     "runsetting.targetVPD": "Soll-VPD:",
     "settings.title": "Systemeinstellungen",
     "settings.boxName": "Boxname:",
     "settings.boxName.ph": "z. B. Growtent-1",
+    "settings.ntpserver": "NTP-Server:",
+    "settings.ntpserver.ph": "z. B. de.pool.ntp.org",
+    "settings.timeZoneInfo": "Zeitzone:",
+    "settings.timeZoneInfo.ph": "z.B. WEST-1D/WEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00",
     "settings.language": "Sprache:",
     "settings.theme": "Theme:",
     "settings.themeLight": "Hell",
@@ -75,10 +88,22 @@ const char* jsContent = R"rawliteral(
     "status.lasthumidity": "current Humidity",
     "status.lastvpd": "current VPD",
     "runsetting.title": "Operating settings",
+    "runsetting.startGrow": "Start Date:",
+    "runsetting.startFlower": "Start Flowering Date:",
+    "runsetting.startDry": "Start Drying Date:",
+    "runsetting.phase": "Current Phase:",
+    "runsetting.phase.seed": "SEEDLING/CLONE",
+    "runsetting.phase.grow": "VEGETATIVE",
+    "runsetting.phase.flower": "FLOWERING",
+    "runsetting.phase.dry": "DRYING",
     "runsetting.targetTemp": "Target temperature",
     "runsetting.targetVPD": "Target VPD",
     "settings.title": "Settings",
     "settings.boxName": "Box name:",
+    "settings.ntpserver": "NTP server:",
+    "settings.ntpserver.ph": "e.g. pool.ntp.org",
+    "settings.timeZoneInfo": "Time zone:",
+    "settings.timeZoneInfo.ph": "e.g. WEST-1D/WEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00",
     "settings.boxName.ph": "e.g. Growtent-1",
     "settings.language": "Language:",
     "settings.theme": "Theme:",
@@ -185,6 +210,53 @@ window.addEventListener('DOMContentLoaded', () => {
   $('timeFormat')?.addEventListener('change', e => { localStorage.setItem('timeFormat', e.target.value); renderHeaderDateTime(); });
   setInterval(renderHeaderDateTime, 1000);
 
+  // ---------- Date input localization ----------
+  const DATE_INPUT_IDS = ['webGrowStart','webFloweringStart','webDryingStart'];
+
+  function setDateInputsLang(lang) {
+    DATE_INPUT_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('lang', lang || 'de');
+    });
+  }
+
+  function updateDatePreview(inputId, previewId) {
+    const inp = document.getElementById(inputId);
+    const prev = document.getElementById(previewId);
+    if (!inp || !prev) return;
+    const val = inp.value;
+    if (!val) { prev.textContent = '—'; return; }
+    const dt = new Date(val + 'T12:00:00');
+    prev.textContent = formatDateWithPattern(dt, getCurDateFmt());
+  }
+
+  function rerenderDatePreviews() {
+    updateDatePreview('webGrowStart', 'prevGrowStart');
+    updateDatePreview('webFloweringStart', 'prevFloweringStart');
+    updateDatePreview('webDryingStart', 'prevDryingStart');
+  }
+
+  // Initial setup
+  rerenderDatePreviews();
+
+  // Event listeners for date inputs
+  document.getElementById('dateFormat')?.addEventListener('change', e => {
+    localStorage.setItem('dateFormat', e.target.value);
+    renderHeaderDateTime();
+    setDateInputsLang(currentLang);
+    rerenderDatePreviews();
+  });
+
+  // beim Sprachwechsel -> applyTranslations patchen
+  (function patchApplyTranslations(){
+    const _origApply = applyTranslations;
+    applyTranslations = function(){
+      _origApply();
+      setDateInputsLang(currentLang);
+      rerenderDatePreviews();
+    };
+  })();
+
   // ---------- Temperature unit (optional text conversions) ----------
   function getTempUnit(){ return localStorage.getItem('tempUnit') || (currentLang === 'en' ? 'F' : 'C'); }
   function setTempUnit(unit){
@@ -214,6 +286,7 @@ window.addEventListener('DOMContentLoaded', () => {
       const attr=el.getAttribute('data-i18n-attr');
       const val=I18N[key];
       if(val!==undefined){ if(attr){ el.setAttribute(attr,val); } else { el.textContent=val; } }
+      rerenderDatePreviews();
     });
     const df=$('dateFormat');
     if(df){ const saved=localStorage.getItem('dateFormat')||getDefaultDateFormatFor(currentLang); if(df.value!==saved) df.value=saved; }
@@ -283,22 +356,39 @@ window.addEventListener('DOMContentLoaded', () => {
   updateSensorValues();
 
   // ---------- Embedded Web-Log ----------
-  let logTimer = null;
+  let logTimer = null;  // (nur EINMAL deklarieren)
 
   async function fetchWebLog() {
     try {
       const r = await fetch('/api/logbuffer', { cache: 'no-store' });
       if (!r.ok) return;
       const t = await r.text();
-      const pre = $('weblog');
+      const pre = document.getElementById('weblog');
       if (pre) {
+        // nur scrollen, wenn autoScroll aktiv
+        const atBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 5;
         pre.textContent = t || '—';
-        pre.scrollTop = pre.scrollHeight; // auto-scroll to bottom
+        if (autoScroll && atBottom) {
+          pre.scrollTop = pre.scrollHeight;
+        }
       }
     } catch (e) {
       console.warn('weblog fetch failed', e);
     }
   }
+
+  // --- Benutzerinteraktion: Auto-Scroll deaktivieren, wenn man manuell scrollt ---
+  document.addEventListener('DOMContentLoaded', () => {
+    const pre = document.getElementById('weblog');
+    if (!pre) return;
+
+    pre.addEventListener('scroll', () => {
+      // Wenn Benutzer nach oben scrollt, AutoScroll aus
+      const nearBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 10;
+      autoScroll = nearBottom;
+    });
+  });
+
   function startWebLog() {
     if (logTimer) return;
     fetchWebLog();
@@ -309,19 +399,54 @@ window.addEventListener('DOMContentLoaded', () => {
     clearInterval(logTimer);
     logTimer = null;
   }
-  $('clearLogBtn')?.addEventListener('click', async () => {
-    try {
-      await fetch('/api/logbuffer/clear', { method: 'POST' });
-      fetchWebLog();
-    } catch {}
+ 
+  // Sichtbarkeit: wenn Tab/Browser verdeckt -> pausieren
+  document.addEventListener('visibilitychange', () => {
+    const loggingActive = document.getElementById('logging')?.classList.contains('active');
+    if (document.visibilityState === 'visible' && loggingActive) startWebLog();
+    else stopWebLog();
   });
 
-  // Fire on page changes (status => start log polling)
+  // SPA-Seitenwechsel-Callback (AUFRUFEN, wenn die aktive Seite geändert wird)
   function onPageChanged(activeId) {
-    if (activeId === 'status') startWebLog(); else stopWebLog();
+    if (activeId === 'logging') startWebLog(); else stopWebLog();
   }
-  // Initial: assume status is active on load
-  onPageChanged('status');
+
+  // Der ESP32 ersetzt %PHASE% beim Senden der Seite, z. B. mit "grow", "flower" oder "dry"
+  function initPhaseSelect(){
+    const currentPhase = '%PHASE%';
+    const sel = document.getElementById('phaseSelect');
+
+    if (!sel) return;
+
+    // Sichere Werte überprüfen
+    const validPhases = ['grow', 'flower', 'dry'];
+    const phase = validPhases.includes(currentPhase) ? currentPhase : 'grow';
+
+    // Select-Feld setzen
+    sel.value = phase;
+
+    // Optional: Im Statusbereich anzeigen, falls ein Element vorhanden ist
+    const phaseLabel = document.getElementById('currentPhase');
+    if (phaseLabel) {
+      const phaseNames = {
+        grow:   'Wuchs (Grow)',
+        flower: 'Blüte (Flower)',
+        dry:    'Trocknung (Dry)',
+      };
+      phaseLabel.textContent = phaseNames[phase] || phase;
+    }
+    
+  }
+  
+  document.getElementById('toggleScrollBtn')?.addEventListener('click', () => {
+    autoScroll = !autoScroll;
+    document.getElementById('toggleScrollBtn').textContent = `AutoScroll: ${autoScroll ? 'ON' : 'OFF'}`;
+  });
+
+  // Initial call to set the correct page on load
+  const initiallyActive = document.querySelector('.page.active')?.id || 'status';
+  onPageChanged(initiallyActive);
 
 }); // end DOMContentLoaded
 )rawliteral";

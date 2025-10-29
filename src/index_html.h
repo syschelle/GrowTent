@@ -46,6 +46,7 @@ static const char I18N_EN[] PROGMEM = R"json(
 const char* htmlPage = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
@@ -116,50 +117,39 @@ const char* htmlPage = R"rawliteral(
       <h1 data-i18n="runsetting.title">Betriebseinstellungen</h1>
 
       <div class="form-group">
-        <label for="targetTemp" data-i18n="runsetting.targetTemp">Soll-Temperatur:</label>
-        <select id="targetTemp">
-          <option value="15">15 °C</option>
-          <option value="15.5">15.5 °C</option>
-          <option value="16">16 °C</option>
-          <option value="16.5">16.5 °C</option>
-          <option value="17">17 °C</option>
-          <option value="17.5">17.5 °C</option>
-          <option value="18">18 °C</option>
-          <option value="18.5">18.5 °C</option>
-          <option value="19">19 °C</option>
-          <option value="19.5">19.5 °C</option>
-          <option value="20">20 °C</option>
-          <option value="20.5">20.5 °C</option>
-          <option value="21">21 °C</option>
-          <option value="21.5">21.5 °C</option>
-          <option value="22">22 °C</option>
-          <option value="22.5">22.5 °C</option>
-          <option value="23">23 °C</option>
-          <option value="23.5">23.5 °C</option>
-          <option value="24">24 °C</option>
-          <option value="24.5">24.5 °C</option>
-          <option value="25">25 °C</option>
+        <div class="tile-right-settings">
+          <div class="form-group">
+            <label for="webGrowStart" data-i18n="runsetting.startGrow">Start Grow Date:</label>
+            <input id="webGrowStart" name="webGrowStart" type="date" style="width: 170px;" value="%GROWSTARTDATE%">
+          </div>
+          <div class="form-group">
+            <label for="webFloweringStart" data-i18n="runsetting.startFlower">Start Flowering Date:</label>
+            <input id="webFloweringStart" name="webFloweringStart" type="date" style="width: 170px;" value="%GROWFLOWERDATE%">
+          </div>
+          <div class="form-group">
+            <label for="webDryingStart" data-i18n="runsetting.startDry">Start Drying Date:</label>
+            <input id="webDryingStart" name="webDryingStart" type="date" style="width: 170px;" value="%GROWDRAYINGDATE%">
+          </div>
+        </div>
+
+        <div class="form-group">
+        <label for="phaseSelect" data-i18n="runsetting.phase">Phase:</label>
+        <select id="phaseSelect" style="width: 170px;" name="phaseSelect">
+          <option value="seed"   data-i18n="runsetting.phase.seed">Steckling/Klon</option>
+          <option value="grow"   data-i18n="runsetting.phase.grow">Wuchs</option>
+          <option value="flower" data-i18n="runsetting.phase.flower">Blüte</option>
+          <option value="dry"    data-i18n="runsetting.phase.dry">Trocknung</option>
         </select>
+        </div>
+
+      <div class="form-group">
+        <label for="targetTemp" data-i18n="runsetting.targetTemp">Soll-Temperatur:</label>
+        <input id="targetTemp" style="width: 65px;" type="number" step="0.5" min="18" max="30" value="%TARGETTEMPERATURE%">&nbsp;°C
       </div>
 
       <div class="form-group">
         <label for="targetVPD" data-i18n="runsetting.targetVPD">Soll-VPD:</label>
-          <select id="targetVPD">
-            <option value="0.5">0.5 kPa</option>
-            <option value="0.6">0.6 kPa</option>
-            <option value="0.7">0.7 kPa</option>
-            <option value="0.8">0.8 kPa</option>
-            <option value="0.9">0.9 kPa</option>
-            <option value="1.0">1.0 kPa</option>
-            <option value="1.1">1.1 kPa</option>
-            <option value="1.2">1.2 kPa</option>
-            <option value="1.3">1.3 kPa</option>
-            <option value="1.4">1.4 kPa</option>
-            <option value="1.5">1.5 kPa</option>
-            <option value="1.6">1.6 kPa</option>
-            <option value="1.8">1.8 kPa</option>
-            <option value="2.0">2.0 kPa</option>
-          </select>
+        <input id="targetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
       </div>
       <button class="primary" id="saverunsettingsBtn" data-i18n="settings.save">Speichern</button>
     </section>
@@ -169,36 +159,47 @@ const char* htmlPage = R"rawliteral(
       <h1 data-i18n="settings.title">Systemeinstellungen</h1>
       <div class="form-group">
         <label for="boxName" data-i18n="settings.boxName">Boxname:</label>
-        <input type="text" data-i18n="settings.boxName.ph" id="boxName" data-i18n-attr="placeholder">
+        <input type="text" data-i18n="settings.boxName.ph" id="boxName" data-i18n-attr="placeholder" style="width: 300px; value="%CONTENTCONTROLLERNAME%">
+      </div>
+      <div class="form-group">
+        <label for="ntpServer" data-i18n="settings.ntpserver">NTP-Server:</label>
+        <input type="text" data-i18n="settings.ntpserver.ph" id="ntpServer" data-i18n-attr="placeholder" style="width: 250px; value="%NTPSERVER%">
+      </div>
+      <div class="form-group">
+        <div class="label-inline">
+          <label for="timeZoneInfo" data-i18n="settings.timeZoneInfo">Zeitzone:</label>
+          &nbsp;<a href="https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json" target="_blank" rel="noopener noreferrer">🌐</a>
+        </div>
+        <input type="text" data-i18n="settings.timeZoneInfo.ph" id="timeZoneInfo" data-i18n-attr="placeholder" style="width: 300px; value="%TZINFO%">
       </div>
       <div class="form-group">
         <label for="language" data-i18n="settings.language">Sprache:</label>
-        <select id="language"></select>
+        <select id="language" style="width: 100px;"></select>
       </div>
       <div class="form-group">
         <label for="theme" data-i18n="settings.theme">Theme:</label>
-        <select id="theme">
-          <option value="light" data-i18n="settings.themeLight">Hell</option>
-          <option value="dark"  data-i18n="settings.themeDark">Dunkel</option>
+        <select id="theme" style="width: 100px;">
+          <option value="light" data-i18n="settings.themeLight" value="Hell">Hell</option>
+          <option value="dark"  data-i18n="settings.themeDark" value="Dunkel">Dunkel</option>
         </select>
       </div>
       <div class="form-group">
         <label for="dateFormat" data-i18n="settings.dateFormat">Datumsformat:</label>
-        <select id="dateFormat">
+        <select id="dateFormat" style="width: 140px;">
           <option value="YYYY-MM-DD" data-i18n="settings.df_ymd">YYYY-MM-DD</option>
           <option value="DD.MM.YYYY" data-i18n="settings.df_dmy">DD.MM.YYYY</option>
         </select>
       </div>
       <div class="form-group">
         <label for="timeFormat" data-i18n="settings.timeFormat">Zeitformat:</label>
-        <select id="timeFormat">
+        <select id="timeFormat" style="width: 100px;">
           <option value="24"     data-i18n="settings.tf_HHmm">24h</option>
           <option value="12"   data-i18n="settings.tf_hhmma">12h AM/PM</option>
         </select>
       </div>
       <div class="form-group">
         <label for="tempUnit" data-i18n="settings.tempUnit">Temperatur-Einheit:</label>
-        <select id="tempUnit">
+        <select id="tempUnit" style="width: 140px;">
           <option value="C" data-i18n="settings.celsius">°C (Celsius)</option>
           <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
         </select>
@@ -214,6 +215,7 @@ const char* htmlPage = R"rawliteral(
           <strong>System-Log</strong>
           <div class="weblog-actions">
             <a class="btn" href="/download/log">CSV/TXT Download</a>
+            <button class="btn" id="toggleScrollBtn" type="button">AutoScroll: ON</button>
             <button class="btn" id="clearLogBtn" type="button" title="Log löschen">Clear</button>
           </div>
         </div>

@@ -68,10 +68,22 @@ void handleRoot() {
     html = FPSTR(apPage);
     // Replace placeholders in index_html.h
     html.replace("%CONTENTCONTROLLERNAME%",  boxName);
-  } else {
+    } else {
     html = FPSTR(htmlPage);
     // Replace placeholders in index_html.h
     html.replace("%CONTENTCONTROLLERNAME%",  boxName);
+    html.replace("%GROWSTARTDATE%",  startDate);
+    html.replace("%GROWFLOWERDATE%",  startFlowering);
+    html.replace("%GROWDRAYINGDATE%",  startDrying);
+    html.replace("%TARGETTEMPERATURE%",  String(targetTemperature, 1));
+    html.replace("%TARGETVPD%",  String(targetVPD, 1));
+
+    html.replace("%NTPSERVER%",  ntpServer);
+    html.replace("%TZINFO%",  tzInfo);
+    html.replace("%THEME%", theme);
+    html.replace("%LANGUAGE%", language);
+    html.replace("%TIMEFORMAT%", timeFormat);
+    html.replace("%UNIT%", unit);
   }
 
   server.send(200, "text/html", html);
@@ -81,17 +93,26 @@ void handleRoot() {
 void readPreferenes() {
   preferences.begin(PREF_NS, true);
   preferences.begin(PREF_NS, false);
+  //WIFI
   ssidName = preferences.isKey(KEY_SSID) ? preferences.getString(KEY_SSID) : String();
   ssidPassword = preferences.isKey(KEY_PASS) ? preferences.getString(KEY_PASS) : String();
+  // running settings
+  startDate = preferences.isKey(KEY_STARTDATE) ? preferences.getString(KEY_STARTDATE) : String("");
+  startFlowering = preferences.isKey(KEY_FLOWERDATE) ? preferences.getString(KEY_FLOWERDATE) : String("");
+  startDrying = preferences.isKey(KEY_DRYINGDATE) ? preferences.getString(KEY_DRYINGDATE) : String("");
+  curPhase = preferences.isKey(KEY_CURRENTPHASE) ? preferences.getInt(KEY_CURRENTPHASE) : 3;
+  targetTemperature = preferences.isKey(KEY_TARGETTEMP) ? preferences.getFloat(KEY_TARGETTEMP) : 22.0;
+  targetVPD = preferences.isKey(KEY_TARGETVPD) ? preferences.getFloat(KEY_TARGETVPD) : 1.0;
+  // settings
   boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("GrowTent");
+  ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
+  tzInfo = preferences.isKey(KEY_TZINFO) ? preferences.getString(KEY_TZINFO) : String(DEFAULT_TZ_INFO);
   language = preferences.isKey(KEY_LANG) ? preferences.getString(KEY_LANG) : String("de");
   theme = preferences.isKey(KEY_THEME) ? preferences.getString(KEY_THEME) : String("light");
   unit = preferences.isKey(KEY_UNIT) ? preferences.getString(KEY_UNIT) : String("metric");
   timeFormat = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String("24h");
-  ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
-  tzInfo = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String(DEFAULT_TZ_INFO);
   preferences.end();
-  Serial.println("[PREF] Preferences loaded:");
+  logPrint("[PREF] Preferences loaded:");
 }
 
 // Handle form submission save WIFI credentials

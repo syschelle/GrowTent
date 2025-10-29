@@ -17,7 +17,7 @@ const char* cssContent = R"rawliteral(
     *{box-sizing:border-box}
     html{font-size:16px}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
-    a{color:var(--link)}
+    a{color:var(--link); text-decoration: none;}
     h1{font-size:clamp(1.25rem,1.2vw+1rem,1.8rem);margin:0 0 .75rem}
     p,label,input,select,button{font-size:clamp(.95rem,.4vw+.85rem,1.05rem)}
     /* Header */
@@ -63,6 +63,19 @@ const char* cssContent = R"rawliteral(
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s ease,visibility 0s linear .3s;z-index:20}
     .overlay--show{opacity:1;visibility:visible;pointer-events:auto;transition-delay:0s}
 
+    .date-row label {
+      flex: 1;
+      white-space: nowrap;
+    }
+
+    .date-row input[type="date"] {
+      flex: 0 0 160px; /* feste Breite, anpassbar */
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+    }
+
     .weblog-card{
       margin-top:16px;
       background: var(--muted);
@@ -76,15 +89,27 @@ const char* cssContent = R"rawliteral(
       margin-bottom: 8px;
     }
     .weblog-actions{ display:flex; gap:8px }
-    .weblog{
-      height: 240px; overflow:auto;
-      margin:0; padding:10px;
-      background: var(--muted-2);
-      border: 1px solid var(--border);
+    .weblog {
+      background-color: #000;       /* tiefes Schwarz */
+      color: #00ff00;               /* grelles Grün */
+      font-family: "Courier New", Courier, monospace;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      padding: 10px;
       border-radius: 8px;
-      font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      border: 1px solid #0f0;
+      height: 420px;                /* anpassen wie du willst */
+      overflow-y: auto;
       white-space: pre-wrap;
+      box-shadow: 0 0 8px #00ff00a0 inset; /* leichter Glow-Effekt */
     }
+    .weblog::-webkit-scrollbar {
+      width: 10px;
+    }
+    .weblog::-webkit-scrollbar-track {
+      background-color: #001a00;
+    }
+
     .btn{
       display:inline-block;
       padding:6px 10px;
@@ -118,6 +143,33 @@ const char* cssContent = R"rawliteral(
       cursor: pointer;
       transition: all 0.25s ease;          /* sanfter Übergang */
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .label-inline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px; /* sorgt für Abstand nach unten */
+    }
+
+    .label-inline label {
+      margin: 0;
+    }
+
+    .label-inline .tz-link {
+      text-decoration: none;
+      font-size: 1.1rem;
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+    }
+
+    .label-inline .tz-link:hover {
+      opacity: 1;
+    }
+
+    #timeZoneInfo {
+      display: block;     /* zwingt neue Zeile */
+      width: 260px;
     }
 
     button.primary:hover {

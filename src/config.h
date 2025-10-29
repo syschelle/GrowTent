@@ -15,15 +15,26 @@ String ssidName = "";
 String ssidPassword = "";
 
 // Namespace for Preferences
+// WIFI keys
 static const char* KEY_SSID    = "ssid";
 static const char* KEY_PASS    = "password";
+// namespace for preferences
 static const char* PREF_NS     = "growtent";
+//runningsettings
+static const char* KEY_STARTDATE = "startDate";
+static const char* KEY_FLOWERDATE = "startFlowering";
+static const char* KEY_DRYINGDATE = "startDrying";
+static const char* KEY_CURRENTPHASE = "curPhase";
+static const char* KEY_TARGETTEMP = "targetTemp";
+static const char* KEY_TARGETVPD = "targetVPD";
+// settings
 static const char* KEY_NAME    = "boxName";
 static const char* KEY_LANG    = "lang";
 static const char* KEY_THEME   = "theme";
 static const char* KEY_UNIT    = "unit";
 static const char* KEY_TFMT    = "timeFmt";
 static const char* KEY_NTPSRV  = "ntpSrv";
+static const char* KEY_TZINFO  = "tzInfo";
 
 // Include sensor libraries
 #define BME_ADDR 0x76
@@ -59,11 +70,11 @@ static constexpr uint32_t MEASUREMENT_INTERVAL_MS = 30000; // 30s
 
 // default-NTP-Server
 const char* DEFAULT_NTP_SERVER = "de.pool.ntp.org";
-String ntpServer = "";
+String ntpServer;
 
 // default-timezone (POSIX-String)
 const char* DEFAULT_TZ_INFO    = "WEST-1DWEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";  // Western European Time
-String tzInfo = "";
+String tzInfo;
 
 // day of month for last NTP sync
 RTC_DATA_ATTR int lastSyncDay = -1;
@@ -79,11 +90,18 @@ volatile float lastVPD = NAN;
 const uint32_t READ_INTERVAL_MS = 1000;
 uint32_t lastRead = 0;
 
+// Default growlight setting
+char actualDate[10];
+String startDate;
+String startFlowering;
+String startDrying;
+
 // Growth phase configuration
-const char* phaseNames[5] = { "", "Seedling/Clone", "Vegetative", "Flowering", "Drying"};
+const char* phaseNames[5] = { "Seedling/Clone", "Vegetative", "Flowering", "Drying"};
 int curPhase;
+float targetTemperature;
 // Default VPD targets per phase
-const float defaultVPDs[5] = { 0.0f, 0.8f, 1.2f, 1.4f, 1.0f };
+float targetVPD;
 
 // Logfile-Settings
 static const char* LOG_PATH = "/envlog.csv"; // CSV: ts_ms,tempC,hum,vpd
