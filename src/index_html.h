@@ -58,9 +58,7 @@ const char* htmlPage = R"rawliteral(
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
     <div class="title" data-i18n="app.title">%CONTROLLERNAME%</div>
     <span id="unsavedHint" class="dirty-hint" hidden data-i18n="settings.unsaved"></span>
-    <div>
-      %CURRENTGROW%
-    </div>
+    <div class='grow-info'>%CURRENTGROW%</div>
     <div class="datetime">
       <div id="headerDate"></div>
       <div id="headerTime"></div>
@@ -186,30 +184,31 @@ const char* htmlPage = R"rawliteral(
     </form>
 
     <!-- setting section -->
+    <form action="/savesettings" method="POST">
     <section id="settings" class="page card">
       <h1 data-i18n="settings.title">Systemeinstellungen</h1>
       <div class="form-group">
         <label for="boxName" data-i18n="settings.boxName">Boxname:</label>
-        <input type="text" data-i18n="settings.boxName.ph" id="boxName" data-i18n-attr="placeholder" style="width: 320px; value="%CONTROLLERNAME%">
+        <input name="webBoxName" type="text" data-i18n="settings.boxName.ph" id="webBoxName" data-i18n-attr="placeholder" style="width: 320px; value="%CONTROLLERNAME%">
       </div>
       <div class="form-group">
         <label for="ntpServer" data-i18n="settings.ntpserver">NTP-Server:</label>
-        <input type="text" data-i18n="settings.ntpserver.ph" id="ntpServer" data-i18n-attr="placeholder" style="width: 250px; value="%NTPSERVER%">
+        <input name="webNTPServer" type="text" data-i18n="settings.ntpserver.ph" id="webNTPServer" data-i18n-attr="placeholder" style="width: 250px; value="%NTPSERVER%">
       </div>
       <div class="form-group">
         <div class="label-inline">
           <label for="timeZoneInfo" data-i18n="settings.timeZoneInfo">Zeitzone:</label>
           &nbsp;<a href="https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json" target="_blank" rel="noopener noreferrer">🌐</a>
         </div>
-        <input type="text" data-i18n="settings.timeZoneInfo.ph" id="timeZoneInfo" data-i18n-attr="placeholder" style="width: 320px; value="%TZINFO%">
+        <input name="webTimeZoneInfo" type="text" data-i18n="settings.timeZoneInfo.ph" id="webTimeZoneInfo" data-i18n-attr="placeholder" style="width: 320px; value="%TZINFO%">
       </div>
       <div class="form-group">
         <label for="language" data-i18n="settings.language">Sprache:</label>
-        <select id="language" style="width: 100px;"></select>
+        <select name="webLanguage" id="language" style="width: 100px;"></select>
       </div>
       <div class="form-group">
         <label for="theme" data-i18n="settings.theme">Theme:</label>
-        <select id="theme" style="width: 100px;">
+        <select name="webTheme" id="theme" style="width: 100px;">
           <option value="light" data-i18n="settings.themeLight" value="Hell">Hell</option>
           <option value="dark"  data-i18n="settings.themeDark" value="Dunkel">Dunkel</option>
         </select>
@@ -217,26 +216,27 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="dateFormat" data-i18n="settings.dateFormat">Datumsformat:</label>
         <select id="dateFormat" style="width: 140px;">
-          <option value="YYYY-MM-DD" data-i18n="settings.df_ymd">YYYY-MM-DD</option>
-          <option value="DD.MM.YYYY" data-i18n="settings.df_dmy">DD.MM.YYYY</option>
+          <option name="webDateFormat" value="YYYY-MM-DD" data-i18n="settings.df_ymd">YYYY-MM-DD</option>
+          <option name="webDateFormat" value="DD.MM.YYYY" data-i18n="settings.df_dmy">DD.MM.YYYY</option>
         </select>
       </div>
       <div class="form-group">
         <label for="timeFormat" data-i18n="settings.timeFormat">Zeitformat:</label>
         <select id="timeFormat" style="width: 100px;">
-          <option value="24"     data-i18n="settings.tf_HHmm">24h</option>
-          <option value="12"   data-i18n="settings.tf_hhmma">12h AM/PM</option>
+          <option name="webTimeFormat" value="24"     data-i18n="settings.tf_HHmm">24h</option>
+          <option name="webTimeFormat" value="12"   data-i18n="settings.tf_hhmma">12h AM/PM</option>
         </select>
       </div>
       <div class="form-group">
         <label for="tempUnit" data-i18n="settings.tempUnit">Temperatur-Einheit:</label>
         <select id="tempUnit" style="width: 140px;">
-          <option value="C" data-i18n="settings.celsius">°C (Celsius)</option>
-          <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
+          <option name="webTempUnit" value="C" data-i18n="settings.celsius">°C (Celsius)</option>
+          <option name="webTempUnit" value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
         </select>
       </div>
       <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>
     </section>
+    </form>
 
     <!-- system log section -->
     <section id="logging" class="page card">

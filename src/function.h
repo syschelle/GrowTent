@@ -80,7 +80,7 @@ void handleRoot() {
       calculateTimeSince(startDate, daysSinceStartInt, weeksSinceStartInt);
       String days = String(daysSinceStartInt);
       String weeks = String(weeksSinceStartInt);
-      html.replace("%CURRENTGROW%", "Run: " + days + " Tage | " + weeks + " Wochen");
+      html.replace("%CURRENTGROW%", "Grow seit: " + days + " Tage | " + weeks + " Wochen");
     } else {
       html.replace("%CURRENTGROW%", "");
     }
@@ -132,7 +132,7 @@ void readPreferences() {
   unit = preferences.isKey(KEY_UNIT) ? preferences.getString(KEY_UNIT) : String("metric");
   timeFormat = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String("24h");
   preferences.end();
-  logPrint("[PREF] ssid:" + ssidName + " boxName:" + boxName + " language:" + language + " theme:" + theme +
+  logPrint("[PREF] loading - ssid:" + ssidName + " boxName:" + boxName + " language:" + language + " theme:" + theme +
            " unit:" + unit + " timeFormat:" + timeFormat + " ntpServer:" + ntpServer + " tzInfo:" + tzInfo +
            " startDate:" + startDate + " floweringStart:" + startFlowering + " dryingStart:" + startDrying +
            " targetTemperature:" + targetTemperature + " offsetLeafTemperature:" + offsetLeafTemperature + 
@@ -206,7 +206,7 @@ void handleSaveRunsettings() {
   preferences.end(); // always close Preferences handle
 
   // 10) Log everything for debugging
-  logPrint(String("[PREF] startDate:") + chkStartDate +
+  logPrint(String("[PREF] runssetings saved startDate:") + chkStartDate +
            " floweringStart:" + chkFloweringStart +
            " dryingStart:" + chkDryingStart +
            " curPhase:" + String(chkPhase) +
@@ -221,8 +221,79 @@ void handleSaveRunsettings() {
   ESP.restart();
 }
 
+// Handle general settings save
+void handleSaveSettings() {
+  // 1) Open the Preferences namespace with write access (readOnly = false)
+  // Only call begin() once — calling it twice can cause writes to fail!
+  if (!preferences.begin(PREF_NS, false)) {
+    logPrint("[PREF][ERROR] preferences.begin() failed. "
+             "Check that PREF_NS length <= 15 characters.");
+    server.send(500, "text/plain", "Failed to open Preferences");
+    return;
+  }
+
+  // 2) Save controller name if provided
+  if (server.hasArg("webControllerName")) {
+    String v = server.arg("webControllerName");
+    preferences.putString(KEY_NAME, v) > 0;
+    boxName = v; // also update RAM variable
+  }
+  // 3) Save NTP server if provided
+  if (server.hasArg("webNTPServer")) {
+    String v = server.arg("webNTPServer");
+    preferences.putString(KEY_NTPSRV, v) > 0;
+    ntpServer = v;
+  }
+  // 4) Save timezone info if provided
+  if (server.hasArg("webTimeZoneInfo")) {
+    String v = server.arg("webTimeZoneInfo");
+    preferences.putString(KEY_TZINFO, v) > 0;
+    tzInfo = v;
+  } 
+  // 5) Save language if provided
+  if (server.hasArg("webLanguage")) {
+    String v = server.arg("webLanguage");
+    preferences.putString(KEY_LANG, v) > 0;
+    language = v;
+  }
+  // 6) Save theme if provided
+  if (server.hasArg("webTheme")) {
+    String v = server.arg("webTheme");
+    preferences.putString(KEY_THEME, v) > 0;
+    theme = v;
+  }
+  // 7) Save time format if provided
+  if (server.hasArg("webTimeFormat")) {
+    String v = server.arg("webTimeFormat");
+    preferences.putString(KEY_TFMT, v) > 0;
+    timeFormat = v;
+  } 
+  // 8) Save unit if provided
+  if (server.hasArg("webTempUnit")) { 
+    String v = server.arg("webTempUnit");
+    preferences.putString(KEY_UNIT, v) > 0;
+    unit = v;
+  }
+  preferences.end(); // always close Preferences handle
+
+  // 9) Log everything for debugging
+  logPrint(String("[PREF] settings saved boxName:") + boxName +
+           " ntpServer:" + ntpServer +
+           " tzInfo:" + tzInfo +
+           " lang:" + language +
+           " theme:" + theme +
+           " timeFormat:" + timeFormat +
+           " unit:" + unit);
+
+  // 11) Send redirect response and restart the ESP
+  server.sendHeader("Location", "/");
+  server.send(303);  // HTTP redirect to status page
+  delay(250);
+  ESP.restart();
+}
+
 // Handle form submission save WIFI credentials
-void handleSave() {
+void handleSaveWiFi() {
   if (server.hasArg("ssid") && server.hasArg("password")) {
     String ssid = server.arg("ssid");
     String password = server.arg("password");

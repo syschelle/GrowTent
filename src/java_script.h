@@ -24,6 +24,9 @@ const char* jsContent = R"rawliteral(
 
   addJSON('i18n-de', {
     "a11y.menu": "Menü öffnen/schließen",
+    "info.Grow": "Aktueller Grow",
+    "info.Days": "Tage",
+    "info.Weeks": "Wochen",
     "settings.unsaved": "Änderungen – bitte speichern",
     "nav.status": "Status",
     "nav.runsetting": "Betriebseinstellungen",
@@ -77,6 +80,9 @@ const char* jsContent = R"rawliteral(
 
   addJSON('i18n-en', {
     "a11y.menu": "Open/close menu",
+    "info.Grow": "Current Grow",
+    "info.Days": "Days",
+    "info.Weeks": "Weeks",
     "settings.unsaved": "Changes pending – please save",
     "nav.status": "Status",
     "nav.runsetting": "Operating Settings",

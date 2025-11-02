@@ -242,6 +242,11 @@ const char* cssContent = R"rawliteral(
       opacity: 0.8;
     }
 
+    .grow-info {
+      font-weight: 500;
+      font-size: 1em;
+      opacity: 0.9;
+    }
     .spacer { height: 16px; }
 
 )rawliteral";
