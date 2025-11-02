@@ -236,4 +236,12 @@ const char* cssContent = R"rawliteral(
       opacity: .8;
     }
 
+    .metric-sub{
+      margin-top: 4px;
+      font-size: 0.92rem;
+      opacity: 0.8;
+    }
+
+    .spacer { height: 16px; }
+
 )rawliteral";

@@ -41,7 +41,7 @@ void setup() {
   }
 
   // read stored preferences
-  readPreferenes();
+  readPreferences();
 
   // If no SSID is stored, start SoftAP mode
   if (ssidName == "") {
@@ -109,6 +109,7 @@ void setup() {
   // funtion handlers
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSave);
+  server.on("/saverunsettings", HTTP_POST, handleSaveRunsettings);
   // route for CSS
   server.on("/style.css", []() {
     server.send(200, "text/css", cssContent);

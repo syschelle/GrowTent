@@ -26,6 +26,7 @@ static const char* KEY_FLOWERDATE = "startFlowering";
 static const char* KEY_DRYINGDATE = "startDrying";
 static const char* KEY_CURRENTPHASE = "curPhase";
 static const char* KEY_TARGETTEMP = "targetTemp";
+static const char* KEY_LEAFTEMP = "offsetLeaf";
 static const char* KEY_TARGETVPD = "targetVPD";
 // settings
 static const char* KEY_NAME    = "boxName";
@@ -58,9 +59,9 @@ static const char* relayNames[NUM_RELAYS] = {
 };
 
 // Global configuration variables
-String boxName = "GrowTent";
-String language = "de";
-String theme = "light"; // light or dark
+String boxName;
+String language;
+String theme; // light or dark
 String unit = "metric"; // metric or imperial
 String timeFormat = "24h"; // 12h or 24h
 bool espMode = false; // false = Station mode, true = Access Point mode
@@ -95,11 +96,18 @@ char actualDate[10];
 String startDate;
 String startFlowering;
 String startDrying;
+int daysSinceStart = 0;
+int weeksSinceStart = 0;
+int daysSinceFlowering = 0;
+int weeksSinceFlowering = 0;
+int daysSinceDrying = 0;
+int weeksSinceDrying = 0;
 
 // Growth phase configuration
-const char* phaseNames[5] = { "Seedling/Clone", "Vegetative", "Flowering", "Drying"};
+const char* phaseNames[3] = { "Vegetative", "Flowering", "Drying"};
 int curPhase;
 float targetTemperature;
+float offsetLeafTemperature;
 // Default VPD targets per phase
 float targetVPD;
 

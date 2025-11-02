@@ -48,15 +48,19 @@ const char* htmlPage = R"rawliteral(
 <html lang="en">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <head>
-  <title>%CONTENTCONTROLLERNAME%</title>
+  <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
-    <div class="title" data-i18n="app.title">%CONTENTCONTROLLERNAME%</div>
+    <div class="title" data-i18n="app.title">%CONTROLLERNAME%</div>
     <span id="unsavedHint" class="dirty-hint" hidden data-i18n="settings.unsaved"></span>
+    <div>
+      %CURRENTGROW%
+    </div>
     <div class="datetime">
       <div id="headerDate"></div>
       <div id="headerTime"></div>
@@ -94,6 +98,13 @@ const char* htmlPage = R"rawliteral(
           <div class="metric-value">
             <span id="tempSpan">–</span><span class="unit">°C</span>
           </div>
+          <div class="spacer"></div>
+          <div class="metric-sub">
+            <span data-i18n="status.targetTemp">Soll</span>
+            <div class="metric-value">
+              <span id="targetTempStatus">%TARGETTEMPERATURE%</span> <span class="unit">°C</span>
+            </div>
+          </div>
         </div>
 
         <div class="metric">
@@ -108,11 +119,26 @@ const char* htmlPage = R"rawliteral(
           <div class="metric-value">
             <span id="vpdSpan">–</span><span class="unit">kPa</span>
           </div>
+          <div class="spacer"></div>
+          <div class="metric-sub">
+            <span data-i18n="status.targetVpd">Soll</span>
+            <div class="metric-value">
+              <span id="targetVpdStatus">%TARGETVPD%</span> <span class="unit">kPa</span>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <div class="metric-sub">
+            <span data-i18n="runsetting.offsetLeafTemperature">Offset Blatttemperatur:</span>
+            <div class="metric-value">
+              <span id="leafTempStatus">%LEAFTEMPERATURE%</span> <span class="unit">°C</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
     
     <!-- runsettings section -->
+    <form action="/saverunsettings" method="POST">
     <section id="runsettings" class="page card">
       <h1 data-i18n="runsetting.title">Betriebseinstellungen</h1>
 
@@ -135,7 +161,6 @@ const char* htmlPage = R"rawliteral(
         <div class="form-group">
         <label for="phaseSelect" data-i18n="runsetting.phase">Phase:</label>
         <select id="phaseSelect" style="width: 170px;" name="phaseSelect">
-          <option value="seed"   data-i18n="runsetting.phase.seed">Steckling/Klon</option>
           <option value="grow"   data-i18n="runsetting.phase.grow">Wuchs</option>
           <option value="flower" data-i18n="runsetting.phase.flower">Blüte</option>
           <option value="dry"    data-i18n="runsetting.phase.dry">Trocknung</option>
@@ -144,22 +169,28 @@ const char* htmlPage = R"rawliteral(
 
       <div class="form-group">
         <label for="targetTemp" data-i18n="runsetting.targetTemp">Soll-Temperatur:</label>
-        <input id="targetTemp" style="width: 65px;" type="number" step="0.5" min="18" max="30" value="%TARGETTEMPERATURE%">&nbsp;°C
+        <input name="webTargetTemp" id="webTargetTemp" style="width: 65px;" type="number" step="0.5" min="18" max="30" value="%TARGETTEMPERATURE%">&nbsp;°C
+      </div>
+
+      <div class="form-group">
+        <label for="leafTemp" data-i18n="runsetting.offsetLeafTemperature">Offset Blatttemperatur:</label>
+        <input name="webOffsetLeafTemp" id="webOffsetLeafTemp" style="width: 65px;" type="number" step="0.1" min="-3.0" max="0.0" value="%LEAFTEMPERATURE%">&nbsp;°C
       </div>
 
       <div class="form-group">
         <label for="targetVPD" data-i18n="runsetting.targetVPD">Soll-VPD:</label>
-        <input id="targetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
+        <input name="webTargetVPD" id="webTargetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
       </div>
       <button class="primary" id="saverunsettingsBtn" data-i18n="settings.save">Speichern</button>
     </section>
+    </form>
 
     <!-- setting section -->
     <section id="settings" class="page card">
       <h1 data-i18n="settings.title">Systemeinstellungen</h1>
       <div class="form-group">
         <label for="boxName" data-i18n="settings.boxName">Boxname:</label>
-        <input type="text" data-i18n="settings.boxName.ph" id="boxName" data-i18n-attr="placeholder" style="width: 300px; value="%CONTENTCONTROLLERNAME%">
+        <input type="text" data-i18n="settings.boxName.ph" id="boxName" data-i18n-attr="placeholder" style="width: 320px; value="%CONTROLLERNAME%">
       </div>
       <div class="form-group">
         <label for="ntpServer" data-i18n="settings.ntpserver">NTP-Server:</label>
@@ -170,7 +201,7 @@ const char* htmlPage = R"rawliteral(
           <label for="timeZoneInfo" data-i18n="settings.timeZoneInfo">Zeitzone:</label>
           &nbsp;<a href="https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json" target="_blank" rel="noopener noreferrer">🌐</a>
         </div>
-        <input type="text" data-i18n="settings.timeZoneInfo.ph" id="timeZoneInfo" data-i18n-attr="placeholder" style="width: 300px; value="%TZINFO%">
+        <input type="text" data-i18n="settings.timeZoneInfo.ph" id="timeZoneInfo" data-i18n-attr="placeholder" style="width: 320px; value="%TZINFO%">
       </div>
       <div class="form-group">
         <label for="language" data-i18n="settings.language">Sprache:</label>

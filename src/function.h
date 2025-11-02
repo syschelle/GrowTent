@@ -59,6 +59,9 @@ void startSoftAP() {
   }
 }
 
+// forward declaration so handleRoot can call toIsoDate which is defined later
+void calculateTimeSince(String startDate, int &days, int &weeks);
+
 // Handle root path "/"
 void handleRoot() {
   
@@ -67,19 +70,35 @@ void handleRoot() {
     // Build HTML
     html = FPSTR(apPage);
     // Replace placeholders in index_html.h
-    html.replace("%CONTENTCONTROLLERNAME%",  boxName);
+    html.replace("%CONTROLLERNAME%",  boxName);
     } else {
     html = FPSTR(htmlPage);
+
+    if (startDate != "") {
+      int daysSinceStartInt = 0;
+      int weeksSinceStartInt = 0;
+      calculateTimeSince(startDate, daysSinceStartInt, weeksSinceStartInt);
+      String days = String(daysSinceStartInt);
+      String weeks = String(weeksSinceStartInt);
+      html.replace("%CURRENTGROW%", "Run: " + days + " Tage | " + weeks + " Wochen");
+    } else {
+      html.replace("%CURRENTGROW%", "");
+    }
+
     // Replace placeholders in index_html.h
-    html.replace("%CONTENTCONTROLLERNAME%",  boxName);
-    html.replace("%GROWSTARTDATE%",  startDate);
-    html.replace("%GROWFLOWERDATE%",  startFlowering);
-    html.replace("%GROWDRAYINGDATE%",  startDrying);
-    html.replace("%TARGETTEMPERATURE%",  String(targetTemperature, 1));
+    html.replace("%TARGETTEMPERATURE%", String(targetTemperature, 1));
     html.replace("%TARGETVPD%",  String(targetVPD, 1));
 
-    html.replace("%NTPSERVER%",  ntpServer);
-    html.replace("%TZINFO%",  tzInfo);
+    html.replace("%CONTROLLERNAME%", boxName);
+    html.replace("%GROWSTARTDATE%", String(startDate));
+    html.replace("%GROWFLOWERDATE%", String(startFlowering));
+    html.replace("%GROWDRAYINGDATE%", String(startDrying));
+    html.replace("%TARGETTEMPERATURE%", String(targetTemperature, 1));
+    html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
+    html.replace("%TARGETVPD%", String(targetVPD, 1));
+
+    html.replace("%NTPSERVER%", ntpServer);
+    html.replace("%TZINFO%", tzInfo);
     html.replace("%THEME%", theme);
     html.replace("%LANGUAGE%", language);
     html.replace("%TIMEFORMAT%", timeFormat);
@@ -90,21 +109,22 @@ void handleRoot() {
 }
 
 // Read stored preferences
-void readPreferenes() {
+void readPreferences() {
   preferences.begin(PREF_NS, true);
   preferences.begin(PREF_NS, false);
   //WIFI
   ssidName = preferences.isKey(KEY_SSID) ? preferences.getString(KEY_SSID) : String();
   ssidPassword = preferences.isKey(KEY_PASS) ? preferences.getString(KEY_PASS) : String();
   // running settings
-  startDate = preferences.isKey(KEY_STARTDATE) ? preferences.getString(KEY_STARTDATE) : String("");
-  startFlowering = preferences.isKey(KEY_FLOWERDATE) ? preferences.getString(KEY_FLOWERDATE) : String("");
-  startDrying = preferences.isKey(KEY_DRYINGDATE) ? preferences.getString(KEY_DRYINGDATE) : String("");
+  startDate = preferences.isKey(KEY_STARTDATE) ? preferences.getString(KEY_STARTDATE) : String();
+  startFlowering = preferences.isKey(KEY_FLOWERDATE) ? preferences.getString(KEY_FLOWERDATE) : String();
+  startDrying = preferences.isKey(KEY_DRYINGDATE) ? preferences.getString(KEY_DRYINGDATE) : String();
   curPhase = preferences.isKey(KEY_CURRENTPHASE) ? preferences.getInt(KEY_CURRENTPHASE) : 3;
   targetTemperature = preferences.isKey(KEY_TARGETTEMP) ? preferences.getFloat(KEY_TARGETTEMP) : 22.0;
+  offsetLeafTemperature = preferences.isKey(KEY_LEAFTEMP) ? preferences.getFloat(KEY_LEAFTEMP) : -1.5;
   targetVPD = preferences.isKey(KEY_TARGETVPD) ? preferences.getFloat(KEY_TARGETVPD) : 1.0;
   // settings
-  boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("GrowTent");
+  boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("newGrowTent");
   ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
   tzInfo = preferences.isKey(KEY_TZINFO) ? preferences.getString(KEY_TZINFO) : String(DEFAULT_TZ_INFO);
   language = preferences.isKey(KEY_LANG) ? preferences.getString(KEY_LANG) : String("de");
@@ -112,7 +132,93 @@ void readPreferenes() {
   unit = preferences.isKey(KEY_UNIT) ? preferences.getString(KEY_UNIT) : String("metric");
   timeFormat = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String("24h");
   preferences.end();
-  logPrint("[PREF] Preferences loaded:");
+  logPrint("[PREF] ssid:" + ssidName + " boxName:" + boxName + " language:" + language + " theme:" + theme +
+           " unit:" + unit + " timeFormat:" + timeFormat + " ntpServer:" + ntpServer + " tzInfo:" + tzInfo +
+           " startDate:" + startDate + " floweringStart:" + startFlowering + " dryingStart:" + startDrying +
+           " targetTemperature:" + targetTemperature + " offsetLeafTemperature:" + offsetLeafTemperature + 
+           " targetVPD:" + targetVPD + " curPhase:" + String(curPhase));
+}
+
+void handleSaveRunsettings() {
+  // 1) Open the Preferences namespace with write access (readOnly = false)
+  // Only call begin() once — calling it twice can cause writes to fail!
+  if (!preferences.begin(PREF_NS, false)) {
+    logPrint("[PREF][ERROR] preferences.begin() failed. "
+             "Check that PREF_NS length <= 15 characters.");
+    server.send(500, "text/plain", "Failed to open Preferences");
+    return;
+  }
+
+  // 2) Save grow start date if provided
+  if (server.hasArg("webGrowStart")) {
+    String v = server.arg("webGrowStart");
+    preferences.putString(KEY_STARTDATE, v) > 0;
+    startDate = v; // also update RAM variable
+  }
+
+  // 3) Save flowering start date if provided
+  if (server.hasArg("webFloweringStart")) {
+    String v = server.arg("webFloweringStart");
+    preferences.putString(KEY_FLOWERDATE, v) > 0;
+    startFlowering = v;
+  }
+
+  // 4) Save drying start date if provided
+  if (server.hasArg("webDryingStart")) {
+    String v = server.arg("webDryingStart");
+    preferences.putString(KEY_DRYINGDATE, v) > 0;
+    startDrying = v;
+  }
+
+  // 5) Save current phase if provided
+  if (server.hasArg("webCurrentPhase")) {
+    curPhase = server.arg("webCurrentPhase").toInt();
+    preferences.putInt(KEY_CURRENTPHASE, curPhase) > 0;
+  }
+
+  // 6) Save target temperature if provided
+  if (server.hasArg("webTargetTemp")) {
+    targetTemperature = server.arg("webTargetTemp").toFloat();
+    preferences.putFloat(KEY_TARGETTEMP, targetTemperature);
+  }
+
+  // 7) Save target VPD if provided
+  if (server.hasArg("webTargetVPD")) {
+    targetVPD = server.arg("webTargetVPD").toFloat();
+    preferences.putFloat(KEY_TARGETVPD, targetVPD);
+  }
+
+  // 8) Save leaf temperature offset if provided
+  if (server.hasArg("webOffsetLeafTemp")) {
+    offsetLeafTemperature = server.arg("webOffsetLeafTemp").toFloat();
+    preferences.putFloat(KEY_LEAFTEMP, offsetLeafTemperature);
+  }
+
+  // 9) Optionally read the values back to confirm they were written
+  String  chkStartDate       = preferences.getString(KEY_STARTDATE, "");
+  String  chkFloweringStart  = preferences.getString(KEY_FLOWERDATE, "");
+  String  chkDryingStart     = preferences.getString(KEY_DRYINGDATE, "");
+  int     chkPhase           = preferences.getInt(KEY_CURRENTPHASE, -1);
+  float   chkTargetTemp      = preferences.getFloat(KEY_TARGETTEMP, NAN);
+  float   chkTargetVPD       = preferences.getFloat(KEY_TARGETVPD, NAN);
+  float   chkOffsetLeafTemp  = preferences.getFloat(KEY_LEAFTEMP, NAN);
+
+  preferences.end(); // always close Preferences handle
+
+  // 10) Log everything for debugging
+  logPrint(String("[PREF] startDate:") + chkStartDate +
+           " floweringStart:" + chkFloweringStart +
+           " dryingStart:" + chkDryingStart +
+           " curPhase:" + String(chkPhase) +
+           " targetTemp:" + String(chkTargetTemp) +
+           " offsetLeafTemperature:" + String(chkOffsetLeafTemp) +
+           " targetVPD:" + String(chkTargetVPD));
+
+  // 11) Send redirect response and restart the ESP
+  server.sendHeader("Location", "/");
+  server.send(303);  // HTTP redirect to status page
+  delay(250);
+  ESP.restart();
 }
 
 // Handle form submission save WIFI credentials
@@ -161,6 +267,25 @@ void syncDateTime() {
   } else {
     logPrint("[DATETIME] Failed to obtain time");
   }
+}
+
+// calculate elapsed days and weeks from defined date
+void calculateTimeSince(String startDate, int &days, int &weeks) {
+  struct tm tmStart = { 0 };
+  int y, m, d;
+  sscanf(startDate.c_str(), "%d-%d-%d", &y, &m, &d);
+  tmStart.tm_mday = d;
+  tmStart.tm_mon = m - 1;
+  tmStart.tm_year = y - 1900;
+  tmStart.tm_hour = 0;
+  tmStart.tm_min = 1;
+  time_t startEpoch = mktime(&tmStart);
+  time_t nowEpoch = time(nullptr);
+  long diffSec = nowEpoch - startEpoch;
+  days = (diffSec / 86400) + 1;
+  weeks = (days / 7) + 1;
+
+  //logPrint(String("Running since ") + String(days) + String(" days (") + String(weeks) + String(" weeks + ")  + String(" days)\n"));
 }
 
 // CSV: ts_ms,tempC,hum,vpd\n
@@ -214,6 +339,20 @@ static void compactLog() {
   LittleFS.rename("/envlog.tmp", LOG_PATH);
 }
 
+// calculate elapsed days and weeks from defined unix timestamp
+
+float calcVPD(float valLastTemperature,float valOffsetLeafTemperature , float valLastHumidity) {
+      float FT = valLastTemperature;
+      float FARH = valLastHumidity;
+      float FLTO = valOffsetLeafTemperature;
+      float FLT = FT + FLTO;
+      float VPLEAF = (610.7 * pow(10, (7.5 * FLT) / (237.3 + FLT)) / 1000);
+      float ASVPF = (610.7 * pow(10, (7.5 * FT) / (237.3 + FT)) / 1000);
+      float VPAIR = (FARH / 100) * ASVPF;
+      float VPD = VPLEAF - VPAIR;
+      return VPD;
+}
+
 // Sensor data reading
 String readSensorData() {
   // Read sensor temperatur, humidity and vpd
@@ -237,9 +376,9 @@ String readSensorData() {
         lastRead = now;
         lastTemperature = bme.readTemperature();
         lastHumidity = bme.readHumidity();
-        float svp = 0.6108f * exp((17.27f * lastTemperature) / (lastTemperature + 237.3f));
-        lastVPD = svp - (lastHumidity / 100.0f) * svp;
-        logPrint("[SENSOR] Last Sensorupdate Temperature: " + String(lastTemperature, 1) + " °C, Humidity: " + String(lastHumidity, 0) + " %, VPD: " + String(lastVPD, 1) + " kPa");
+        // Calculate VPD
+        lastVPD = calcVPD(lastTemperature, offsetLeafTemperature, lastHumidity);
+        //logPrint("[SENSOR] Last Sensorupdate Temperature: " + String(lastTemperature, 1) + " °C, Humidity: " + String(lastHumidity, 0) + " %, VPD: " + String(lastVPD, 1) + " kPa");
 
         // 60s: Only write to the log (if values are valid)
         if ((now - lastLog >= LOG_INTERVAL_MS) && !isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
