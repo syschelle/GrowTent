@@ -38,6 +38,7 @@ const char* jsContent = R"rawliteral(
     "status.download": "History herunterladen",
     "status.lastTemperature": "akt. Temperatur",
     "status.targetTemp": "Soll-Temperatur",
+    "status.lastWaterTemperature": "akt. Wassertemperatur",
     "status.lasthumidity": "akt. Luftfeuchte",
     "status.lastvpd": "akt. VPD",
     "status.targetVpd": "Soll-VPD:",
@@ -94,6 +95,7 @@ const char* jsContent = R"rawliteral(
     "status.download": "Download History",
     "status.lastTemperature": "current Temperature",
     "status.targetTemp": "target Temperature",
+    "status.lastWaterTemperature": "current Water Temperature",
     "status.lasthumidity": "current Humidity",
     "status.lastvpd": "current VPD",
     "status.targetVpd": "target VPD",
@@ -337,13 +339,12 @@ window.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
 
       if (isNum(data.temperature)) { setText('tempSpan', data.temperature.toFixed(1)); }
-      else                         { setText('tempSpan', 'N/A'); }
+
+      if (isNum(data.waterTemperature)) { setText('waterTempSpan', data.waterTemperature.toFixed(1)); }
 
       if (isNum(data.humidity))    { setText('humSpan',  data.humidity.toFixed(0)); }
-      else                         { setText('humSpan',  'N/A'); }
 
       if (isNum(data.vpd))         { setText('vpdSpan',  data.vpd.toFixed(1)); }
-      else                         { setText('vpdSpan',  'N/A'); }
 
       const cap =
         (typeof data.captured === 'string' && data.captured.length) ? data.captured :
@@ -357,6 +358,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   function setNA(){
     setText('tempSpan', 'N/A');
+    setText('waterTempSpan', 'N/A');
     setText('humSpan',  'N/A');
     setText('vpdSpan',  'N/A');
     setText('capturedSpan', 'N/A');

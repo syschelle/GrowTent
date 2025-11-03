@@ -42,6 +42,10 @@ static const char* KEY_TZINFO  = "tzInfo";
 Adafruit_BME280 bme;
 bool bmeAvailable = false;
 
+// DS18B20 Configuration
+#define DS18B20_PIN 4
+volatile float DS18B20STemperature = NAN;
+
 // Relay Configuration
 #define NUM_RELAYS 4
 const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26 };

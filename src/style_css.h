@@ -242,6 +242,11 @@ const char* cssContent = R"rawliteral(
       opacity: 0.8;
     }
 
+    .metric-submetric{
+      margin-top: 4px;
+      font-size: 0.92rem;
+    }
+
     .grow-info {
       font-weight: 500;
       font-size: 1em;

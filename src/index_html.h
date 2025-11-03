@@ -103,6 +103,13 @@ const char* htmlPage = R"rawliteral(
               <span id="targetTempStatus">%TARGETTEMPERATURE%</span> <span class="unit">°C</span>
             </div>
           </div>
+          <div class="spacer"></div>
+          <div class="metric-submetric">
+          <div class="metric-label" data-i18n="status.lastWaterTemperature">Wassertemperatur</div>
+          <div class="metric-value">
+            <span id="waterTempSpan">%WATERTEMPERATURE%</span><span class="unit">°C</span>
+          </div>
+        </div>
         </div>
 
         <div class="metric">
@@ -185,57 +192,68 @@ const char* htmlPage = R"rawliteral(
 
     <!-- setting section -->
     <form action="/savesettings" method="POST">
-    <section id="settings" class="page card">
-      <h1 data-i18n="settings.title">Systemeinstellungen</h1>
-      <div class="form-group">
-        <label for="boxName" data-i18n="settings.boxName">Boxname:</label>
-        <input name="webBoxName" type="text" data-i18n="settings.boxName.ph" id="webBoxName" data-i18n-attr="placeholder" style="width: 320px; value="%CONTROLLERNAME%">
-      </div>
-      <div class="form-group">
-        <label for="ntpServer" data-i18n="settings.ntpserver">NTP-Server:</label>
-        <input name="webNTPServer" type="text" data-i18n="settings.ntpserver.ph" id="webNTPServer" data-i18n-attr="placeholder" style="width: 250px; value="%NTPSERVER%">
-      </div>
-      <div class="form-group">
-        <div class="label-inline">
-          <label for="timeZoneInfo" data-i18n="settings.timeZoneInfo">Zeitzone:</label>
-          &nbsp;<a href="https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json" target="_blank" rel="noopener noreferrer">🌐</a>
+      <section id="settings" class="page card">
+        <h1 data-i18n="settings.title">Systemeinstellungen</h1>
+
+        <div class="form-group">
+          <label for="webBoxName" data-i18n="settings.boxName">Boxname:</label>
+          <input name="webBoxName" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
         </div>
-        <input name="webTimeZoneInfo" type="text" data-i18n="settings.timeZoneInfo.ph" id="webTimeZoneInfo" data-i18n-attr="placeholder" style="width: 320px; value="%TZINFO%">
-      </div>
-      <div class="form-group">
-        <label for="language" data-i18n="settings.language">Sprache:</label>
-        <select name="webLanguage" id="language" style="width: 100px;"></select>
-      </div>
-      <div class="form-group">
-        <label for="theme" data-i18n="settings.theme">Theme:</label>
-        <select name="webTheme" id="theme" style="width: 100px;">
-          <option value="light" data-i18n="settings.themeLight" value="Hell">Hell</option>
-          <option value="dark"  data-i18n="settings.themeDark" value="Dunkel">Dunkel</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="dateFormat" data-i18n="settings.dateFormat">Datumsformat:</label>
-        <select id="dateFormat" style="width: 140px;">
-          <option name="webDateFormat" value="YYYY-MM-DD" data-i18n="settings.df_ymd">YYYY-MM-DD</option>
-          <option name="webDateFormat" value="DD.MM.YYYY" data-i18n="settings.df_dmy">DD.MM.YYYY</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="timeFormat" data-i18n="settings.timeFormat">Zeitformat:</label>
-        <select id="timeFormat" style="width: 100px;">
-          <option name="webTimeFormat" value="24"     data-i18n="settings.tf_HHmm">24h</option>
-          <option name="webTimeFormat" value="12"   data-i18n="settings.tf_hhmma">12h AM/PM</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="tempUnit" data-i18n="settings.tempUnit">Temperatur-Einheit:</label>
-        <select id="tempUnit" style="width: 140px;">
-          <option name="webTempUnit" value="C" data-i18n="settings.celsius">°C (Celsius)</option>
-          <option name="webTempUnit" value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
-        </select>
-      </div>
-      <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>
-    </section>
+
+        <div class="form-group">
+          <label for="webNTPServer" data-i18n="settings.ntpserver">NTP-Server:</label>
+          <input name="webNTPServer" id="webNTPServer" type="text" data-i18n="settings.ntpserver.ph" data-i18n-attr="placeholder" style="width: 250px;" value="%NTPSERVER%">
+        </div>
+
+        <div class="form-group">
+          <div class="label-inline">
+            <label for="webTimeZoneInfo" data-i18n="settings.timeZoneInfo">Zeitzone:</label>
+            &nbsp;<a href="https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json" target="_blank" rel="noopener noreferrer">🌐</a>
+          </div>
+          <input name="webTimeZoneInfo" id="webTimeZoneInfo" type="text" data-i18n="settings.timeZoneInfo.ph" data-i18n-attr="placeholder" style="width: 350px;" value="%TZINFO%">
+        </div>
+
+        <div class="form-group">
+          <label for="language" data-i18n="settings.language">Sprache:</label>
+          <select name="webLanguage" id="language" style="width: 100px;">
+            <!-- Optionen vermutlich per JS/i18n gefüllt -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="theme" data-i18n="settings.theme">Theme:</label>
+          <select name="webTheme" id="theme" style="width: 100px;">
+            <option value="light" data-i18n="settings.themeLight">Hell</option>
+            <option value="dark"  data-i18n="settings.themeDark">Dunkel</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="dateFormat" data-i18n="settings.dateFormat">Datumsformat:</label>
+          <select name="webDateFormat" id="dateFormat" style="width: 140px;">
+            <option value="YYYY-MM-DD" data-i18n="settings.df_ymd">YYYY-MM-DD</option>
+            <option value="DD.MM.YYYY" data-i18n="settings.df_dmy">DD.MM.YYYY</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="timeFormat" data-i18n="settings.timeFormat">Zeitformat:</label>
+          <select name="webTimeFormat" id="timeFormat" style="width: 100px;">
+            <option value="24" data-i18n="settings.tf_HHmm">24h</option>
+            <option value="12" data-i18n="settings.tf_hhmma">12h AM/PM</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="tempUnit" data-i18n="settings.tempUnit">Temperatur-Einheit:</label>
+          <select name="webTempUnit" id="tempUnit" style="width: 140px;">
+            <option value="C" data-i18n="settings.celsius">°C (Celsius)</option>
+            <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
+          </select>
+        </div>
+
+        <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>
+      </section>
     </form>
 
     <!-- system log section -->

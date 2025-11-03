@@ -12,7 +12,7 @@ extern Adafruit_BME280 bme;
 
 void taskCheckBMESensor(void *parameter){
   for (;;) {
-    // Read sensor temperatur, humidity and vpd every 10 seconds
+    // Read sensor temperatur, humidity and vpd
     readSensorData();
     // delay  10 seconds
     delay(10000); 

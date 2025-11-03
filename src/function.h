@@ -5,12 +5,24 @@
 #include <index_html.h>
 #include <time.h>
 #include <deque>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// If no pin is defined elsewhere, default to GPIO4
+#ifndef DS18B20_PIN
+#define DS18B20_PIN 4
+#endif
+
+// Create OneWire + DallasTemperature objects (internal linkage so header can be included safely)
+static OneWire oneWire(DS18B20_PIN);
+static DallasTemperature sensors(&oneWire);
 
 // declare the global WebServer instance defined elsewhere
 extern WebServer server;
 extern Preferences preferences;
 extern const char* htmlPage;
 extern std::deque<String> logBuffer;
+extern volatile float DS18B20STemperature;
 
 // log buffer to store recent log lines
 void logPrint(const String& msg) {
@@ -87,14 +99,16 @@ void handleRoot() {
 
     // Replace placeholders in index_html.h
     html.replace("%TARGETTEMPERATURE%", String(targetTemperature, 1));
+    html.replace("%WATERTEMPERATURE%", String(DS18B20STemperature, 1));
+    html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
+    html.replace("%HUMIDITY%", String(lastHumidity, 0));
     html.replace("%TARGETVPD%",  String(targetVPD, 1));
 
     html.replace("%CONTROLLERNAME%", boxName);
     html.replace("%GROWSTARTDATE%", String(startDate));
     html.replace("%GROWFLOWERDATE%", String(startFlowering));
     html.replace("%GROWDRAYINGDATE%", String(startDrying));
-    html.replace("%TARGETTEMPERATURE%", String(targetTemperature, 1));
-    html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
+
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
     html.replace("%NTPSERVER%", ntpServer);
@@ -325,7 +339,7 @@ void handleFactoryReset() {
 // NTP sync
 void syncDateTime() {
   // syncing NTP time
-  logPrint("[DATETIME] syncing NTP time");
+  logPrint("[DATETIME] syncing NTP time to server: " + ntpServer + " TZ: " + tzInfo);
   configTzTime(tzInfo.c_str(), ntpServer.c_str());  // Synchronizing ESP32 system time with NTP
   if (getLocalTime(&local, 10000)) { // Try to synchronize up to 10s
     // set actual date in global variable actualDate
@@ -424,8 +438,14 @@ float calcVPD(float valLastTemperature,float valOffsetLeafTemperature , float va
       return VPD;
 }
 
-// Sensor data reading
+// Read sensor temperatur, humidity and vpd and DS18B20 water temperature
 String readSensorData() {
+
+  sensors.requestTemperatures();
+  float dsTemp = sensors.getTempCByIndex(0);
+  // nur übernehmen, wenn gültig
+  if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) DS18B20STemperature = dsTemp;
+
   // Read sensor temperatur, humidity and vpd
   if (bmeAvailable) {
       unsigned long now = millis();
@@ -466,12 +486,13 @@ String readSensorData() {
           logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
         }
 
-        // JSON building: { "temperature": 21.5, "humidity": 45.3, "vpd": 1.23 }
+        // JSON building: { "temperature": 21.5, "humidity": 45.3, "vpd": 1.23, waterTemperature: 19.5, "captured": "12:34:56"  }
         String json = "{";
         if (!isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
           json += "\"temperature\":" + String(lastTemperature, 1);
           json += ",\"humidity\":"  + String(lastHumidity, 0);
           json += ",\"vpd\":"  + String(lastVPD, 1);
+          json += ",\"waterTemperature\":" + String(DS18B20STemperature, 1);
           json += ",\"captured\":\"" + String(timeStr) +"\"";
         } else {
           // Always send valid JSON, even if sensor is not ready

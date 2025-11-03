@@ -15,6 +15,8 @@
 #include <time.h>
 #include <LittleFS.h>
 #include <deque>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 // tasks
 #include <task_Check_Sensor.h>
@@ -88,6 +90,10 @@ void setup() {
           delay(500);
         }
       }
+
+      OneWire oneWire(DS18B20_PIN);
+      DallasTemperature sensors(&oneWire);
+      sensors.begin();
 
       xTaskCreatePinnedToCore(
         taskCheckBMESensor,                // Task function
