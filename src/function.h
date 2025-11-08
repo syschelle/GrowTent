@@ -498,78 +498,122 @@ float avgWaterTemp() {
   return sumWaterTemp / count;
 }
 
-// Read sensor temperatur, humidity and vpd and DS18B20 water temperature
+// Read sensor temperature, humidity and vpd and DS18B20 water temperature
 String readSensorData() {
 
   sensors.requestTemperatures();
   float dsTemp = sensors.getTempCByIndex(0);
-  // nur übernehmen, wenn gültig
-  if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) DS18B20STemperature = dsTemp;
-
-  // Read sensor temperatur, humidity and vpd
-  if (bmeAvailable) {
-      unsigned long now = millis();
-      struct tm timeinfo;
-      char timeStr[32] = "";
-      if (getLocalTime(&timeinfo)) {
-        strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
-        // keep timeStr for later JSON output instead of returning here
-      }
-
-      if (now - previousMillis >= blinkInterval) {
-        previousMillis = now;
-
-        ledState = !ledState;
-        digitalWrite(STATUS_LED_PIN, ledState);
-      }
-
-      if (now - lastRead >= READ_INTERVAL_MS) {
-        lastRead = now;
-        lastTemperature = bme.readTemperature();
-        lastHumidity = bme.readHumidity();
-        // Calculate VPD
-        lastVPD = calcVPD(lastTemperature, offsetLeafTemperature, lastHumidity);
-        //logPrint("[SENSOR] Last Sensorupdate Temperature: " + String(lastTemperature, 1) + " °C, Humidity: " + String(lastHumidity, 0) + " %, VPD: " + String(lastVPD, 1) + " kPa");
-
-        // 60s: Only write to the log (if values are valid)
-        if ((now - lastLog >= LOG_INTERVAL_MS) && !isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
-          appendLog(now, lastTemperature, lastHumidity, lastVPD);
-          lastLog = now;
-          logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH));
-        }
-
-        // continue compressing hourly
-        static unsigned long lastCompact = 0;
-        if (now - lastCompact >= COMPACT_EVERY_MS) {
-          compactLog();                 // keeps only the last 48 hours
-          lastCompact = now;
-          logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
-        }
-
-        // JSON building: { "temperature": 21.5, "humidity": 45.3, "vpd": 1.23, waterTemperature: 19.5, "captured": "12:34:56"  }
-        String json = "{";
-        if (!isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
-          json += "\"temperature\":" + String(lastTemperature, 1);
-          json += ",\"humidity\":"  + String(lastHumidity, 0);
-          json += ",\"vpd\":"  + String(lastVPD, 1);
-          json += ",\"waterTemperature\":" + String(DS18B20STemperature, 1);
-          json += ",\"captured\":\"" + String(timeStr) +"\"";
-        } else {
-          // Always send valid JSON, even if sensor is not ready
-          json += "\"ok\":false";
-          json += ",\"temperature\":null,\"humidity\":null,\"vpd\":null";
-        }
-        json += "}";
-        
-        return json;
-        
-      } else {
-        // Not time to read yet
-        return String("");
-      }
+  // only update global water temp if valid
+  if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
+    DS18B20STemperature = dsTemp;
   }
-  // BME not available
-  return String("");
+
+  // we will ALWAYS return valid JSON, even if BME not available or not time yet
+  unsigned long now = millis();
+  struct tm timeinfo;
+  char timeStr[32] = "";
+  if (getLocalTime(&timeinfo)) {
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
+  }
+
+  // toggle status LED as before
+  if (bmeAvailable) {
+    if (now - previousMillis >= blinkInterval) {
+      previousMillis = now;
+      ledState = !ledState;
+      digitalWrite(STATUS_LED_PIN, ledState);
+    }
+
+    // time to read fresh BME values?
+    if (now - lastRead >= READ_INTERVAL_MS) {
+      lastRead = now;
+
+      lastTemperature = bme.readTemperature();
+      lastHumidity    = bme.readHumidity();
+      lastVPD         = calcVPD(lastTemperature, offsetLeafTemperature, lastHumidity);
+
+      // log every 60s if valid
+      if ((now - lastLog >= LOG_INTERVAL_MS) && !isnan(lastTemperature) && !isnan(lastHumidity) && !isnan(lastVPD)) {
+        appendLog(now, lastTemperature, lastHumidity, lastVPD);
+        lastLog = now;
+        logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH));
+      }
+
+      // compact hourly
+      static unsigned long lastCompact = 0;
+      if (now - lastCompact >= COMPACT_EVERY_MS) {
+        compactLog();  // keeps only the last 48 hours
+        lastCompact = now;
+        logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
+      }
+
+      // hier könntest du auch deine "addReading(...)" für die 1h-Mittel aufrufen
+      // z.B.: addReading(lastTemperature, lastHumidity, lastVPD, DS18B20STemperature);
+    }
+  }
+
+  // === JSON BUILDING (always) ===
+  String json = "{\n";
+
+  if (!isnan(lastTemperature)) {
+    json += "\"curTemperature\":" + String(lastTemperature, 1) + ",\n";
+  } else {
+    json += "\"curTemperature\":null,\n";
+  } 
+  if (!isnan(DS18B20STemperature)) {
+    json += "\"curWaterTemperature\":" + String(DS18B20STemperature, 1) + ",\n";
+  } else {
+    json += "\"curWaterTemperature\":null,\n";
+  }
+  if (!isnan(lastHumidity)) {
+    json += "\"curHumidity\":" + String(lastHumidity, 0) + ",\n";
+  } else {
+    json += "\"curHumidity\":null,\n";
+  }
+  if (!isnan(lastVPD)) {
+    json += "\"curVpd\":" + String(lastVPD, 1) + ",\n";
+  } else {
+    json += "\"curVpd\":null,\n";
+  }
+  if (!isnan(avgTemp())) {
+    json += "\"avgTemperature\":" + String(avgTemp(), 1)  + ",\n";
+  } else {
+    json += "\"avgTemperature\":null,\n";
+  }
+  if (!isnan(avgWaterTemp())) {
+    json += "\"avgWaterTemperature\":" + String(avgWaterTemp(), 1) + ",\n";
+  } else {
+    json += "\"avgWaterTemperature\":null,\n";
+  }
+  if (!isnan(avgHum())) {
+    json += "\"avgHumidity\":" + String(avgHum(), 0) + ",\n";
+  } else {
+    json += "\"avgHumidity\":null,\n";
+  }
+  if (!isnan(avgVPD())) {
+    json += "\"avgVpd\":" + String(avgVPD(), 1) + ",\n";
+  } else {
+    json += "\"avgVpd\":null,\n";
+  }
+
+  // ---- relays ----
+  // returns e.g. "relays":[true,false,true,false]
+  json += "\"relays\":[";
+  for (int i = 0; i < NUM_RELAYS; i++) {
+    int state = digitalRead(relayPins[i]); // depends on your wiring (LOW=on or HIGH=on)
+    // here we assume HIGH=on
+    bool on = (state == HIGH);
+    json += (on ? "true" : "false");
+    if (i < NUM_RELAYS - 1) json += ",";
+  }
+  json += "],\n";
+
+  // captured time
+  json += "\"captured\":\"" + String(timeStr)  + "\"\n";
+
+  json += "}";
+
+  return json;
 }
 
 static void handleHistory() {
@@ -693,4 +737,29 @@ void handleDownloadLog() {
   server.sendHeader("Content-Type", "text/plain; charset=utf-8");
   server.sendHeader("Content-Disposition", "attachment; filename=weblog.txt");
   server.send(200, "text/plain; charset=utf-8", txt);
+}
+
+// helper: read actual relay pin and convert to bool  
+bool isRelayOn(int idx) {
+  return digitalRead(relayPins[idx]) == HIGH;
+}
+
+// set relay state by index
+void setRelay(int idx, bool on) {
+  if (idx < 0 || idx >= NUM_RELAYS) return;
+  digitalWrite(relayPins[idx], on ? HIGH : LOW); // <-- so!
+  relayStates[idx] = on;
+}
+
+// toggle relay state by index and return new state as JSON
+void handleRelayToggleIdx(int idx) {
+  bool cur = isRelayOn(idx);
+  bool next = !cur;
+  setRelay(idx, next);
+
+  String res = "{";
+  res += "\"id\":" + String(idx + 1);
+  res += ",\"state\":" + String(next ? "true" : "false");
+  res += "}";
+  server.send(200, "application/json", res);
 }

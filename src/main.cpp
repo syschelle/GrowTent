@@ -138,6 +138,12 @@ void setup() {
     String jsonSensorData = readSensorData();
     server.send(200, "application/json; charset=utf-8", jsonSensorData);
   });
+  // route for relay toggle
+  //server.on("/relay/", HTTP_GET, handleRelayToggle);
+  server.on("/relay/1/toggle", HTTP_POST, []() { handleRelayToggleIdx(0); });
+  server.on("/relay/2/toggle", HTTP_POST, []() { handleRelayToggleIdx(1); });
+  server.on("/relay/3/toggle", HTTP_POST, []() { handleRelayToggleIdx(2); });
+  server.on("/relay/4/toggle", HTTP_POST, []() { handleRelayToggleIdx(3); });
   // route for factory reset
   server.on("/factory-reset", handleFactoryReset);
   // route for getting the history log as JSON

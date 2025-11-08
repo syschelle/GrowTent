@@ -169,6 +169,33 @@ const char* htmlPage = R"rawliteral(
           </div>
         </div>
       </div>
+      <div class="metrics-row averages-row">
+      <!-- ... wie oben eingefügt ... -->
+    </div>
+
+    <h2 data-i18n="status.relayControl">Relais Steuerung</h2>
+    <div class="relay-row" id="relayRow">
+      <div class="relay-card" data-relay="1">
+        <div class="relay-title">Relay 1</div>
+        <div class="relay-status" id="relayStatus1">OFF</div>
+        <button class="relay-btn" onclick="toggleRelay(1)">Toggle</button>
+      </div>
+      <div class="relay-card" data-relay="2">
+        <div class="relay-title">Relay 2</div>
+        <div class="relay-status" id="relayStatus2">OFF</div>
+        <button class="relay-btn" onclick="toggleRelay(2)">Toggle</button>
+      </div>
+      <div class="relay-card" data-relay="3">
+        <div class="relay-title">Relay 3</div>
+        <div class="relay-status" id="relayStatus3">OFF</div>
+        <button class="relay-btn" onclick="toggleRelay(3)">Toggle</button>
+      </div>
+      <div class="relay-card" data-relay="4">
+        <div class="relay-title">Relay 4</div>
+        <div class="relay-status" id="relayStatus4">OFF</div>
+        <button class="relay-btn" onclick="toggleRelay(4)">Toggle</button>
+      </div>
+    </div>
     </section>
     
     <!-- runsettings section -->

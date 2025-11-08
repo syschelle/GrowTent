@@ -254,4 +254,57 @@ const char* cssContent = R"rawliteral(
     }
     .spacer { height: 16px; }
 
+    .relay-row {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .relay-card {
+      background: #fff;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      min-width: 140px;
+    }
+
+    .relay-title {
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .relay-status {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      margin-bottom: 0.6rem;
+      background: #ccc;
+      color: #fff;
+    }
+
+    .relay-status.on {
+      background: #28a745; /* grün */
+    }
+
+    .relay-status.off {
+      background: #dc3545; /* rot */
+    }
+
+    .relay-btn {
+      display: inline-block;
+      border: none;
+      background: #007bff;
+      color: #fff;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .relay-btn:hover {
+      background: #0069d9;
+    }
+      
 )rawliteral";

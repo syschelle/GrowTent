@@ -49,6 +49,9 @@ volatile float DS18B20STemperature = NAN;
 // Relay Configuration
 #define NUM_RELAYS 4
 const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26 };
+// track relay output states (internal linkage so header can be included safely)
+static bool relayStates[NUM_RELAYS] = { false };
+// Status LED Configuration
 #define STATUS_LED_PIN 23
 unsigned long previousMillis = 0;
 const unsigned long blinkInterval = 500; // Blinkrate in Millisekunden

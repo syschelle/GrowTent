@@ -133,7 +133,6 @@ const char* jsContent = R"rawliteral(
     "settings.themeDark": "Dark",
     "settings.dateFormat": "Date format:",
     "settings.df_ymd": "YYYY-MM-DD",
-    "settings.df_dmy": "DD.MM.YYYY",
     "settings.timeFormat": "Time format:",
     "settings.tf_HHmm": "24h",
     "settings.tf_hhmma": "12h AM/PM",
@@ -155,6 +154,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
   const isNum = x => typeof x === 'number' && !Number.isNaN(x);
 
+  // ---- relay state (4 relays) ----
+  let relayStates = [false, false, false, false];
+
   // ---------- Sidebar & SPA ----------
   const mqDesktop = window.matchMedia('(min-width:1024px)');
   const sidebar   = $('sidebar');
@@ -172,7 +174,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', e => { if(e.key === 'Escape') closeSidebar(); });
   mqDesktop.addEventListener('change', syncLayout);
 
-  // SPA navigation + call onPageChanged
+  // ---------- SPA navigation ----------
   function activatePage(id){
     pages.forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.navlink').forEach(a => a.removeAttribute('aria-current'));
@@ -279,7 +281,7 @@ window.addEventListener('DOMContentLoaded', () => {
     };
   })();
 
-  // ---------- Temperature unit (optional text conversions) ----------
+  // ---------- Temperature unit ----------
   function getTempUnit(){ return localStorage.getItem('tempUnit') || (currentLang === 'en' ? 'F' : 'C'); }
   function setTempUnit(unit){
     localStorage.setItem('tempUnit', unit);
@@ -287,7 +289,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   $('tempUnit')?.addEventListener('change', e => setTempUnit(e.target.value));
 
-  // ---------- i18n (inline scripts) ----------
+  // ---------- i18n ----------
   let manifest=null, I18N={}, currentLang='de';
   function readJsonTag(id){
     const el=$(id); if(!el) throw new Error('Missing tag: '+id);
@@ -348,18 +350,36 @@ window.addEventListener('DOMContentLoaded', () => {
       }
       const data = await response.json();
 
-      if (isNum(data.temperature)) { setText('tempSpan', data.temperature.toFixed(1)); }
+      // current
+      if (isNum(data.curTemperature)) { setText('tempSpan', data.curTemperature.toFixed(1)); }
+      if (isNum(data.curWaterTemperature)) { setText('waterTempSpan', data.curWaterTemperature.toFixed(1)); }
+      if (isNum(data.curHumidity))    { setText('humSpan',  data.curHumidity.toFixed(0)); }
+      if (isNum(data.curVpd))         { setText('vpdSpan',  data.curVpd.toFixed(1)); }
 
-      if (isNum(data.waterTemperature)) { setText('waterTempSpan', data.waterTemperature.toFixed(1)); }
+      // averages (support both naming styles from backend)
+      const avgTemp = isNum(data.avgTemperature) ? data.avgTemperature : (isNum(data.avgTemp) ? data.avgTemp : null);
+      if (avgTemp !== null) setText('avgTempSpan', avgTemp.toFixed(1));
 
-      if (isNum(data.humidity))    { setText('humSpan',  data.humidity.toFixed(0)); }
+      const avgWater = isNum(data.avgWaterTemperature) ? data.avgWaterTemperature : (isNum(data.avgWaterTemp) ? data.avgWaterTemp : null);
+      if (avgWater !== null) setText('avgWaterTempSpan', avgWater.toFixed(1));
 
-      if (isNum(data.vpd))         { setText('vpdSpan',  data.vpd.toFixed(1)); }
+      const avgHum = isNum(data.avgHumidity) ? data.avgHumidity : null;
+      if (avgHum !== null) setText('avgHumSpan', avgHum.toFixed(1));
 
+      const avgVpd = isNum(data.avgVpd) ? data.avgVpd : null;
+      if (avgVpd !== null) setText('avgVpdSpan', avgVpd.toFixed(1));
+
+      // captured / timestamp
       const cap =
         (typeof data.captured === 'string' && data.captured.length) ? data.captured :
         (isNum(data.ts) ? new Date(data.ts).toLocaleString() : 'N/A');
       setText('capturedSpan', cap);
+
+      // relays: expect array of booleans
+      if (Array.isArray(data.relays)) {
+        relayStates = data.relays.map(v => !!v);
+        updateRelayButtons();
+      }
 
     } catch (error) {
       console.error('Exception in updateSensorValues():', error);
@@ -372,13 +392,47 @@ window.addEventListener('DOMContentLoaded', () => {
     setText('humSpan',  'N/A');
     setText('vpdSpan',  'N/A');
     setText('capturedSpan', 'N/A');
+    // averages optional
   }
   // Poll every 10s and once immediately
   setInterval(updateSensorValues, 10000);
   updateSensorValues();
 
+  // ---------- Relay helpers ----------
+  function toggleRelay(nr) {
+    const idx = nr - 1;
+    fetch(`/relay/${nr}/toggle`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (typeof data.state !== 'undefined') {
+          relayStates[idx] = !!data.state;
+        } else {
+          relayStates[idx] = !relayStates[idx];
+        }
+        updateRelayButtons();
+      })
+      .catch(err => {
+        console.error('toggle relay failed:', err);
+      });
+  }
+
+  function updateRelayButtons() {
+    for (let i = 0; i < relayStates.length; i++) {
+      const btn = document.getElementById(`relay${i+1}`);
+      if (!btn) continue;
+      if (relayStates[i]) {
+        btn.classList.add('on');
+        btn.classList.remove('off');
+      } else {
+        btn.classList.add('off');
+        btn.classList.remove('on');
+      }
+    }
+  }
+
   // ---------- Embedded Web-Log ----------
   let logTimer = null;  // (nur EINMAL deklarieren)
+  let autoScroll = true;
 
   async function fetchWebLog() {
     try {
@@ -387,7 +441,6 @@ window.addEventListener('DOMContentLoaded', () => {
       const t = await r.text();
       const pre = document.getElementById('weblog');
       if (pre) {
-        // nur scrollen, wenn autoScroll aktiv
         const atBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 5;
         pre.textContent = t || '—';
         if (autoScroll && atBottom) {
@@ -399,13 +452,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- Benutzerinteraktion: Auto-Scroll deaktivieren, wenn man manuell scrollt ---
   document.addEventListener('DOMContentLoaded', () => {
     const pre = document.getElementById('weblog');
     if (!pre) return;
 
     pre.addEventListener('scroll', () => {
-      // Wenn Benutzer nach oben scrollt, AutoScroll aus
       const nearBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 10;
       autoScroll = nearBottom;
     });
@@ -422,33 +473,30 @@ window.addEventListener('DOMContentLoaded', () => {
     logTimer = null;
   }
  
-  // Sichtbarkeit: wenn Tab/Browser verdeckt -> pausieren
+  // Sichtbarkeit
   document.addEventListener('visibilitychange', () => {
     const loggingActive = document.getElementById('logging')?.classList.contains('active');
     if (document.visibilityState === 'visible' && loggingActive) startWebLog();
     else stopWebLog();
   });
 
-  // SPA-Seitenwechsel-Callback (AUFRUFEN, wenn die aktive Seite geändert wird)
+  // SPA-Seitenwechsel-Callback
   function onPageChanged(activeId) {
     if (activeId === 'logging') startWebLog(); else stopWebLog();
   }
 
-  // Der ESP32 ersetzt %PHASE% beim Senden der Seite, z. B. mit "grow", "flower" oder "dry"
+  // Phase-Init
   function initPhaseSelect(){
     const currentPhase = '%PHASE%';
     const sel = document.getElementById('phaseSelect');
 
     if (!sel) return;
 
-    // Sichere Werte überprüfen
     const validPhases = ['grow', 'flower', 'dry'];
     const phase = validPhases.includes(currentPhase) ? currentPhase : 'grow';
 
-    // Select-Feld setzen
     sel.value = phase;
 
-    // Optional: Im Statusbereich anzeigen, falls ein Element vorhanden ist
     const phaseLabel = document.getElementById('currentPhase');
     if (phaseLabel) {
       const phaseNames = {
@@ -458,7 +506,6 @@ window.addEventListener('DOMContentLoaded', () => {
       };
       phaseLabel.textContent = phaseNames[phase] || phase;
     }
-    
   }
   
   document.getElementById('toggleScrollBtn')?.addEventListener('click', () => {
@@ -471,4 +518,21 @@ window.addEventListener('DOMContentLoaded', () => {
   onPageChanged(initiallyActive);
 
 }); // end DOMContentLoaded
+
+window.toggleRelay = function(nr) {
+  const idx = nr - 1;
+  fetch(`/relay/${nr}/toggle`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (typeof data.state !== 'undefined') {
+        relayStates[idx] = !!data.state;
+      } else {
+        relayStates[idx] = !relayStates[idx];
+      }
+      updateRelayButtons();
+    })
+    .catch(err => {
+      console.error('toggle relay failed:', err);
+    });
+};
 )rawliteral";
