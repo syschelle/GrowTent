@@ -71,14 +71,22 @@ void startSoftAP() {
   }
 }
 
-// forward declaration so handleRoot can call toIsoDate which is defined later
-void calculateTimeSince(String startDate, int &days, int &weeks);
+
+// Forward declaration so this header can call the function defined later
+String readSensorData();
+void calculateTimeSince(const String& startDate, int& daysSinceStartInt, int& weeksSinceStartInt);
+float avgTemp();
+float avgHum();
+float avgVPD();
+float avgWaterTemp();
 
 // Handle root path "/"
 void handleRoot() {
   
   String html;
   if (espMode) {
+    String sensorData = readSensorData();
+
     // Build HTML
     html = FPSTR(apPage);
     // Replace placeholders in index_html.h
@@ -103,6 +111,10 @@ void handleRoot() {
     html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
     html.replace("%HUMIDITY%", String(lastHumidity, 0));
     html.replace("%TARGETVPD%",  String(targetVPD, 1));
+    html.replace("%AVGTEMP%",  String(avgTemp(), 1));
+    html.replace("%AVGWATERTEMP%",  String(avgWaterTemp(), 1));
+    html.replace("%AVGHUM%",  String(avgHum(), 0));
+    html.replace("%AVGVPD%",  String(avgVPD(), 1));
 
     html.replace("%CONTROLLERNAME%", boxName);
     html.replace("%GROWSTARTDATE%", String(startDate));
@@ -246,9 +258,9 @@ void handleSaveSettings() {
     return;
   }
 
-  // 2) Save controller name if provided
-  if (server.hasArg("webControllerName")) {
-    String v = server.arg("webControllerName");
+  // 2) Save box name if provided
+  if (server.hasArg("webBoxName")) {
+    String v = server.arg("webBoxName");
     preferences.putString(KEY_NAME, v) > 0;
     boxName = v; // also update RAM variable
   }
@@ -355,7 +367,7 @@ void syncDateTime() {
 }
 
 // calculate elapsed days and weeks from defined date
-void calculateTimeSince(String startDate, int &days, int &weeks) {
+void calculateTimeSince(const String& startDate, int &days, int &weeks) {
   struct tm tmStart = { 0 };
   int y, m, d;
   sscanf(startDate.c_str(), "%d-%d-%d", &y, &m, &d);
@@ -425,7 +437,6 @@ static void compactLog() {
 }
 
 // calculate elapsed days and weeks from defined unix timestamp
-
 float calcVPD(float valLastTemperature,float valOffsetLeafTemperature , float valLastHumidity) {
       float FT = valLastTemperature;
       float FARH = valLastHumidity;
@@ -436,6 +447,55 @@ float calcVPD(float valLastTemperature,float valOffsetLeafTemperature , float va
       float VPAIR = (FARH / 100) * ASVPF;
       float VPD = VPLEAF - VPAIR;
       return VPD;
+}
+
+// Store new reading and update running sums
+void addReading(float temp, float hum, float vpd) {
+  // Remove old values from sums
+  sumTemp -= temps[index_pos];
+  sumHum  -= hums[index_pos];
+  sumVPD  -= vpds[index_pos];
+  sumWaterTemp -= waterTemps[index_pos];
+
+  // Add new values
+  temps[index_pos] = temp;
+  hums[index_pos]  = hum;
+  vpds[index_pos]  = vpd;
+  waterTemps[index_pos] = DS18B20STemperature;
+
+  sumTemp += temp;
+  sumHum  += hum;
+  sumVPD  += vpd;
+  sumWaterTemp += waterTemps[index_pos];
+
+  // Move index (circular buffer)
+  index_pos = (index_pos + 1) % NUM_VALUES;
+
+  // Count how many values are valid (up to NUM_VALUES)
+  if (count < NUM_VALUES) {
+    count++;
+  }
+}
+
+// Averages
+float avgTemp() {
+  if (count == 0) return 0.0f;
+  return sumTemp / count;
+}
+
+float avgHum() {
+  if (count == 0) return 0.0f;
+  return sumHum / count;
+}
+
+float avgVPD() {
+  if (count == 0) return 0.0f;
+  return sumVPD / count;
+}
+
+float avgWaterTemp() {
+  if (count == 0) return 0.0f;
+  return sumWaterTemp / count;
 }
 
 // Read sensor temperatur, humidity and vpd and DS18B20 water temperature
@@ -602,6 +662,16 @@ static void handleDownloadHistory() {
   server.sendHeader("Cache-Control", "no-store");
   server.streamFile(f, "text/csv");
   f.close();
+}
+
+static void handleDeleteLog() {
+  if (LittleFS.exists(LOG_PATH)) {
+    LittleFS.remove(LOG_PATH);
+    server.send(200, "text/html", "<html><body>Gel&ouml;scht <a href=\"/\">Back</a></body></html>");
+    logPrint("[WEB] CSV deleted: " + String(LOG_PATH));
+  } else {
+    server.send(404, "text/html", "<html><body>No CSV found. <a href=\"/\">Back</a></body></html>");
+  }
 }
 
 void handleApiLogBuffer() {

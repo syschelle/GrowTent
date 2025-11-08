@@ -95,6 +95,25 @@ volatile float lastVPD = NAN;
 const uint32_t READ_INTERVAL_MS = 1000;
 uint32_t lastRead = 0;
 
+// Circular buffer configuration
+#define NUM_VALUES 360     // 60 min * (60 / 10) = 360 readings
+
+// Circular buffers for Temperature, Humidity, and VPD
+float temps[NUM_VALUES] = {0};
+float hums[NUM_VALUES]  = {0};
+float vpds[NUM_VALUES]  = {0};
+float waterTemps[NUM_VALUES]  = {0};
+
+// Running sums
+float sumTemp = 0.0f;
+float sumHum  = 0.0f;
+float sumVPD  = 0.0f;
+float sumWaterTemp  = 0.0f;
+
+// Current position in the circular buffer
+int index_pos = 0;
+int count     = 0;
+
 // Default growlight setting
 char actualDate[10];
 String startDate;

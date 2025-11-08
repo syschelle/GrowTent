@@ -87,6 +87,7 @@ const char* htmlPage = R"rawliteral(
       </p>
       <p style="margin-top:10px">
         <a class="btn" href="/download/history" data-i18n="status.download">CSV herunterladen</a>
+        <a class="btn" href="/deletelog" data-i18n="status.delete">CSV löschen</a>
       </p>
 
       <!-- 3 values side by side -->
@@ -137,6 +138,34 @@ const char* htmlPage = R"rawliteral(
             <div class="metric-value">
               <span id="leafTempStatus">%LEAFTEMPERATURE%</span> <span class="unit">°C</span>
             </div>
+          </div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="metrics-row averages-row">
+        <div class="metric">
+          <div class="metric-label" data-i18n="status.avgTemperature">Ø Temperatur</div>
+          <div class="metric-value">
+            <span id="avgTempSpan">%AVGTEMP%</span><span class="unit">°C</span>
+          </div>
+          <div class="spacer"></div>
+          <div class="metric-submetric">
+            <div class="metric-label" data-i18n="status.avgWaterTemperature">Ø Wassertemperatur</div>
+            <div class="metric-value">
+              <span id="avgWaterTempSpan">%AVGWATERTEMP%</span><span class="unit">°C</span>
+            </div>
+          </div>
+        </div>
+        <div class="metric">
+          <div class="metric-label" data-i18n="status.avgHumidity">Ø rel. Feuchte</div>
+          <div class="metric-value">
+            <span id="avgHumSpan">%AVGHUM%</span><span class="unit">%</span>
+          </div>
+        </div>
+        <div class="metric">
+          <div class="metric-label" data-i18n="status.avgVpd">Ø VPD</div>
+          <div class="metric-value">
+            <span id="avgVpdSpan">%AVGVPD%</span><span class="unit">kPa</span>
           </div>
         </div>
       </div>

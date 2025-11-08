@@ -84,6 +84,10 @@ void setup() {
         if (bme.begin(BME_ADDR)) {
           logPrint("[SENSOR] BME280 successfully initialized!");
           bmeAvailable = true;
+          // Read sensor temperatur, humidity and vpd
+          readSensorData();
+          // Store readings and update sums
+          addReading(lastTemperature, lastHumidity, lastVPD);
           break;
         } else {
           logPrint("[SENSOR] BME280 not found, retrying in 500 ms");
@@ -94,7 +98,7 @@ void setup() {
       OneWire oneWire(DS18B20_PIN);
       DallasTemperature sensors(&oneWire);
       sensors.begin();
-
+   
       xTaskCreatePinnedToCore(
         taskCheckBMESensor,                // Task function
         "Read Valuse of BME280 every 10s",      // Task name
@@ -143,6 +147,8 @@ void setup() {
   });
   // route for downloading the history log as CSV file
   server.on("/download/history", HTTP_GET, handleDownloadHistory);
+  // route for deleting the history log file
+  server.on("/deletelog", HTTP_GET, handleDeleteLog);
   // route for favicon.ico
   server.on("/favicon.ico", HTTP_GET, []() {
     String data = FAVICON_ICO_BASE64;
@@ -165,13 +171,6 @@ void setup() {
 void loop() {
   // handle client requests
   server.handleClient();
-
-  // Load NTP server and timezone info from Preferences
-  preferences.begin(PREF_NS, true);
-  tzInfo = preferences.isKey(KEY_TFMT) ? preferences.getString(KEY_TFMT) : String(DEFAULT_TZ_INFO);
-  ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);
-  preferences.end();
-  
 
   // Daily NTP sync at 01:00 AM
   struct tm timeinfo;
