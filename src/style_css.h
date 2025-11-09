@@ -282,7 +282,8 @@ const char* cssContent = R"rawliteral(
 
     .relay-status {
       font-size: 1.1rem;
-      font-weight: bold;
+      height: 16px;
+      display: flex;
       padding: 0.2rem 0.6rem;
       border-radius: 6px;
       min-width: 60px;
