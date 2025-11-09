@@ -78,6 +78,9 @@ UI highlights:
 - Gauges for Temperature, Humidity and VPD
 - Settings page for language, theme, date/time format, temperature unit, and NTP/timezone configuration
 - Uses localStorage + Preferences for persistent settings across reloads
+- Statuspage
+  <img width="1234" height="980" alt="image" src="https://github.com/user-attachments/assets/4bd1b7b7-3e81-4212-8a57-6be878d5dbcb" />
+
 
 Languages provided (i18n):
 - German (`de`)
