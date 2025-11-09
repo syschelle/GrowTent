@@ -193,7 +193,12 @@ const char* cssContent = R"rawliteral(
     }
 
     /* Card */
-    .card{background:var(--muted);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+    .card{
+      background:var(--muted);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:16px
+    }
 
     /* Status: last update under the status text */
     .last-update {
@@ -262,10 +267,11 @@ const char* cssContent = R"rawliteral(
     }
 
     .relay-card {
-      background: #fff;
-      border-radius: 6px;
-      padding: 0.75rem 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       min-width: 140px;
     }
 
@@ -290,21 +296,6 @@ const char* cssContent = R"rawliteral(
 
     .relay-status.off {
       background: #dc3545; /* rot */
-    }
-
-    .relay-btn {
-      display: inline-block;
-      border: none;
-      background: #007bff;
-      color: #fff;
-      padding: 0.3rem 0.6rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-
-    .relay-btn:hover {
-      background: #0069d9;
     }
       
 )rawliteral";

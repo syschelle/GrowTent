@@ -89,7 +89,7 @@ const char* htmlPage = R"rawliteral(
         <a class="btn" href="/download/history" data-i18n="status.download">CSV herunterladen</a>
         <a class="btn" href="/deletelog" data-i18n="status.delete">CSV löschen</a>
       </p>
-
+      <h2 data-i18n="status.currentValues">aktuelle Werte</h2>
       <!-- 3 values side by side -->
       <div class="metrics-row">
         <div class="metric">
@@ -141,7 +141,7 @@ const char* htmlPage = R"rawliteral(
           </div>
         </div>
       </div>
-      <div class="spacer"></div>
+      <h2 data-i18n="status.averagesLastHour">Durchschnittswerte der letzten Stunde</h2>
       <div class="metrics-row averages-row">
         <div class="metric">
           <div class="metric-label" data-i18n="status.avgTemperature">Ø Temperatur</div>
@@ -178,22 +178,22 @@ const char* htmlPage = R"rawliteral(
       <div class="relay-card" data-relay="1">
         <div class="relay-title">Relay 1</div>
         <div class="relay-status" id="relayStatus1">OFF</div>
-        <button class="relay-btn" onclick="toggleRelay(1)">Toggle</button>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(1)">Toggle</button>
       </div>
       <div class="relay-card" data-relay="2">
         <div class="relay-title">Relay 2</div>
         <div class="relay-status" id="relayStatus2">OFF</div>
-        <button class="relay-btn" onclick="toggleRelay(2)">Toggle</button>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(2)">Toggle</button>
       </div>
       <div class="relay-card" data-relay="3">
         <div class="relay-title">Relay 3</div>
         <div class="relay-status" id="relayStatus3">OFF</div>
-        <button class="relay-btn" onclick="toggleRelay(3)">Toggle</button>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(3)">Toggle</button>
       </div>
       <div class="relay-card" data-relay="4">
         <div class="relay-title">Relay 4</div>
         <div class="relay-status" id="relayStatus4">OFF</div>
-        <button class="relay-btn" onclick="toggleRelay(4)">Toggle</button>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(4)">Toggle</button>
       </div>
     </div>
     </section>

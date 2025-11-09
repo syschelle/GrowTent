@@ -37,16 +37,20 @@ const char* jsContent = R"rawliteral(
     "status.updated": "Letztes Update:",
     "status.download": "History herunterladen",
     "status.delete": "History löschen",
+    "status.currentValues": "Aktuelle Werte",
     "status.lastTemperature": "akt. Temperatur",
     "status.targetTemp": "Soll-Temperatur",
     "status.lastWaterTemperature": "akt. Wassertemperatur",
     "status.lasthumidity": "akt. Luftfeuchte",
     "status.lastvpd": "akt. VPD",
     "status.targetVpd": "Soll-VPD:",
+    "status.averagesLastHour": "Durchschnittswerte der letzten Stunde",
     "status.avgTemperature": "Ø Temperatur",
     "status.avgWaterTemperature": "Ø Wassertemperatur",
     "status.avgHumidity": "Ø rel. Feuchte",
     "status.avgVpd": "Ø VPD",
+    "status.relayControl": "Relais Steuerung",
+    "status.toggleRelay": "umschalten",
     "runsetting.title": "Betriebseinstellungen",
     "runsetting.startGrow": "Startdatum:",
     "runsetting.startFlower": "Startdatum Blüte:",
@@ -99,16 +103,20 @@ const char* jsContent = R"rawliteral(
     "status.updated": "Last update:",
     "status.download": "Download History",
     "status.delete": "Delete History",
+    "status.currentValues": "current Values",
     "status.lastTemperature": "current Temperature",
     "status.targetTemp": "target Temperature",
     "status.lastWaterTemperature": "current Water Temperature",
     "status.lasthumidity": "current Humidity",
     "status.lastvpd": "current VPD",
     "status.targetVpd": "target VPD",
+    "status.averagesLastHour": "Averages last hour",
     "status.avgTemperature": "avg. Temperature",
     "status.avgWaterTemperature": "avg. Water Temperature",
     "status.avgHumidity": "avg. Humidity",
     "status.avgVpd": "avg. VPD",
+    "status.relayControl": "Relay Control",
+    "status.toggleRelay": "toggle",
     "runsetting.title": "Operating settings",
     "runsetting.startGrow": "Start Date:",
     "runsetting.startFlower": "Start Flowering Date:",
@@ -146,6 +154,42 @@ const char* jsContent = R"rawliteral(
   });
 })();
 
+// ---- relay state (4 relays) ----
+let relayStates = [false, false, false, false];
+
+// Aktualisiert die Relay-Buttons im UI
+window.updateRelayButtons = function() {
+  for (let i = 0; i < relayStates.length; i++) {
+    const btn = document.getElementById(`relayStatus${i + 1}`);
+    if (!btn) continue;
+    if (relayStates[i]) {
+      btn.classList.add('on');
+      btn.classList.remove('off');
+    } else {
+      btn.classList.add('off');
+      btn.classList.remove('on');
+    }
+  }
+};
+
+// Relay umschalten
+window.toggleRelay = function(nr) {
+  const idx = nr - 1;
+  fetch(`/relay/${nr}/toggle`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (typeof data.state !== 'undefined') {
+        relayStates[idx] = !!data.state;
+      } else {
+        relayStates[idx] = !relayStates[idx];
+      }
+      updateRelayButtons();
+    })
+    .catch(err => {
+      console.error('toggle relay failed:', err);
+    });
+};
+
 // Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
 
@@ -153,9 +197,6 @@ window.addEventListener('DOMContentLoaded', () => {
   const $  = (id) => document.getElementById(id);
   const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
   const isNum = x => typeof x === 'number' && !Number.isNaN(x);
-
-  // ---- relay state (4 relays) ----
-  let relayStates = [false, false, false, false];
 
   // ---------- Sidebar & SPA ----------
   const mqDesktop = window.matchMedia('(min-width:1024px)');
@@ -375,15 +416,15 @@ window.addEventListener('DOMContentLoaded', () => {
         (isNum(data.ts) ? new Date(data.ts).toLocaleString() : 'N/A');
       setText('capturedSpan', cap);
 
-      // relays: expect array of booleans
       if (Array.isArray(data.relays)) {
-        relayStates = data.relays.map(v => !!v);
-        updateRelayButtons();
+      relayStates = data.relays.map(v => !!v);
+      updateRelayButtons();
       }
 
     } catch (error) {
       console.error('Exception in updateSensorValues():', error);
       setNA();
+      updateRelayButtons();
     }
   }
   function setNA(){
@@ -516,23 +557,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Initial call to set the correct page on load
   const initiallyActive = document.querySelector('.page.active')?.id || 'status';
   onPageChanged(initiallyActive);
+  updateRelayButtons();
 
 }); // end DOMContentLoaded
 
-window.toggleRelay = function(nr) {
-  const idx = nr - 1;
-  fetch(`/relay/${nr}/toggle`, { method: 'POST' })
-    .then(r => r.json())
-    .then(data => {
-      if (typeof data.state !== 'undefined') {
-        relayStates[idx] = !!data.state;
-      } else {
-        relayStates[idx] = !relayStates[idx];
-      }
-      updateRelayButtons();
-    })
-    .catch(err => {
-      console.error('toggle relay failed:', err);
-    });
-};
+updateRelayButtons();
+
 )rawliteral";
