@@ -160,7 +160,7 @@ let relayStates = [false, false, false, false];
 // Aktualisiert die Relay-Buttons im UI
 window.updateRelayButtons = function() {
   for (let i = 0; i < relayStates.length; i++) {
-    const btn = document.getElementById(`relayStatus${i + 1}`);
+    const btn = document.getElementById(`relay-Status${i + 1}`);
     if (!btn) continue;
     if (relayStates[i]) {
       btn.classList.add('on');
@@ -424,7 +424,6 @@ window.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       console.error('Exception in updateSensorValues():', error);
       setNA();
-      updateRelayButtons();
     }
   }
   function setNA(){
@@ -459,7 +458,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function updateRelayButtons() {
     for (let i = 0; i < relayStates.length; i++) {
-      const btn = document.getElementById(`relay${i+1}`);
+      const btn = document.getElementById(`relay-Status${i+1}`);
       if (!btn) continue;
       if (relayStates[i]) {
         btn.classList.add('on');

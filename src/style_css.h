@@ -281,13 +281,13 @@ const char* cssContent = R"rawliteral(
     }
 
     .relay-status {
-      display: inline-block;
-      padding: 0.25rem 0.6rem;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      margin-bottom: 0.6rem;
-      background: #ccc;
-      color: #fff;
+      font-size: 1.1rem;
+      font-weight: bold;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      min-width: 60px;
+      text-align: center;
+      transition: all 0.2s ease;
     }
 
     .relay-status.on {
