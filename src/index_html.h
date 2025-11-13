@@ -176,25 +176,25 @@ const char* htmlPage = R"rawliteral(
     <h2 data-i18n="status.relayControl">Relais Steuerung</h2>
     <div class="relay-row" id="relayRow">
       <div class="relay-card" data-relay="1">
-        <div class="relay-title">Relay 1</div>
+        <div class="relay-title">%RELAYNAMES1%</div>
         <div class="relay-status" id="relay-Status1"></div>
         <div class="spacer"></div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(1)">Toggle</button>
       </div>
       <div class="relay-card" data-relay="2">
-        <div class="relay-title">Relay 2</div>
+        <div class="relay-title">%RELAYNAMES2%</div>
         <div class="relay-status" id="relay-Status2"></div>
         <div class="spacer"></div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(2)">Toggle</button>
       </div>
       <div class="relay-card" data-relay="3">
-        <div class="relay-title">Relay 3</div>
+        <div class="relay-title">%RELAYNAMES3%</div>
         <div class="relay-status" id="relay-Status3"></div>
         <div class="spacer"></div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(3)">Toggle</button>
       </div>
       <div class="relay-card" data-relay="4">
-        <div class="relay-title">Relay 4</div>
+        <div class="relay-title">%RELAYNAMES4%</div>
         <div class="relay-status" id="relay-Status4"></div>
         <div class="spacer"></div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(4)">Toggle</button>
@@ -257,7 +257,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group">
           <label for="webBoxName" data-i18n="settings.boxName">Boxname:</label>
-          <input name="webBoxName" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
+          <input name="" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
         </div>
 
         <div class="form-group">
@@ -310,6 +310,27 @@ const char* htmlPage = R"rawliteral(
             <option value="C" data-i18n="settings.celsius">°C (Celsius)</option>
             <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
           </select>
+        </div>
+
+        <h2 data-i18n="settings.relaySettings">Relais Einstellungen</h2>
+        <div class="form-group">
+          <label for="webRelay1" data-i18n="settings.relay1">Relay 1:</label>
+          <input name="webRelayName1" id="webRelayName1" type="text" data-i18n="settings.relay1.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES1%">
+        </div>
+
+        <div class="form-group">
+          <label for="webRelay2" data-i18n="settings.relay2">Relay 2:</label>
+          <input name="webRelayName2" id="webRelayName2" type="text" data-i18n="settings.relay2.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES2%">
+        </div>
+
+        <div class="form-group">
+          <label for="webRelay3" data-i18n="settings.relay3">Relay 3:</label>
+          <input name="webRelayName3" id="webRelayName3" type="text" data-i18n="settings.relay3.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES3%">
+        </div>
+
+        <div class="form-group">
+          <label for="webRelay4" data-i18n="settings.relay4">Relay 4:</label>
+          <input name="webRelayName4" id="webRelayName4" type="text" data-i18n="settings.relay4.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES4%">
         </div>
 
         <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>

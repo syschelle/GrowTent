@@ -19,6 +19,7 @@ const char* cssContent = R"rawliteral(
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
     a{color:var(--link); text-decoration: none;}
     h1{font-size:clamp(1.25rem,1.2vw+1rem,1.8rem);margin:0 0 .75rem}
+    h2{font-size:clamp(0.9rem,.5vw+1rem,1.1rem);margin:0 0 .75rem;opacity: 0.8}
     p,label,input,select,button{font-size:clamp(.95rem,.4vw+.85rem,1.05rem)}
     /* Header */
     .header{

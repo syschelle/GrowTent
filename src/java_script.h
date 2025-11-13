@@ -83,6 +83,11 @@ const char* jsContent = R"rawliteral(
     "settings.tempUnit": "Temperatur-Einheit:",
     "settings.celsius": "°C (Celsius)",
     "settings.fahrenheit": "°F (Fahrenheit)",
+    "settings.relaySettings": "Relais Einstellungen",
+    "settings.relay1": "Relaisname 1:",
+    "settings.relay2": "Relaisname 2:",
+    "settings.relay3": "Relaisname 3:",
+    "settings.relay4": "Relaisname 4:",
     "logging.title": "Systemprotokoll",
     "factory.title": "Werkseinstellungen",
     "factory.reset": "Zurücksetzen / Neustart"
@@ -148,6 +153,11 @@ const char* jsContent = R"rawliteral(
     "settings.tempUnit": "Temperature unit:",
     "settings.celsius": "°C (Celsius)",
     "settings.fahrenheit": "°F (Fahrenheit)",
+    "settings.relaySettings": "Relay Settings",
+    "settings.relay1": "Relay name 1:",
+    "settings.relay2": "Relay name 2:",
+    "settings.relay3": "Relay name 3:",
+    "settings.relay4": "Relay name 4:",
     "logging.title": "Logging Settings",
     "factory.title": "Factory Settings",
     "factory.reset": "Reset / Restart"

@@ -20,6 +20,10 @@ static const char* KEY_SSID    = "ssid";
 static const char* KEY_PASS    = "password";
 // namespace for preferences
 static const char* PREF_NS     = "growtent";
+static const char* KEY_RELAY_1 = "relay1";
+static const char* KEY_RELAY_2 = "relay2";
+static const char* KEY_RELAY_3 = "relay3";
+static const char* KEY_RELAY_4 = "relay4";
 //runningsettings
 static const char* KEY_STARTDATE = "startDate";
 static const char* KEY_FLOWERDATE = "startFlowering";
@@ -38,8 +42,14 @@ static const char* KEY_NTPSRV  = "ntpSrv";
 static const char* KEY_TZINFO  = "tzInfo";
 
 // Include sensor libraries
+Adafruit_BME280 bme;         // global instance
+#ifndef I2C_SDA
+  #define I2C_SDA 21
+#endif
+#ifndef I2C_SCL
+  #define I2C_SCL 22
+#endif
 #define BME_ADDR 0x76
-Adafruit_BME280 bme;
 bool bmeAvailable = false;
 
 // DS18B20 Configuration
@@ -58,12 +68,7 @@ const unsigned long blinkInterval = 500; // Blinkrate in Millisekunden
 bool ledState = false;
 
 // human designations for the relays
-static const char* relayNames[NUM_RELAYS] = {
-	"left fan",
-	"right fan",
-	"pod fan",
-	"humidifier fan"
-};
+static const char* relayNames[NUM_RELAYS];
 
 // Global configuration variables
 String boxName;

@@ -115,6 +115,10 @@ void handleRoot() {
     html.replace("%AVGWATERTEMP%",  String(avgWaterTemp(), 1));
     html.replace("%AVGHUM%",  String(avgHum(), 0));
     html.replace("%AVGVPD%",  String(avgVPD(), 1));
+    html.replace("%RELAYNAMES1%", String(relayNames[0]));
+    html.replace("%RELAYNAMES2%", String(relayNames[1]));
+    html.replace("%RELAYNAMES3%", String(relayNames[2]));
+    html.replace("%RELAYNAMES4%", String(relayNames[3]));
 
     html.replace("%CONTROLLERNAME%", boxName);
     html.replace("%GROWSTARTDATE%", String(startDate));
@@ -137,10 +141,14 @@ void handleRoot() {
 // Read stored preferences
 void readPreferences() {
   preferences.begin(PREF_NS, true);
-  preferences.begin(PREF_NS, false);
   //WIFI
   ssidName = preferences.isKey(KEY_SSID) ? preferences.getString(KEY_SSID) : String();
   ssidPassword = preferences.isKey(KEY_PASS) ? preferences.getString(KEY_PASS) : String();
+  // relays
+  relayNames[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
+  relayNames[1] = preferences.isKey(KEY_RELAY_2) ? strdup(preferences.getString(KEY_RELAY_2).c_str()) : strdup("relay 2");
+  relayNames[2] = preferences.isKey(KEY_RELAY_3) ? strdup(preferences.getString(KEY_RELAY_3).c_str()) : strdup("relay 3");
+  relayNames[3] = preferences.isKey(KEY_RELAY_4) ? strdup(preferences.getString(KEY_RELAY_4).c_str()) : strdup("relay 4");
   // running settings
   startDate = preferences.isKey(KEY_STARTDATE) ? preferences.getString(KEY_STARTDATE) : String();
   startFlowering = preferences.isKey(KEY_FLOWERDATE) ? preferences.getString(KEY_FLOWERDATE) : String();
@@ -161,12 +169,13 @@ void readPreferences() {
   logPrint("[PREF] loading - ssid:" + ssidName + " boxName:" + boxName + " language:" + language + " theme:" + theme +
            " unit:" + unit + " timeFormat:" + timeFormat + " ntpServer:" + ntpServer + " tzInfo:" + tzInfo +
            " startDate:" + startDate + " floweringStart:" + startFlowering + " dryingStart:" + startDrying +
-           " targetTemperature:" + targetTemperature + " offsetLeafTemperature:" + offsetLeafTemperature + 
-           " targetVPD:" + targetVPD + " curPhase:" + String(curPhase));
+           " targetTemperature:" + targetTemperature + " offsetLeafTemperature:" + offsetLeafTemperature +
+           " targetVPD:" + targetVPD + " curPhase:" + String(curPhase) + " Relayname1:" + relayNames[0] + 
+           " Relayname2:" + relayNames[1] + " Relayname3:" + relayNames[2] + " Relayname4:" + relayNames[3]);
 }
 
 void handleSaveRunsettings() {
-  // 1) Open the Preferences namespace with write access (readOnly = false)
+  // Open the Preferences namespace with write access (readOnly = false)
   // Only call begin() once — calling it twice can cause writes to fail!
   if (!preferences.begin(PREF_NS, false)) {
     logPrint("[PREF][ERROR] preferences.begin() failed. "
@@ -175,72 +184,57 @@ void handleSaveRunsettings() {
     return;
   }
 
-  // 2) Save grow start date if provided
+  // Save grow start date if provided
   if (server.hasArg("webGrowStart")) {
-    String v = server.arg("webGrowStart");
-    preferences.putString(KEY_STARTDATE, v) > 0;
-    startDate = v; // also update RAM variable
+    startDate = server.arg("webGrowStart");
+    preferences.putString(KEY_STARTDATE, startDate);
+    logPrint("[PREFERENCES] " + String(KEY_STARTDATE) + " written : " + startDate);
   }
 
-  // 3) Save flowering start date if provided
+  // Save flowering start date if provided
   if (server.hasArg("webFloweringStart")) {
-    String v = server.arg("webFloweringStart");
-    preferences.putString(KEY_FLOWERDATE, v) > 0;
-    startFlowering = v;
+    startFlowering = server.arg("webFloweringStart");
+    preferences.putString(KEY_FLOWERDATE, startFlowering);
+    logPrint("[PREFERENCES] " + String(KEY_FLOWERDATE) + " written: " + startFlowering);
   }
 
-  // 4) Save drying start date if provided
+  // Save drying start date if provided
   if (server.hasArg("webDryingStart")) {
-    String v = server.arg("webDryingStart");
-    preferences.putString(KEY_DRYINGDATE, v) > 0;
-    startDrying = v;
+    String startDrying = server.arg("webDryingStart");
+    preferences.putString(KEY_DRYINGDATE, startDrying);
+    logPrint("[PREFERENCES] " + String(KEY_DRYINGDATE) + " written: " + startDrying);
   }
 
-  // 5) Save current phase if provided
+  // Save current phase if provided
   if (server.hasArg("webCurrentPhase")) {
     curPhase = server.arg("webCurrentPhase").toInt();
-    preferences.putInt(KEY_CURRENTPHASE, curPhase) > 0;
+    preferences.putInt(KEY_CURRENTPHASE, curPhase);
+    logPrint("[PREFERENCES] " + String(KEY_CURRENTPHASE) + " written: " + curPhase);
   }
 
-  // 6) Save target temperature if provided
+  // Save target temperature if provided
   if (server.hasArg("webTargetTemp")) {
     targetTemperature = server.arg("webTargetTemp").toFloat();
     preferences.putFloat(KEY_TARGETTEMP, targetTemperature);
+    logPrint("[PREFERENCES] " + String(KEY_TARGETTEMP) + " written: " + targetTemperature);
   }
 
-  // 7) Save target VPD if provided
+  // Save target VPD if provided
   if (server.hasArg("webTargetVPD")) {
     targetVPD = server.arg("webTargetVPD").toFloat();
     preferences.putFloat(KEY_TARGETVPD, targetVPD);
+    logPrint("[PREFERENCES] " + String(KEY_TARGETVPD) + " written: " + targetVPD);
   }
 
-  // 8) Save leaf temperature offset if provided
+  // Save leaf temperature offset if provided
   if (server.hasArg("webOffsetLeafTemp")) {
-    offsetLeafTemperature = server.arg("webOffsetLeafTemp").toFloat();
-    preferences.putFloat(KEY_LEAFTEMP, offsetLeafTemperature);
+    preferences.putFloat(KEY_LEAFTEMP, server.arg("webOffsetLeafTemp").toFloat());
+    logPrint("[PREFERENCES] " + String(KEY_LEAFTEMP) + " written: " + offsetLeafTemperature);
   }
-
-  // 9) Optionally read the values back to confirm they were written
-  String  chkStartDate       = preferences.getString(KEY_STARTDATE, "");
-  String  chkFloweringStart  = preferences.getString(KEY_FLOWERDATE, "");
-  String  chkDryingStart     = preferences.getString(KEY_DRYINGDATE, "");
-  int     chkPhase           = preferences.getInt(KEY_CURRENTPHASE, -1);
-  float   chkTargetTemp      = preferences.getFloat(KEY_TARGETTEMP, NAN);
-  float   chkTargetVPD       = preferences.getFloat(KEY_TARGETVPD, NAN);
-  float   chkOffsetLeafTemp  = preferences.getFloat(KEY_LEAFTEMP, NAN);
 
   preferences.end(); // always close Preferences handle
 
-  // 10) Log everything for debugging
-  logPrint(String("[PREF] runssetings saved startDate:") + chkStartDate +
-           " floweringStart:" + chkFloweringStart +
-           " dryingStart:" + chkDryingStart +
-           " curPhase:" + String(chkPhase) +
-           " targetTemp:" + String(chkTargetTemp) +
-           " offsetLeafTemperature:" + String(chkOffsetLeafTemp) +
-           " targetVPD:" + String(chkTargetVPD));
-
-  // 11) Send redirect response and restart the ESP
+  // Send redirect response and restart the ESP
   server.sendHeader("Location", "/");
   server.send(303);  // HTTP redirect to status page
   delay(250);
@@ -249,67 +243,91 @@ void handleSaveRunsettings() {
 
 // Handle general settings save
 void handleSaveSettings() {
-  // 1) Open the Preferences namespace with write access (readOnly = false)
+  // Open the Preferences namespace with write access (readOnly = false)
   // Only call begin() once — calling it twice can cause writes to fail!
   if (!preferences.begin(PREF_NS, false)) {
-    logPrint("[PREF][ERROR] preferences.begin() failed. "
+    logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
              "Check that PREF_NS length <= 15 characters.");
     server.send(500, "text/plain", "Failed to open Preferences");
     return;
   }
 
-  // 2) Save box name if provided
+  // Save box name if provided
   if (server.hasArg("webBoxName")) {
-    String v = server.arg("webBoxName");
-    preferences.putString(KEY_NAME, v) > 0;
-    boxName = v; // also update RAM variable
+    boxName = server.arg("webBoxName");
+    preferences.putString(KEY_NAME, boxName);
+    logPrint("[PREFERENCES] " + String(KEY_NAME) + " written bytes: " + boxName);
   }
-  // 3) Save NTP server if provided
+  
+  // Save NTP server if provided
   if (server.hasArg("webNTPServer")) {
-    String v = server.arg("webNTPServer");
-    preferences.putString(KEY_NTPSRV, v) > 0;
-    ntpServer = v;
+    ntpServer = server.arg("webNTPServer");
+    preferences.putString(KEY_NTPSRV, ntpServer);
+    logPrint("[PREFERENCES] " + String(KEY_NTPSRV) + " written bytes: " + ntpServer);
   }
-  // 4) Save timezone info if provided
+
+  // Save timezone info if provided
   if (server.hasArg("webTimeZoneInfo")) {
-    String v = server.arg("webTimeZoneInfo");
-    preferences.putString(KEY_TZINFO, v) > 0;
-    tzInfo = v;
+    tzInfo = server.arg("webTimeZoneInfo");
+    preferences.putString(KEY_TZINFO, tzInfo);
+    logPrint("[PREFERENCES] " + String(KEY_TZINFO) + " written bytes: " + tzInfo);
   } 
-  // 5) Save language if provided
+
+  // Save language if provided
   if (server.hasArg("webLanguage")) {
-    String v = server.arg("webLanguage");
-    preferences.putString(KEY_LANG, v) > 0;
-    language = v;
+    language = server.arg("webLanguage");
+    preferences.putString(KEY_LANG, language);
+    logPrint("[PREFERENCES] " + String(KEY_LANG) + " written bytes: " + language);
   }
-  // 6) Save theme if provided
+
+  // Save theme if provided
   if (server.hasArg("webTheme")) {
-    String v = server.arg("webTheme");
-    preferences.putString(KEY_THEME, v) > 0;
-    theme = v;
+    theme = server.arg("webTheme");
+    preferences.putString(KEY_THEME, theme);
+    logPrint("[PREFERENCES] " + String(KEY_THEME) + " written bytes: " + theme);
   }
   // 7) Save time format if provided
   if (server.hasArg("webTimeFormat")) {
-    String v = server.arg("webTimeFormat");
-    preferences.putString(KEY_TFMT, v) > 0;
-    timeFormat = v;
-  } 
-  // 8) Save unit if provided
-  if (server.hasArg("webTempUnit")) { 
-    String v = server.arg("webTempUnit");
-    preferences.putString(KEY_UNIT, v) > 0;
-    unit = v;
+    timeFormat = server.arg("webTimeFormat");
+    preferences.putString(KEY_TFMT, timeFormat);
+    logPrint("[PREFERENCES] " + String(KEY_TFMT) + " written bytes: " + timeFormat);
   }
-  preferences.end(); // always close Preferences handle
+  // 8) Save unit if provided
+  if (server.hasArg("webTempUnit")) {
+    unit = server.arg("webTempUnit");
+    preferences.putString(KEY_UNIT, unit);
+    logPrint("[PREFERENCES] " + String(KEY_UNIT) + " written bytes: " + unit);
+  }
 
-  // 9) Log everything for debugging
-  logPrint(String("[PREF] settings saved boxName:") + boxName +
-           " ntpServer:" + ntpServer +
-           " tzInfo:" + tzInfo +
-           " lang:" + language +
-           " theme:" + theme +
-           " timeFormat:" + timeFormat +
-           " unit:" + unit);
+    if (server.hasArg("webRelayName1")) {
+    String v = server.arg("webRelayName1");
+    preferences.putString(KEY_RELAY_1, v);
+    logPrint("[Preferences] " + String(KEY_RELAY_1) + " written bytes: " + v);
+    relayNames[0] = strdup(v.c_str());
+  }
+
+  if (server.hasArg("webRelayName2")) {
+    String v = server.arg("webRelayName2");
+    preferences.putString(KEY_RELAY_2, v);
+    logPrint("[Preferences] " + String(KEY_RELAY_2) + " written bytes: " + v);
+    relayNames[1] = strdup(v.c_str());
+  }
+
+  if (server.hasArg("webRelayName3")) {
+    String v = server.arg("webRelayName3");
+    preferences.putString(KEY_RELAY_3, v);
+    logPrint("[Preferences] " + String(KEY_RELAY_3) + " written bytes: " + v);
+    relayNames[2] = strdup(v.c_str());
+  }
+
+  if (server.hasArg("webRelayName4")) {
+    String v = server.arg("webRelayName4");
+    preferences.putString(KEY_RELAY_4, v);
+    logPrint("[Preferences] " + String(KEY_RELAY_4) + " written bytes: " + v);
+    relayNames[3] = strdup(v.c_str());
+  }
+
+  preferences.end(); // always close Preferences handle
 
   // 11) Send redirect response and restart the ESP
   server.sendHeader("Location", "/");
@@ -506,8 +524,10 @@ String readSensorData() {
   // only update global water temp if valid
   if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
     DS18B20STemperature = dsTemp;
+  } else {
+    logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
   }
-
+  
   // we will ALWAYS return valid JSON, even if BME not available or not time yet
   unsigned long now = millis();
   struct tm timeinfo;

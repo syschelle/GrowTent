@@ -36,10 +36,18 @@ void handleSave();
 void setup() {
   Serial.begin(115200);
   
+  logPrint("==== BOOT =====");
+  logPrint("[BOOT] FW build: " + String(__DATE__) + " " + String(__TIME__));
+  logPrint("[BOOT] Chip MAC: " + WiFi.macAddress());
+  logPrint("[BOOT] Sketch MD5: " + String(ESP.getSketchMD5()));
+  logPrint("[BOOT] Flash size: " + String(ESP.getFlashChipSize()));
+
+
+
   if (!LittleFS.begin(true)) {
-    Serial.println(F("[LITTLEFS] LittleFS mount failed"));
+    logPrint("[LITTLEFS] LittleFS mount failed");
   } else {
-    Serial.println(F("[LITTLEFS] LittleFS mounted"));
+    logPrint("[LITTLEFS] LittleFS mounted");
   }
 
   // read stored preferences
@@ -77,38 +85,63 @@ void setup() {
       digitalWrite(relayPins[i], LOW);
       }
       
-      // Initialize BME280 sensor
-      unsigned long startTime = millis();
+      // I2C bus scan
+      Wire.begin(I2C_SDA, I2C_SCL);
+      Wire.setClock(100000);
+      logPrint("[I2C] Scanning bus...");
+      for (uint8_t addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+          logPrint("[I2C] Found device at 0x" + String(addr, HEX));
+          delay(2);
+        }
+      }
 
-      while (millis() - startTime < 10000) {
-        if (bme.begin(BME_ADDR)) {
-          logPrint("[SENSOR] BME280 successfully initialized!");
-          bmeAvailable = true;
-          // Read sensor temperatur, humidity and vpd
-          readSensorData();
-          // Store readings and update sums
-          addReading(lastTemperature, lastHumidity, lastVPD);
-          break;
-        } else {
-          logPrint("[SENSOR] BME280 not found, retrying in 500 ms");
+      // Initialize BME280 sensor
+      uint8_t candidates[2] = { 0x76, 0x77 };
+      bool bmeInit = false;
+      unsigned long startTime = millis();
+      while (!bmeInit && millis() - startTime < 10000) {
+        for (uint8_t i = 0; i < 2 && !bmeInit; i++) {
+          uint8_t a = candidates[i];
+          logPrint("[SENSOR] Trying BME280 at 0x" + String(a, HEX) + " ...");
+          if (bme.begin(a, &Wire)) {                 // wichtig: &Wire
+            logPrint("[SENSOR] BME280 initialized at 0x" + String(a, HEX));
+            bmeAvailable = true;
+            readSensorData();
+            addReading(lastTemperature, lastHumidity, lastVPD);
+            bmeInit = true;
+          } else {
+            delay(250);
+          }
+        }
+        if (!bmeInit) {
+          logPrint("[SENSOR] BME280 not found, retrying in 500 ms. Check wiring!");
           delay(500);
         }
       }
 
+      // Initialize DS18B20 sensor
       OneWire oneWire(DS18B20_PIN);
       DallasTemperature sensors(&oneWire);
       sensors.begin();
    
-      xTaskCreatePinnedToCore(
-        taskCheckBMESensor,                // Task function
-        "Read Valuse of BME280 every 10s",      // Task name
-        8192,                                   // Stack size
-        NULL,                                   // Task input parameters
-        1,                                      // Task priority, be carefull when changing this
-        NULL,                                   // Task handle, add one if you want control over the task (resume or suspend the task)
-        1                                       // Core to run the task on
-      );
-      
+      // Create a task to read BME280 sensor every 10 seconds
+      if (bmeAvailable) {
+        xTaskCreatePinnedToCore(
+          taskCheckBMESensor,                // Task function
+          "Read Values of BME280 every 10s",      // Task name
+          8192,                                   // Stack size
+          NULL,                                   // Task input parameters
+          1,                                      // Task priority, be careful when changing this
+          NULL,                                   // Task handle, add one if you want control over the task (resume or suspend the task)
+          1                                       // Core to run the task on
+        );
+      } else {
+        logPrint("[TASK] Skipping task to read sensor data because sensor is not available.");
+      }
+
+
     } else {
       // if not connected, start SoftAP mode
       logPrint("[WIFI] Failed to connect. Starting SoftAP mode...");
