@@ -157,6 +157,20 @@ void readPreferences() {
   targetTemperature = preferences.isKey(KEY_TARGETTEMP) ? preferences.getFloat(KEY_TARGETTEMP) : 22.0;
   offsetLeafTemperature = preferences.isKey(KEY_LEAFTEMP) ? preferences.getFloat(KEY_LEAFTEMP) : -1.5;
   targetVPD = preferences.isKey(KEY_TARGETVPD) ? preferences.getFloat(KEY_TARGETVPD) : 1.0;
+  // relay schedules
+  // Use explicit key names and provide a default value for getBool() to match the Preferences API
+  relaySchedulesEnabled[0] = preferences.getBool("relay_enable_1", false);
+  relaySchedulesStart[0] = preferences.getInt(KEY_RELAY_START_1, 0);
+  relaySchedulesEnd[0] = preferences.getInt(KEY_RELAY_END_1, 0);
+  relaySchedulesEnabled[1] = preferences.getBool("relay_enable_2", false);
+  relaySchedulesStart[1] = preferences.getInt(KEY_RELAY_START_2, 0);
+  relaySchedulesEnd[1] = preferences.getInt(KEY_RELAY_END_2, 0);
+  relaySchedulesEnabled[2] = preferences.getBool("relay_enable_3", false);
+  relaySchedulesStart[2] = preferences.getInt(KEY_RELAY_START_3, 0);
+  relaySchedulesEnd[2] = preferences.getInt(KEY_RELAY_END_3, 0);
+  relaySchedulesEnabled[3] = preferences.getBool("relay_enable_4", false);
+  relaySchedulesStart[3] = preferences.getInt(KEY_RELAY_START_4, 0);
+  relaySchedulesEnd[3] = preferences.getInt(KEY_RELAY_END_4, 0);
   // settings
   boxName = preferences.isKey(KEY_NAME) ? preferences.getString(KEY_NAME) : String("newGrowTent");
   ntpServer = preferences.isKey(KEY_NTPSRV) ? preferences.getString(KEY_NTPSRV) : String(DEFAULT_NTP_SERVER);

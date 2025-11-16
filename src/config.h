@@ -20,10 +20,6 @@ static const char* KEY_SSID    = "ssid";
 static const char* KEY_PASS    = "password";
 // namespace for preferences
 static const char* PREF_NS     = "growtent";
-static const char* KEY_RELAY_1 = "relay1";
-static const char* KEY_RELAY_2 = "relay2";
-static const char* KEY_RELAY_3 = "relay3";
-static const char* KEY_RELAY_4 = "relay4";
 //runningsettings
 static const char* KEY_STARTDATE = "startDate";
 static const char* KEY_FLOWERDATE = "startFlowering";
@@ -32,6 +28,18 @@ static const char* KEY_CURRENTPHASE = "curPhase";
 static const char* KEY_TARGETTEMP = "targetTemp";
 static const char* KEY_LEAFTEMP = "offsetLeaf";
 static const char* KEY_TARGETVPD = "targetVPD";
+static const bool KEY_RELAY_ENABLE_1 = false;
+static const char* KEY_RELAY_START_1;
+static const char* KEY_RELAY_END_1;
+static const bool KEY_RELAY_ENABLE_2 = false;
+static const char* KEY_RELAY_START_2;
+static const char* KEY_RELAY_END_2; 
+static const bool KEY_RELAY_ENABLE_3 = false;
+static const char* KEY_RELAY_START_3;
+static const char* KEY_RELAY_END_3;
+static const bool KEY_RELAY_ENABLE_4 = false;
+static const char* KEY_RELAY_START_4;
+static const char* KEY_RELAY_END_4; 
 // settings
 static const char* KEY_NAME    = "boxName";
 static const char* KEY_LANG    = "lang";
@@ -40,6 +48,10 @@ static const char* KEY_UNIT    = "unit";
 static const char* KEY_TFMT    = "timeFmt";
 static const char* KEY_NTPSRV  = "ntpSrv";
 static const char* KEY_TZINFO  = "tzInfo";
+static const char* KEY_RELAY_1 = "relay1";
+static const char* KEY_RELAY_2 = "relay2";
+static const char* KEY_RELAY_3 = "relay3";
+static const char* KEY_RELAY_4 = "relay4";
 
 // Include sensor libraries
 Adafruit_BME280 bme;         // global instance
@@ -66,6 +78,17 @@ static bool relayStates[NUM_RELAYS] = { false };
 unsigned long previousMillis = 0;
 const unsigned long blinkInterval = 500; // Blinkrate in Millisekunden
 bool ledState = false;
+// Structure to hold relay schedule
+struct RelaySchedule {
+  bool enabled;
+  uint16_t startMinute; // 0..59
+  uint16_t endMinute;   // 0..59
+};
+
+// Array to hold schedules for each relay
+bool relaySchedulesEnabled[NUM_RELAYS];
+int relaySchedulesStart[NUM_RELAYS];
+int relaySchedulesEnd[NUM_RELAYS];
 
 // human designations for the relays
 static const char* relayNames[NUM_RELAYS];

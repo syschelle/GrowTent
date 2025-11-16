@@ -19,7 +19,7 @@ const char* cssContent = R"rawliteral(
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
     a{color:var(--link); text-decoration: none;}
     h1{font-size:clamp(1.25rem,1.2vw+1rem,1.8rem);margin:0 0 .75rem}
-    h2{font-size:clamp(0.9rem,.5vw+1rem,1.1rem);margin:0 0 .75rem;opacity: 0.8}
+    h2{font-size:clamp(0.6rem,.5vw+1rem,1.1rem);margin:0 0 .75rem;opacity: 0.8}
     p,label,input,select,button{font-size:clamp(.95rem,.4vw+.85rem,1.05rem)}
     /* Header */
     .header{
@@ -299,5 +299,30 @@ const char* cssContent = R"rawliteral(
     .relay-status.off {
       background: #dc3545; /* rot */
     }
-      
+       
+    .relay-scheduled-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px;
+    }
+
+    .relay-scheduled-row input[type="number"] {
+      width: 80px;
+    }
+
+    .relay-scheduled-check {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .relay-scheduled-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
 )rawliteral";
