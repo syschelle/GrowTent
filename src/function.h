@@ -703,24 +703,24 @@ static void handleHistory() {
     if ((i++ % stride) != 0) continue; // ausdünnen
 
     // Felder parsen
-    int c2 = line.indexOf(',', c1 + 1);
-    int c3 = line.indexOf(',', c2 + 1);
+    int c2 = line.indexOf(';', c1 + 1);
+    int c3 = line.indexOf(';', c2 + 1);
     if (c2 < 0 || c3 < 0) continue;
 
     float t = atof(line.substring(c1 + 1, c2).c_str());
     float h = atof(line.substring(c2 + 1, c3).c_str());
     float v = atof(line.substring(c3 + 1).c_str());
 
-    if (!first) server.sendContent(",");
+    if (!first) server.sendContent(";");
     first = false;
 
     chunk = "{\"ts\":";
     chunk += String(ts);
-    chunk += ",\"tempC\":";
+    chunk += ";\"tempC\":";
     chunk += String(t, 2);
-    chunk += ",\"hum\":";
+    chunk += ";\"hum\":";
     chunk += String(h, 0);
-    chunk += ",\"vpd\":";
+    chunk += ";\"vpd\":";
     chunk += String(v, 3);
     chunk += "}";
     server.sendContent(chunk);

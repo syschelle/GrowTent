@@ -315,7 +315,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group">
           <label for="webBoxName" data-i18n="settings.boxName">Boxname:</label>
-          <input name="" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
+          <input name="webBoxName" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
         </div>
 
         <div class="form-group">
