@@ -100,7 +100,7 @@ void handleRoot() {
       calculateTimeSince(startDate, daysSinceStartInt, weeksSinceStartInt);
       String days = String(daysSinceStartInt);
       String weeks = String(weeksSinceStartInt);
-      html.replace("%CURRENTGROW%", "Grow seit: " + days + " Tage | " + weeks + " Wochen");
+      html.replace("%CURRENTGROW%", "Grow seit: " + days + " Tage | " + weeks + ". Woche");
     } else {
       html.replace("%CURRENTGROW%", "");
     }

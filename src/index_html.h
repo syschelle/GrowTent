@@ -59,6 +59,7 @@ const char* htmlPage = R"rawliteral(
     <div class="title" data-i18n="app.title">%CONTROLLERNAME%</div>
     <span id="unsavedHint" class="dirty-hint" hidden data-i18n="settings.unsaved"></span>
     <div class='grow-info'>%CURRENTGROW%</div>
+    <div id="grow-line" data-i18n-key="info.growLine"></div>
     <div class="datetime">
       <div id="headerDate"></div>
       <div id="headerTime"></div>
