@@ -278,6 +278,9 @@ static bool ensureDiaryHasId() {
   int cnt = 0;
   if (!csvSplitLine(first, fields, 12, cnt)) return true; // empty file is fine
 
+  // If file starts with a proper header "id,ts_local,...", it's already new-format.
+  if (first.startsWith("id,")) return true;
+
   if (cnt >= 8) {
     const String id0 = csvFieldToString(fields[0]);
     bool allDigits = id0.length() > 0;
@@ -304,6 +307,19 @@ static bool ensureDiaryHasId() {
 
     String flds[12]; int c = 0;
     if (!csvSplitLine(line, flds, 12, c) || c < 7) continue;
+
+    // If this row already looks like new format (>=8 fields AND first field numeric) -> keep as-is
+    if (c >= 8) {
+      String id0 = csvFieldToString(flds[0]);
+      bool allDigits = id0.length() > 0;
+      for (size_t i = 0; i < (size_t)id0.length(); i++) {
+        if (id0[i] < '0' || id0[i] > '9') { allDigits = false; break; }
+      }
+      if (allDigits) {
+        out.println(line);
+        continue;
+      }
+    }
 
     const String tsLocal = csvFieldToString(flds[0]);
     const String phase   = csvFieldToString(flds[1]);
@@ -447,7 +463,7 @@ static void handleDiaryList() {
     int n = 0;
     int outCount = 0;
     csvSplitLine(line, fields, 8, outCount);
-    if (outCount < 7) continue; // malformed
+    if (outCount < 8) continue; // malformed
 
     const String diaryId = csvFieldToString(fields[0]);
     const String tsLocal = csvFieldToString(fields[1]);
@@ -457,7 +473,6 @@ static void handleDiaryList() {
 
     String preview = note;
     preview.trim();
-    if (preview.length() > 90) preview = preview.substring(0, 90) + "…";
 
     // Build JSON object string (escape quotes/backslashes minimally)
     auto jEsc = [](const String& in) -> String {
@@ -621,7 +636,7 @@ static void handleDiaryAdd() {
 
   // Write header once
   if (!exists || f.size() == 0) {
-    f.println("ts_local,phase,grow_day,grow_week,phase_day,phase_week,note");
+    f.println("id,ts_local,phase,grow_day,grow_week,phase_day,phase_week,note");
   }
 
   // CSV row

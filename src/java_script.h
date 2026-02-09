@@ -73,7 +73,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
     de: "Durchschnittswerte der letzten Stunde",
     en: "Averages last hour"
   },
-  "status.history": { de: "Verlauf (letzte Stunde)", en: "History (last hour)" },
+  "status.history": { de: "Verlauf (Aufzeichnung alle 10 Minuten)", en: "History (recorded every 10 minutes)" },
   "status.refresh": { de: "Aktualisieren", en: "Refresh" },
 
   "status.avgTemperature": { de: "Ø Temperatur", en: "Ø Temperature" },
