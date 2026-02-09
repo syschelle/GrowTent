@@ -413,66 +413,7 @@ const char* htmlPage = R"rawliteral(
         <label for="targetVPD" data-i18n="runsetting.targetVPD">Soll-VPD:</label>
         <input name="webTargetVPD" id="webTargetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
       </div>
-      <h2 data-i18n="runsetting.relayScheduling">Relais Zeitsteuerung</h2>
-      <div class="form-group">
-        <label for="relay1">%RELAYNAMES1%</label>
-        <div class="relay-scheduled-row">
-          <label class="relay-scheduled-check" data-i18n="runsetting.relay.enable">Aktivieren:
-            <input type="checkbox" name="r1_enabled">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.start">Start:
-            <input type="number" name="r1_start" min="0" max="59">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.end">Ende:
-            <input type="number" name="r1_end" min="0" max="59">
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="relay2">%RELAYNAMES2%</label>
-        <div class="relay-scheduled-row">
-          <label class="relay-scheduled-check" data-i18n="runsetting.relay.enable">Aktivieren:
-            <input type="checkbox" name="r2_enabled">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.start">Start:
-            <input type="number" name="r2_start" min="0" max="59">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.end">Ende:
-            <input type="number" name="r2_end" min="0" max="59">
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="relay3">%RELAYNAMES3%</label>
-        <div class="relay-scheduled-row">
-          <label class="relay-scheduled-check" data-i18n="runsetting.relay.enable">Aktivieren:
-            <input type="checkbox" name="r3_enabled">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.start">Start:
-            <input type="number" name="r3_start" min="0" max="59">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.end">Ende:
-            <input type="number" name="r3_end" min="0" max="59">
-          </label>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="relay4">%RELAYNAMES4%</label>
-        <div class="relay-scheduled-row">
-          <label class="relay-scheduled-check" data-i18n="runsetting.relay.enable">Aktivieren:
-            <input type="checkbox" name="r4_enabled">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.start">Start:
-            <input type="number" name="r4_start" min="0" max="59">
-          </label>
-          <label class="relay-scheduled-label" data-i18n="runsetting.relay.end">Ende:
-            <input type="number" name="r4_end" min="0" max="59">
-          </label>
-        </div>
-      </div>
-      <div class="spacer"></div>
-      <button class="primary" id="saverunsettingsBtn" data-i18n="settings.save">Speichern</button>
-    </section>
+    </section> 
     </form>
 
     <!-- setting section -->
