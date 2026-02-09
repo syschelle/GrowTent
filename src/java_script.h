@@ -136,11 +136,11 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "runsetting.relay.minutesHint": {
   de: "Minutenformat: 0–59 (Minute innerhalb der Stunde).",
   en: "Minute format: 0–59 (minute within the hour)."
-},
-"runsetting.relay.ifLightOn": { de: "wenn Licht an", en: "if light on" },
-"runsetting.relay.onMinute": { de: "Einschaltminute", en: "On minute" },
-"runsetting.relay.offMinute": { de: "Ausschaltminute", en: "Off minute" },
-"runsetting.relay.enabledShort": { de: "Aktiv", en: "Enabled" },
+  },
+  "runsetting.relay.ifLightOff": { de: "auch wenn Licht aus", en: "also if light off" },
+  "runsetting.relay.onMinute": { de: "Einschaltminute", en: "On minute" },
+  "runsetting.relay.offMinute": { de: "Ausschaltminute", en: "Off minute" },
+  "runsetting.relay.enabledShort": { de: "Aktiv", en: "Enabled" },
 
   /* -------------------- shelly.* -------------------- */
   "shelly.title": { de: "Shelly Einstellungen", en: "Shelly Settings" },
