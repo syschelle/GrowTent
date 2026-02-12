@@ -165,95 +165,27 @@ void handleRoot() {
     html.replace("%GROWFLOWERDATE%", String(startFlowering));
     html.replace("%GROWDRAYINGDATE%", String(startDrying));
 
-    if (curPhase == 1) {
-      html.replace("%PHASE1_SEL%", "selected");
-      html.replace("%PHASE2_SEL%", "");
-      html.replace("%PHASE3_SEL%", "");
-    } else if (curPhase == 2) {
-      html.replace("%PHASE1_SEL%", "");
-      html.replace("%PHASE2_SEL%", "selected");
-      html.replace("%PHASE3_SEL%", "");
-    } else if (curPhase == 3) {
-      html.replace("%PHASE1_SEL%", "");
-      html.replace("%PHASE2_SEL%", "");
-      html.replace("%PHASE3_SEL%", "selected");
-    } else {
-      html.replace("%PHASE1_SEL%", "");
-      html.replace("%PHASE2_SEL%", "");
-      html.replace("%PHASE3_SEL%", "");
-    }
+    html.replace("%PHASE1_SEL%", curPhase == 1 ? "selected" : "");
+    html.replace("%PHASE2_SEL%", curPhase == 2 ? "selected" : "");
+    html.replace("%PHASE3_SEL%", curPhase == 3 ? "selected" : "");
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
-    if (settings.heating.Relay == 1) {
-      html.replace("%HEATRELAY0_SEL%", "");
-      html.replace("%HEATRELAY1_SEL%", "selected");
-      html.replace("%HEATRELAY2_SEL%", "");
-      html.replace("%HEATRELAY3_SEL%", "");
-      html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.Relay == 2) {
-      html.replace("%HEATRELAY0_SEL%", "");
-      html.replace("%HEATRELAY1_SEL%", "");
-      html.replace("%HEATRELAY2_SEL%", "selected");
-      html.replace("%HEATRELAY3_SEL%", "");
-      html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.Relay == 3) {
-      html.replace("%HEATRELAY0_SEL%", "");
-      html.replace("%HEATRELAY1_SEL%", "");
-      html.replace("%HEATRELAY2_SEL%", "");
-      html.replace("%HEATRELAY3_SEL%", "selected");
-      html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.Relay == 4) {
-      html.replace("%HEATRELAY0_SEL%", "");
-      html.replace("%HEATRELAY1_SEL%", "");
-      html.replace("%HEATRELAY2_SEL%", "");
-      html.replace("%HEATRELAY3_SEL%", "");
-      html.replace("%HEATRELAY4_SEL%", "selected");
-    } else {
-      html.replace("%HEATRELAY0_SEL%", "selected");
-      html.replace("%HEATRELAY1_SEL%", "");
-      html.replace("%HEATRELAY2_SEL%", "");
-      html.replace("%HEATRELAY3_SEL%", "");
-      html.replace("%HEATRELAY4_SEL%", "");
-    }
+    html.replace("%HEAT_RELAY0_SEL%", settings.heating.Relay == 0 ? "selected" : "");
+    html.replace("%HEAT_RELAY1_SEL%", settings.heating.Relay == 1 ? "selected" : "");
+    html.replace("%HEAT_RELAY2_SEL%", settings.heating.Relay == 2 ? "selected" : "");
+    html.replace("%HEAT_RELAY3_SEL%", settings.heating.Relay == 3 ? "selected" : "");
+    html.replace("%HEAT_RELAY4_SEL%", settings.heating.Relay == 4 ? "selected" : "");
 
     html.replace("%SHELLYMAINIP%", settings.shelly.main.ip);
-    if (settings.shelly.main.gen == 1) {
-      html.replace("%SHMAINSWKIND1%", "selected");
-      html.replace("%SHMAINSWKIND2%", "");
-      html.replace("%SHMAINSWKIND3%", "");
-    } else if (settings.shelly.main.gen == 2) {
-      html.replace("%SHMAINSWKIND1%", "");
-      html.replace("%SHMAINSWKIND2%", "selected");
-      html.replace("%SHMAINSWKIND3%", "");
-    } else if (settings.shelly.main.gen == 3) {
-      html.replace("%SHMAINSWKIND1%", "");
-      html.replace("%SHMAINSWKIND2%", "");
-      html.replace("%SHMAINSWKIND3%", "selected");
-    } else {
-      html.replace("%SHMAINSWKIND1%", "");
-      html.replace("%SHMAINSWKIND2%", "");
-      html.replace("%SHMAINSWKIND3%", "");
-    }
+    html.replace("%SHMAINSWKIND1%", settings.shelly.main.gen == 1 ? "selected" : "");
+    html.replace("%SHMAINSWKIND2%", settings.shelly.main.gen == 2 ? "selected" : "");
+    html.replace("%SHMAINSWKIND3%", settings.shelly.main.gen == 3 ? "selected" : "");
 
     html.replace("%SHELLYLIGHTIP%", settings.shelly.light.ip);
-    if (settings.shelly.light.gen == 1) {
-      html.replace("%SHLIGHTKIND1%", "selected");
-      html.replace("%SHLIGHTKIND2%", "");
-      html.replace("%SHLIGHTKIND3%", "");
-    } else if (settings.shelly.light.gen == 2) {
-      html.replace("%SHLIGHTKIND1%", "");
-      html.replace("%SHLIGHTKIND2%", "selected");
-      html.replace("%SHLIGHTKIND3%", "");
-    } else if (settings.shelly.light.gen == 3) {
-      html.replace("%SHLIGHTKIND1%", "");
-      html.replace("%SHLIGHTKIND2%", "");
-      html.replace("%SHLIGHTKIND3%", "selected");
-    } else {
-      html.replace("%SHLIGHTKIND1%", "");
-      html.replace("%SHLIGHTKIND2%", "");
-      html.replace("%SHLIGHTKIND3%", "");
-    }
+    html.replace("%SHLIGHTKIND1%", settings.shelly.light.gen == 1 ? "selected" : "");
+    html.replace("%SHLIGHTKIND2%", settings.shelly.light.gen == 2 ? "selected" : "");
+    html.replace("%SHLIGHTKIND3%", settings.shelly.light.gen == 3 ? "selected" : "");
 
     html.replace("%SHUSER%", settings.shelly.username);
     html.replace("%SHPASSWORD%", settings.shelly.password);

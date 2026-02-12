@@ -198,8 +198,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   "runsetting.relayHeating": { de: "Heizungsrelais (optional)", en: "Heating relay (optional)" },
   "runsetting.relay.heatingHint": {
-    de: "Wird ein Relay für die Heizung verwendet, was für die Temperaturregelung genutzt wird und kann hier definiert werden.",
-    en: "If a relay is used for heating, which is used for temperature control, it can be defined here."
+    de: "Wird ein Board Relay für die Heizung verwendet, was für die Temperaturregelung genutzt wird und kann hier definiert werden.",
+    en: "If a board relay is used for heating, which is used for temperature control, it can be defined here."
   },
   "runsetting.relay.heatingRelay": {
     de: "Heizungs-Relay",

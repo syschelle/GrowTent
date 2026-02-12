@@ -392,10 +392,10 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group">
         <label for="phaseSelect" data-i18n="runsetting.phase">Phase:</label>
-        <select id="phaseSelect" style="width: 170px;" name="phaseSelect">
-          <option value="grow"   data-i18n="runsetting.phase.grow">Wuchs</option>
-          <option value="flower" data-i18n="runsetting.phase.flower">Blüte</option>
-          <option value="dry"    data-i18n="runsetting.phase.dry">Trocknung</option>
+        <select id="phaseSelect" name="webCurrentPhase" style="width: 170px;">
+          <option value="1" %PHASE1_SEL% data-i18n="runsetting.phase.grow">Wuchs</option>
+          <option value="2" %PHASE2_SEL% data-i18n="runsetting.phase.flower">Blüte</option>
+          <option value="3" %PHASE3_SEL% data-i18n="runsetting.phase.dry">Trocknung</option>
         </select>
         </div>
 
