@@ -142,7 +142,8 @@ void handleRoot() {
     html.replace("%RELAYNAMES2%", String(relayNames[1]));
     html.replace("%RELAYNAMES3%", String(relayNames[2]));
     html.replace("%RELAYNAMES4%", String(relayNames[3]));
-    html.replace("%RELAYNAMES5%", String(relayNames[4]));
+    // Keep placeholder for legacy templates without reading out of bounds.
+    html.replace("%RELAYNAMES5%", "");
 
     html.replace("%CONTROLLERNAME%", boxName);
     html.replace("%GROWSTARTDATE%", String(startDate));
@@ -235,11 +236,11 @@ void handleRoot() {
 void readPreferences() {
   preferences.begin(PREF_NS, true);
 
-  // relays
-  relayNames[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
-  relayNames[1] = preferences.isKey(KEY_RELAY_2) ? strdup(preferences.getString(KEY_RELAY_2).c_str()) : strdup("relay 2");
-  relayNames[2] = preferences.isKey(KEY_RELAY_3) ? strdup(preferences.getString(KEY_RELAY_3).c_str()) : strdup("relay 3");
-  relayNames[3] = preferences.isKey(KEY_RELAY_4) ? strdup(preferences.getString(KEY_RELAY_4).c_str()) : strdup("relay 4");
+  // relays (String assignment avoids strdup leaks)
+  relayNames[0] = preferences.isKey(KEY_RELAY_1) ? preferences.getString(KEY_RELAY_1) : String("relay 1");
+  relayNames[1] = preferences.isKey(KEY_RELAY_2) ? preferences.getString(KEY_RELAY_2) : String("relay 2");
+  relayNames[2] = preferences.isKey(KEY_RELAY_3) ? preferences.getString(KEY_RELAY_3) : String("relay 3");
+  relayNames[3] = preferences.isKey(KEY_RELAY_4) ? preferences.getString(KEY_RELAY_4) : String("relay 4");
   // running settings
   loadPrefString(KEY_STARTDATE, startDate, "", true, "startDate");
   loadPrefString(KEY_FLOWERDATE, startFlowering, "", true, "startFlowering");
@@ -288,7 +289,11 @@ void readPreferences() {
   loadPrefString(KEY_UNIT, unit, "metric", true, "unit");
   loadPrefString(KEY_TFMT, timeFormat, "24h", true, "timeFormat");
   loadPrefString(KEY_DS18B20ENABLE, DS18B20Enable, "", true, "DS18B20Enable");
-  if (DS18B20Enable) DS18B20 = "checked";
+  {
+    String ds18 = DS18B20Enable;
+    ds18.toLowerCase();
+    DS18B20 = (ds18 == "checked" || ds18 == "true" || ds18 == "1" || ds18 == "on");
+  }
   loadPrefString(KEY_DS18NAME, DS18B20Name, "", true, "DS18B20Name");
 
   // notification settings

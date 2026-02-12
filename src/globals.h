@@ -59,9 +59,13 @@ struct ShellySettings {
 // Relay schedule
 struct RelaySchedule {
   bool enabled = false;
-  int start = 0;
-  int end   = 0;
-  bool lightOn = false;
+  bool ifLightOff = false;
+  int onMin = 0;
+  int offMin   = 0;
+};
+
+struct HeatingRelay {
+  int heatingRelay = 0;
 };
 
 // Relay settings
@@ -117,6 +121,7 @@ struct DebugGroup {
 struct Settings {
   DebugGroup debug;
   RelayGroup relay;
+  HeatingRelay heating;
   GrowGroup grow;
   ShellySettings shelly;
   UIGroup ui;
@@ -182,6 +187,7 @@ extern const char* KEY_LEAFTEMP;
 extern const char* KEY_TARGETVPD;
 extern const char* KEY_LIGHT_ON_TIME;
 extern const char* KEY_LIGHT_DAY_HOURS;
+extern const char* KEY_HEATING_RELAY;
 
 // Relay schedule keys (start/end as stored in Preferences)
 extern const char* KEY_RELAY_START_1;

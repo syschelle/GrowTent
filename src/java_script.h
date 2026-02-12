@@ -196,6 +196,16 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "settings.DS18B20": { de: "DS18B20 Sensor", en: "DS18B20 Sensor" },
   "settings.DS18B20Address": { de: "DS18B20 Name:", en: "DS18B20 Name:" },
 
+  "runsetting.relayHeating": { de: "Heizungsrelais (optional)", en: "Heating relay (optional)" },
+  "runsetting.relay.heatingHint": {
+    de: "Wird ein Relay für die Heizung verwendet, was für die Temperaturregelung genutzt wird und kann hier definiert werden.",
+    en: "If a relay is used for heating, which is used for temperature control, it can be defined here."
+  },
+  "runsetting.relay.heatingRelay": {
+    de: "Heizungs-Relay",
+    en: "Heating relay"
+  },
+
   "settings.relaySettings": {
     de: "Relais Einstellungen",
     en: "Relay Settings"

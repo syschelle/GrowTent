@@ -30,6 +30,9 @@ const char* KEY_TARGETVPD = "targetVPD";
 const char* KEY_LIGHT_ON_TIME = "lightOnTime";
 const char* KEY_LIGHT_DAY_HOURS = "lightDayHours";
 
+// heating relay key
+const char* KEY_HEATING_RELAY = "heatingRelay";
+
 // Relay schedule keys
 const char* KEY_RELAY_START_1 = "relay_start_1";
 const char* KEY_RELAY_END_1   = "relay_end_1";
@@ -110,6 +113,7 @@ int curPhase = 1;
 float targetTemperature = 22.0f;
 float offsetLeafTemperature = -1.5f;
 float targetVPD = 1.0f;
+int heatingRelay = 0;
 String lightOnTime = "06:00";
 int lightDayHours = 18;
 
@@ -124,6 +128,9 @@ bool gotifySent = false;
 String gotifyEnabled = "";
 String gotifyServer = "";
 String gotifyToken = "";
+
+// Heating relay
+//int heatingRelay = 0;
 
 // Relays
 const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26 };

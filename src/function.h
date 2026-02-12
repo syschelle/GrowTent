@@ -150,7 +150,18 @@ void startSoftAP() {
   //last parameter 'false' = do not hide SSID
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
   String apName = String(KEY_APSSID) + "_" + chipId;
-  bool ok = WiFi.softAP(apName.c_str(), KEY_APPASSWORD, /*channel*/ 1, /*hidden*/ false);
+
+  // Harden weak/default AP password at runtime.
+  String apPass = String(KEY_APPASSWORD);
+  if (apPass.length() < 8 || apPass == "12345678") {
+    String suffix = chipId;
+    suffix.toUpperCase();
+    if (suffix.length() > 6) suffix = suffix.substring(suffix.length() - 6);
+    apPass = "GT-" + suffix + "!";
+    Serial.println("[SoftAP] Weak default password detected. Using device-specific password: " + apPass);
+  }
+
+  bool ok = WiFi.softAP(apName.c_str(), apPass.c_str(), /*channel*/ 1, /*hidden*/ false);
   if (!ok) {
     Serial.println("[SoftAP] Error starting the SoftAP!");
     return;

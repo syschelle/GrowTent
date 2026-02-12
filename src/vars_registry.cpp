@@ -157,13 +157,15 @@ static String g_sh_light_line(){ return jShellyLine(settings.shelly.light); }
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
 
+static String g_heating_relay() { return jInt(settings.heating.heatingRelay); }
+
 // Relay getters (state + name)
 #define RELAY_GETTERS(i) \
   static String g_relay_state_##i() { return jBool(relayStates[i]); } \
   static String g_relay_name_##i() { return jStr(settings.relay.name[i]); } \
   static String g_relay_schen_##i() { return jBool(settings.relay.schedule[i].enabled); } \
-  static String g_relay_schst_##i() { return jInt(settings.relay.schedule[i].start); } \
-  static String g_relay_schen_##i##_end() { return jInt(settings.relay.schedule[i].end); }
+  static String g_relay_schst_##i() { return jInt(settings.relay.schedule[i].onMin); } \
+  static String g_relay_schen_##i##_end() { return jInt(settings.relay.schedule[i].offMin); }
 
 RELAY_GETTERS(0)
 RELAY_GETTERS(1)
@@ -231,6 +233,9 @@ const VarItem VARS[] = {
   {"settings.shelly.light.line", g_sh_light_line, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
+
+  // --- heating relay ---
+  {"settings.heating.relay", g_heating_relay, false, "settings.heating"},
 
   // --- relays (names + states + schedule) ---
   {"relays[0].name", g_relay_name_0, false, "relays"},
