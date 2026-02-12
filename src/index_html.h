@@ -429,11 +429,11 @@ const char* htmlPage = R"rawliteral(
           </label>
 
           <select name="webHeatingRelay" id="heatingRelay" name="heatingRelay">
-            <option value="" "%HEATRELAY0_SEL%" data-i18n="runsetting.relay.none">Keines</option>
-            <option value="1" "%HEATRELAY1_SEL%">%RELAYNAMES1%</option>
-            <option value="2" "%HEATRELAY2_SEL%">%RELAYNAMES2%</option>
-            <option value="3" "%HEATRELAY3_SEL%">%RELAYNAMES3%</option>
-            <option value="4" "%HEATRELAY4_SEL%">%RELAYNAMES4%</option>
+            <option value="" %HEATRELAY0_SEL% data-i18n="runsetting.relay.none">Keines</option>
+            <option value="1" %HEATRELAY1_SEL%>%RELAYNAMES1%</option>
+            <option value="2" %HEATRELAY2_SEL%>%RELAYNAMES2%</option>
+            <option value="3" %HEATRELAY3_SEL%>%RELAYNAMES3%</option>
+            <option value="4" %HEATRELAY4_SEL%>%RELAYNAMES4%</option>
           </select>
         </div>
 

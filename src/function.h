@@ -168,6 +168,28 @@ void startSoftAP() {
   }
 }
 
+// Helper function to save a string preference if the corresponding argument is present
+void savePrefString(
+  const char* argName,
+  const char* prefKey,
+  String& targetVar,
+  bool logValue = true,
+  const char* logLabel = nullptr
+) {
+  if (!server.hasArg(argName)) return;
+
+  targetVar = server.arg(argName);
+  preferences.putString(prefKey, targetVar);
+
+  if (logLabel == nullptr) logLabel = prefKey;
+
+  if (logValue) {
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " written = " + targetVar);
+  } else {
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
+  }
+}
+
 // Helper function to save an integer preference if the corresponding argument is present
 void savePrefInt(
   const char* argName,
@@ -184,9 +206,9 @@ void savePrefInt(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + String(targetVar));
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " written = " + String(targetVar));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
   }
 }
 
@@ -207,10 +229,10 @@ void savePrefFloat(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) +
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) +
              " = " + String(targetVar, 2));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
   }
 }
 
@@ -234,10 +256,10 @@ void savePrefBool(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES save] " + String(logLabel) +
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) +
              " = " + String(targetVar ? "true" : "false"));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
+    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
   }
 }
 
@@ -253,9 +275,9 @@ void loadPrefInt(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar));
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read = " + String(targetVar));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -274,9 +296,9 @@ void loadPrefFloat(
   if (logValue) {
     char buf[32];
     snprintf(buf, sizeof(buf), "%.*f", decimals, targetVar);
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(buf));
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read = " + String(buf));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -292,9 +314,9 @@ void loadPrefBool(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + String(targetVar ? "true" : "false"));
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read = " + String(targetVar ? "true" : "false"));
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -310,9 +332,9 @@ void loadPrefString(
   if (logLabel == nullptr) logLabel = prefKey;
 
   if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read = " + targetVar);
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read = " + targetVar);
   } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " read (hidden)");
+    logPrint("[PREFERENCES LOAD] " + String(logLabel) + " read (hidden)");
   }
 }
 
@@ -336,6 +358,7 @@ void handleSaveRunsettings() {
   savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, "Leaf Temperature Offset");
   savePrefString("webLightOnTime", KEY_LIGHT_ON_TIME, lightOnTime, "Grow Light On Time");
   savePrefInt("webLightDayHours", KEY_LIGHT_DAY_HOURS, lightDayHours, "Grow Light Day Hours");
+  savePrefInt("webHeatingRelay", KEY_HEATING_RELAY, heatingRelay, "Heating Relay Pin");
 
   preferences.end(); // always close Preferences handle
 

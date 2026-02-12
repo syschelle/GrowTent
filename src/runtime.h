@@ -185,25 +185,25 @@ void handleRoot() {
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
-    if (settings.heating.Relay = 1) {
+    if (settings.heating.Relay == 1) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "selected");
       html.replace("%HEATRELAY2_SEL%", "");
       html.replace("%HEATRELAY3_SEL%", "");
       html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.Relay = 2) {
+    } else if (settings.heating.Relay == 2) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "");
       html.replace("%HEATRELAY2_SEL%", "selected");
       html.replace("%HEATRELAY3_SEL%", "");
       html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.Relay = 3) {
+    } else if (settings.heating.Relay == 3) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "");
       html.replace("%HEATRELAY2_SEL%", "");
       html.replace("%HEATRELAY3_SEL%", "selected");
       html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.Relay = 4) {
+    } else if (settings.heating.Relay == 4) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "");
       html.replace("%HEATRELAY2_SEL%", "");
@@ -297,9 +297,7 @@ void readPreferences() {
   loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targets.tempC");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, target.targetVpdKpa, 1.0f, true, "targetVPD");
-  loadPrefString(KEY_LIGHT_ON_TIME, lightOnTime, "06:00", true, "lightOnTime");
-  loadPrefInt(KEY_LIGHT_DAY_HOURS, lightDayHours, 18, true, "lightDayHours");
-  loadPrefInt(KEY_HEATING_RELAY, heatingRelay, 0, true, "heatingRelay");
+  loadPrefInt(KEY_HEATING_RELAY, settings.heating.Relay, 0, true, "heatingRelay");
   settings.grow.lightOnTime = lightOnTime;
   settings.grow.lightDayHours = lightDayHours;
 
@@ -363,28 +361,6 @@ void calculateTimeSince(const String& startDate, int& daysSinceStartInt, int& we
 bool sendPushover(const String& message, const String& title);
 bool sendGotify(const String& msg, const String& title, int priority = 5);
 String calculateEndtimeWatering();
-
-// Helper function to save a string preference if the corresponding argument is present
-void savePrefString(
-  const char* argName,
-  const char* prefKey,
-  String& targetVar,
-  bool logValue = true,
-  const char* logLabel = nullptr
-) {
-  if (!server.hasArg(argName)) return;
-
-  targetVar = server.arg(argName);
-  preferences.putString(prefKey, targetVar);
-
-  if (logLabel == nullptr) logLabel = prefKey;
-
-  if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " written = " + targetVar);
-  } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated (hidden)");
-  }
-}
 
 // ---- ESP32 system stats ----
 // Some Arduino-ESP32 / PlatformIO builds do not link the FreeRTOS run-time stats
