@@ -64,10 +64,6 @@ struct RelaySchedule {
   int offMin   = 0;
 };
 
-struct HeatingRelay {
-  int heatingRelay = 0;
-};
-
 // Relay settings
 struct RelayGroup {
   String name[NUM_RELAYS];
@@ -118,10 +114,14 @@ struct DebugGroup {
   bool enabled = false;
 };
 
+struct HeatingGroup {
+  int Relay = 0; // 0 = none, 1-4 = relay index + 1
+};
+
 struct Settings {
   DebugGroup debug;
   RelayGroup relay;
-  HeatingRelay heating;
+  HeatingGroup heating;
   GrowGroup grow;
   ShellySettings shelly;
   UIGroup ui;
@@ -243,6 +243,8 @@ extern String theme;
 extern String unit;
 extern String timeFormat;
 extern bool espMode;
+
+extern int heatingRelay;
 
 // Relay scheduling arrays + relay names (legacy)
 extern bool relaySchedulesEnabled[NUM_RELAYS];

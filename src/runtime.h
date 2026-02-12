@@ -10,6 +10,7 @@
 
 // Include global definitions and functions
 #include <globals.h>
+#include <globals.h>
 #include <function.h>
 
 // external DallasTemperature sensor instance (defined in a single .cpp file)
@@ -184,25 +185,25 @@ void handleRoot() {
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
-    if (settings.heating.heatingRelay = 1) {
+    if (settings.heating.Relay = 1) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "selected");
       html.replace("%HEATRELAY2_SEL%", "");
       html.replace("%HEATRELAY3_SEL%", "");
       html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.heatingRelay = 2) {
+    } else if (settings.heating.Relay = 2) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "");
       html.replace("%HEATRELAY2_SEL%", "selected");
       html.replace("%HEATRELAY3_SEL%", "");
       html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.heatingRelay = 3) {
+    } else if (settings.heating.Relay = 3) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "");
       html.replace("%HEATRELAY2_SEL%", "");
       html.replace("%HEATRELAY3_SEL%", "selected");
       html.replace("%HEATRELAY4_SEL%", "");
-    } else if (settings.heating.heatingRelay = 4) {
+    } else if (settings.heating.Relay = 4) {
       html.replace("%HEATRELAY0_SEL%", "");
       html.replace("%HEATRELAY1_SEL%", "");
       html.replace("%HEATRELAY2_SEL%", "");
