@@ -138,12 +138,26 @@ void handleRoot() {
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
     html.replace("%TARGETVPD%",  String(target.targetVpdKpa, 1));
 
-    html.replace("%RELAYNAMES1%", String(relayNames[0]));
-    html.replace("%RELAYNAMES2%", String(relayNames[1]));
-    html.replace("%RELAYNAMES3%", String(relayNames[2]));
-    html.replace("%RELAYNAMES4%", String(relayNames[3]));
-    // Keep placeholder for legacy templates without reading out of bounds.
-    html.replace("%RELAYNAMES5%", "");
+    html.replace("%RELAYNAMES1%", String(settings.relay.name[0]));
+    html.replace("%ESPRELAY1_ENABLED_CHECKED%", settings.relay.schedule[0]. enabled ? "checked" : "");
+    html.replace("%ESPRELAY1_IFLIGHTOFF_CHECKED%", settings.relay.schedule[0].ifLightOff ? "checked" : "");
+    html.replace("%ESPRELAY1_ONMIN%", String(settings.relay.schedule[0].onMin));
+    html.replace("%ESPRELAY1_OFFMIN%", String(settings.relay.schedule[0].offMin));
+    html.replace("%RELAYNAMES2%", String(settings.relay.name[1]));
+    html.replace("%ESPRELAY2_ENABLED_CHECKED%", settings.relay.schedule[1]. enabled ? "checked" : "");
+    html.replace("%ESPRELAY2_IFLIGHTOFF_CHECKED%", settings.relay.schedule[1].ifLightOff ? "checked" : "");
+    html.replace("%ESPRELAY2_ONMIN%", String(settings.relay.schedule[1].onMin));
+    html.replace("%ESPRELAY2_OFFMIN%", String(settings.relay.schedule[1].offMin));
+    html.replace("%RELAYNAMES3%", String(settings.relay.name[2]));
+    html.replace("%ESPRELAY3_ENABLED_CHECKED%", settings.relay.schedule[2]. enabled ? "checked" : "");
+    html.replace("%ESPRELAY3_IFLIGHTOFF_CHECKED%", settings.relay.schedule[2].ifLightOff ? "checked" : "");
+    html.replace("%ESPRELAY3_ONMIN%", String(settings.relay.schedule[2].onMin));
+    html.replace("%ESPRELAY3_OFFMIN%", String(settings.relay.schedule[2].offMin));
+    html.replace("%RELAYNAMES4%", String(settings.relay.name[3]));
+    html.replace("%ESPRELAY4_ENABLED_CHECKED%", settings.relay.schedule[3]. enabled ? "checked" : "");
+    html.replace("%ESPRELAY4_IFLIGHTOFF_CHECKED%", settings.relay.schedule[3].ifLightOff ? "checked" : "");
+    html.replace("%ESPRELAY4_ONMIN%", String(settings.relay.schedule[3].onMin));
+    html.replace("%ESPRELAY4_OFFMIN%", String(settings.relay.schedule[3].offMin));
 
     html.replace("%CONTROLLERNAME%", boxName);
     html.replace("%GROWSTARTDATE%", String(startDate));
@@ -169,6 +183,38 @@ void handleRoot() {
     }
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
+
+    if (settings.heating.heatingRelay = 1) {
+      html.replace("%HEATRELAY0_SEL%", "");
+      html.replace("%HEATRELAY1_SEL%", "selected");
+      html.replace("%HEATRELAY2_SEL%", "");
+      html.replace("%HEATRELAY3_SEL%", "");
+      html.replace("%HEATRELAY4_SEL%", "");
+    } else if (settings.heating.heatingRelay = 2) {
+      html.replace("%HEATRELAY0_SEL%", "");
+      html.replace("%HEATRELAY1_SEL%", "");
+      html.replace("%HEATRELAY2_SEL%", "selected");
+      html.replace("%HEATRELAY3_SEL%", "");
+      html.replace("%HEATRELAY4_SEL%", "");
+    } else if (settings.heating.heatingRelay = 3) {
+      html.replace("%HEATRELAY0_SEL%", "");
+      html.replace("%HEATRELAY1_SEL%", "");
+      html.replace("%HEATRELAY2_SEL%", "");
+      html.replace("%HEATRELAY3_SEL%", "selected");
+      html.replace("%HEATRELAY4_SEL%", "");
+    } else if (settings.heating.heatingRelay = 4) {
+      html.replace("%HEATRELAY0_SEL%", "");
+      html.replace("%HEATRELAY1_SEL%", "");
+      html.replace("%HEATRELAY2_SEL%", "");
+      html.replace("%HEATRELAY3_SEL%", "");
+      html.replace("%HEATRELAY4_SEL%", "selected");
+    } else {
+      html.replace("%HEATRELAY0_SEL%", "selected");
+      html.replace("%HEATRELAY1_SEL%", "");
+      html.replace("%HEATRELAY2_SEL%", "");
+      html.replace("%HEATRELAY3_SEL%", "");
+      html.replace("%HEATRELAY4_SEL%", "");
+    }
 
     html.replace("%SHELLYMAINIP%", settings.shelly.main.ip);
     if (settings.shelly.main.gen == 1) {
@@ -236,38 +282,40 @@ void handleRoot() {
 void readPreferences() {
   preferences.begin(PREF_NS, true);
 
-  // relays (String assignment avoids strdup leaks)
-  relayNames[0] = preferences.isKey(KEY_RELAY_1) ? preferences.getString(KEY_RELAY_1) : String("relay 1");
-  relayNames[1] = preferences.isKey(KEY_RELAY_2) ? preferences.getString(KEY_RELAY_2) : String("relay 2");
-  relayNames[2] = preferences.isKey(KEY_RELAY_3) ? preferences.getString(KEY_RELAY_3) : String("relay 3");
-  relayNames[3] = preferences.isKey(KEY_RELAY_4) ? preferences.getString(KEY_RELAY_4) : String("relay 4");
+  // relays
+  settings.relay.name[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
+  settings.relay.name[1] = preferences.isKey(KEY_RELAY_2) ? strdup(preferences.getString(KEY_RELAY_2).c_str()) : strdup("relay 2");
+  settings.relay.name[2] = preferences.isKey(KEY_RELAY_3) ? strdup(preferences.getString(KEY_RELAY_3).c_str()) : strdup("relay 3");
+  settings.relay.name[3] = preferences.isKey(KEY_RELAY_4) ? strdup(preferences.getString(KEY_RELAY_4).c_str()) : strdup("relay 4");
+
   // running settings
   loadPrefString(KEY_STARTDATE, startDate, "", true, "startDate");
   loadPrefString(KEY_FLOWERDATE, startFlowering, "", true, "startFlowering");
   loadPrefString(KEY_DRYINGDATE, startDrying, "", true, "startDrying");
   loadPrefInt(KEY_CURRENTPHASE, curPhase, 1, true, "curPhase");
-  loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targetTemperature");
+  loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targets.tempC");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, target.targetVpdKpa, 1.0f, true, "targetVPD");
   loadPrefString(KEY_LIGHT_ON_TIME, lightOnTime, "06:00", true, "lightOnTime");
   loadPrefInt(KEY_LIGHT_DAY_HOURS, lightDayHours, 18, true, "lightDayHours");
+  loadPrefInt(KEY_HEATING_RELAY, heatingRelay, 0, true, "heatingRelay");
   settings.grow.lightOnTime = lightOnTime;
   settings.grow.lightDayHours = lightDayHours;
 
   // relay schedules
   // Use explicit key names and provide a default value for getBool() to match the Preferences API
-  relaySchedulesEnabled[0] = preferences.getBool("relay_enable_1", false);
-  relaySchedulesStart[0] = preferences.getInt(KEY_RELAY_START_1, 0);
-  relaySchedulesEnd[0] = preferences.getInt(KEY_RELAY_END_1, 0);
-  relaySchedulesEnabled[1] = preferences.getBool("relay_enable_2", false);
-  relaySchedulesStart[1] = preferences.getInt(KEY_RELAY_START_2, 0);
-  relaySchedulesEnd[1] = preferences.getInt(KEY_RELAY_END_2, 0);
-  relaySchedulesEnabled[2] = preferences.getBool("relay_enable_3", false);
-  relaySchedulesStart[2] = preferences.getInt(KEY_RELAY_START_3, 0);
-  relaySchedulesEnd[2] = preferences.getInt(KEY_RELAY_END_3, 0);
-  relaySchedulesEnabled[3] = preferences.getBool("relay_enable_4", false);
-  relaySchedulesStart[3] = preferences.getInt(KEY_RELAY_START_4, 0);
-  relaySchedulesEnd[3] = preferences.getInt(KEY_RELAY_END_4, 0);
+  relaySchedulesEnabled[1] = preferences.getBool("relay_enable_1", false);
+  relaySchedulesStart[1] = preferences.getInt(KEY_RELAY_START_1, 0);
+  relaySchedulesEnd[1] = preferences.getInt(KEY_RELAY_END_1, 0);
+  relaySchedulesEnabled[2] = preferences.getBool("relay_enable_2", false);
+  relaySchedulesStart[2] = preferences.getInt(KEY_RELAY_START_2, 0);
+  relaySchedulesEnd[2] = preferences.getInt(KEY_RELAY_END_2, 0);
+  relaySchedulesEnabled[3] = preferences.getBool("relay_enable_3", false);
+  relaySchedulesStart[3] = preferences.getInt(KEY_RELAY_START_3, 0);
+  relaySchedulesEnd[3] = preferences.getInt(KEY_RELAY_END_3, 0);
+  relaySchedulesEnabled[4] = preferences.getBool("relay_enable_4", false);
+  relaySchedulesStart[4] = preferences.getInt(KEY_RELAY_START_4, 0);
+  relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_4, 0);
 
   // Shelly devices
   loadPrefString(KEY_SHELLYMAINIP, settings.shelly.main.ip, "", true, "Shelly Main IP");
@@ -289,11 +337,7 @@ void readPreferences() {
   loadPrefString(KEY_UNIT, unit, "metric", true, "unit");
   loadPrefString(KEY_TFMT, timeFormat, "24h", true, "timeFormat");
   loadPrefString(KEY_DS18B20ENABLE, DS18B20Enable, "", true, "DS18B20Enable");
-  {
-    String ds18 = DS18B20Enable;
-    ds18.toLowerCase();
-    DS18B20 = (ds18 == "checked" || ds18 == "true" || ds18 == "1" || ds18 == "on");
-  }
+  if (DS18B20Enable) DS18B20 = "checked";
   loadPrefString(KEY_DS18NAME, DS18B20Name, "", true, "DS18B20Name");
 
   // notification settings
