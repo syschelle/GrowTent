@@ -47,6 +47,7 @@ void taskCheckBMESensor(void *parameter) {
 
       // Read temperature, humidity and VPD
       readSensorData();
+      controlHeaterByTemperature();
     }
 
     // --- store history every 10 minutes (first point immediately after valid values) ---

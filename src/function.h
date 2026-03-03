@@ -2100,3 +2100,81 @@ static bool applyGrowLightSchedule() {
   Serial.printf("[SHELLY][LIGHT][SCHEDULE] Apply %s -> %s (%dh)\n", on.c_str(), off.c_str(), dayHours);
   return applyShellyLightSchedule(on, dayHours);
 }
+
+static void controlHeaterByTemperature() {
+  // Abort if there is no valid temperature reading
+  if (isnan(cur.temperatureC)) return;
+
+  // Relay selection from settings:
+  // 0 = disabled, 1..NUM_RELAYS = active heater relay
+  const int heatRelay = settings.heating.Relay;
+  if (heatRelay < 1 || heatRelay > NUM_RELAYS) return;
+
+  // Convert relay number (1..4) to array index (0..3)
+  const int idx = heatRelay - 1;
+
+  // Control tuning:
+  // HYST defines the deadband around target temperature.
+  // PREDICT_SEC is used for simple overshoot prediction.
+  // MIN_ON_MS / MIN_OFF_MS protect relay from fast toggling.
+  const float HYST = 0.25f;
+  const float PREDICT_SEC = 180.0f;
+  const uint32_t MIN_ON_MS = 120000UL;
+  const uint32_t MIN_OFF_MS = 120000UL;
+
+  // Persistent controller state across function calls
+  static float lastTemp = NAN;
+  static uint32_t lastMs = 0;
+  static uint32_t lastSwitchMs = 0;
+  static bool bootHandled = false;
+
+  // Current timestamp and relay state (HIGH = ON in this project)
+  const uint32_t now = millis();
+  bool isOn = (digitalRead(relayPins[idx]) == HIGH);
+
+  // Estimate temperature slope in °C/s from previous sample
+  float slope = 0.0f;
+  if (!isnan(lastTemp) && lastMs > 0 && now > lastMs) {
+    float dt = (now - lastMs) / 1000.0f;
+    if (dt > 0.1f) slope = (cur.temperatureC - lastTemp) / dt;
+  }
+
+  // Predict short-term temperature to reduce overshoot
+  float predicted = cur.temperatureC + slope * PREDICT_SEC;
+
+  // Switching thresholds around target temperature
+  const float tOn = targetTemperature - HYST;
+  const float tOff = targetTemperature + HYST;
+
+  // On first run after boot, allow immediate decision.
+  // After that, enforce minimum ON/OFF durations.
+  bool canSwitch = true;
+  if (bootHandled) {
+    uint32_t elapsed = now - lastSwitchMs;
+    if (isOn && elapsed < MIN_ON_MS) canSwitch = false;
+    if (!isOn && elapsed < MIN_OFF_MS) canSwitch = false;
+  }
+
+  if (canSwitch) {
+    // Turn heater ON when below lower threshold
+    if (!isOn && cur.temperatureC <= tOn) {
+      digitalWrite(relayPins[idx], HIGH);
+      relayStates[idx] = true;
+      lastSwitchMs = now;
+      logPrint("[HEAT] ON");
+    } else if (isOn && (cur.temperatureC >= tOff || predicted >= targetTemperature)) {
+      // Turn heater OFF when above upper threshold
+      // OR when prediction indicates likely overshoot
+      digitalWrite(relayPins[idx], LOW);
+      relayStates[idx] = false;
+      lastSwitchMs = now;
+      logPrint("[HEAT] OFF");
+    }
+  }
+
+
+  // Update history for next slope calculation
+  bootHandled = true;
+  lastTemp = cur.temperatureC;
+  lastMs = now;
+}
