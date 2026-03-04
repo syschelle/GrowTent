@@ -2179,36 +2179,39 @@ static void controlHeaterByTemperature() {
   lastMs = now;
 }
 
-// Checks if the current minute of the day is within the ON window defined by startMin and endMin.
-static bool isMinuteInWindow(int nowMin, int startMin, int endMin) {
-  // Same start/end means no active window
+// Returns true if the current minute-of-hour is inside the schedule window (0..59).
+// Supports wrap windows, e.g. 50 -> 10.
+static bool isMinuteInWindowHour(int nowMin, int startMin, int endMin) {
+
+  // Same start/end means the window is disabled
   if (startMin == endMin) return false;
 
-  // Normal window
+  // Normal window within the same hour
   if (startMin < endMin) {
     return (nowMin >= startMin && nowMin < endMin);
   }
 
-  // Overnight window (crosses midnight)
+  // Wrapped window across the hour boundary
   return (nowMin >= startMin || nowMin < endMin);
 }
 
-// Apply configured schedules to all relays
+
+// Applies relay schedules once per task cycle.
+// Scheduling works per hour and compares only the minute-of-hour.
 static void applyRelaySchedules() {
 
-  // Get current local time from the system clock
+  // Abort if local time is not ready yet (e.g. NTP not synced)
   struct tm t;
-  if (!getLocalTime(&t, 50)) return;  // Abort if time is not available
+  if (!getLocalTime(&t, 50)) return;
 
-  // Convert current time to "minutes since midnight"
-  const int nowMin = t.tm_hour * 60 + t.tm_min;
+  // Per-hour mode: use the current minute inside the hour (0..59)
+  const int nowMin = t.tm_min;
 
-  // Example: read light status from Shelly device
-  // If the Shelly value is not valid, assume the light is OFF
+  // Optional dependency: relay operation may depend on light state
   const bool lightIsOn =
     shelly.light.values.ok ? shelly.light.values.isOn : false;
 
-  // Iterate over all configured relays
+  // Iterate through all relays
   for (int i = 0; i < NUM_RELAYS; i++) {
 
     const RelaySchedule& sc = settings.relay.schedule[i];
@@ -2216,30 +2219,37 @@ static void applyRelaySchedules() {
     // Skip relay if scheduling is disabled
     if (!sc.enabled) continue;
 
-    // Check whether the current minute is inside the schedule window
-    bool shouldBeOn = isMinuteInWindow(nowMin, sc.onMin, sc.offMin);
+    // Validate minute values for per-hour scheduling mode
+    if (sc.onMin < 0 || sc.onMin > 59 || sc.offMin < 0 || sc.offMin > 59)
+      continue;
 
-    // Optional rule:
-    // If "ifLightOff" is enabled, the relay may run only when the light is OFF
+    // Determine the desired relay state
+    bool shouldBeOn = isMinuteInWindowHour(nowMin, sc.onMin, sc.offMin);
+
+    // Optional rule: relay may run only when the light is OFF
     if (sc.ifLightOff && lightIsOn) {
       shouldBeOn = false;
     }
 
-    // Read current relay state from the GPIO pin
-    // In this project: HIGH = relay ON
+    // Read current physical relay state (HIGH = ON in this project)
     const bool isOn = (digitalRead(relayPins[i]) == HIGH);
 
-    // Only update the relay if the state actually changed
+    // Apply state immediately if it differs from the desired state
+    // (also ensures correct state after reboot)
     if (shouldBeOn != isOn) {
 
       digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
       relayStates[i] = shouldBeOn;
 
-      // Log relay state change
       logPrint(
         "[SCHED] Relay " + String(i + 1) +
         (shouldBeOn ? " ON" : " OFF")
       );
+
+    } else {
+
+      // Keep internal relay state mirror synchronized
+      relayStates[i] = isOn;
     }
   }
 }
