@@ -233,19 +233,30 @@ void readPreferences() {
   settings.grow.lightDayHours = lightDayHours;
 
   // relay schedules
-  // Use explicit key names and provide a default value for getBool() to match the Preferences API
-  relaySchedulesEnabled[1] = preferences.getBool("relay_enable_1", false);
-  relaySchedulesStart[1] = preferences.getInt(KEY_RELAY_START_1, 0);
-  relaySchedulesEnd[1] = preferences.getInt(KEY_RELAY_END_1, 0);
-  relaySchedulesEnabled[2] = preferences.getBool("relay_enable_2", false);
-  relaySchedulesStart[2] = preferences.getInt(KEY_RELAY_START_2, 0);
-  relaySchedulesEnd[2] = preferences.getInt(KEY_RELAY_END_2, 0);
-  relaySchedulesEnabled[3] = preferences.getBool("relay_enable_3", false);
-  relaySchedulesStart[3] = preferences.getInt(KEY_RELAY_START_3, 0);
-  relaySchedulesEnd[3] = preferences.getInt(KEY_RELAY_END_3, 0);
-  relaySchedulesEnabled[4] = preferences.getBool("relay_enable_4", false);
-  relaySchedulesStart[4] = preferences.getInt(KEY_RELAY_START_4, 0);
-  relaySchedulesEnd[4] = preferences.getInt(KEY_RELAY_END_4, 0);
+  // Load relay schedules into settings.relay.schedule[0..3]
+  for (int i = 0; i < NUM_RELAYS; i++) {
+    int relay = i + 1;
+
+    String keyEn = "relay_enable_" + String(relay);
+    String keyILO = "relay_iflightoff_" + String(relay);
+
+    const char* keyOn =
+    (relay == 1) ? KEY_RELAY_START_1 :
+    (relay == 2) ? KEY_RELAY_START_2 :
+    (relay == 3) ? KEY_RELAY_START_3 :
+    KEY_RELAY_START_4;
+
+    const char* keyOff =
+    (relay == 1) ? KEY_RELAY_END_1 :
+    (relay == 2) ? KEY_RELAY_END_2 :
+    (relay == 3) ? KEY_RELAY_END_3 :
+    KEY_RELAY_END_4;
+
+    settings.relay.schedule[i].enabled = preferences.getBool(keyEn.c_str(), false);
+    settings.relay.schedule[i].ifLightOff = preferences.getBool(keyILO.c_str(), false);
+    settings.relay.schedule[i].onMin = preferences.getInt(keyOn, 0);
+    settings.relay.schedule[i].offMin = preferences.getInt(keyOff, 0);
+  }
 
   // Shelly devices
   loadPrefString(KEY_SHELLYMAINIP, settings.shelly.main.ip, "", true, "Shelly Main IP");

@@ -2193,44 +2193,58 @@ static bool isMinuteInWindow(int nowMin, int startMin, int endMin) {
   return (nowMin >= startMin || nowMin < endMin);
 }
 
-// Applies the configured relay schedules (if enabled) based on current time and optional light status.
+// Apply configured schedules to all relays
 static void applyRelaySchedules() {
-  // Get local time
-  struct tm t;
-  if (!getLocalTime(&t, 50)) return;
 
+  // Get current local time from the system clock
+  struct tm t;
+  if (!getLocalTime(&t, 50)) return;  // Abort if time is not available
+
+  // Convert current time to "minutes since midnight"
   const int nowMin = t.tm_hour * 60 + t.tm_min;
 
-  // Light status from Shelly light (used by optional "if light off" rule)
-  const bool lightIsOn = shelly.light.values.ok ? shelly.light.values.isOn : false;
+  // Example: read light status from Shelly device
+  // If the Shelly value is not valid, assume the light is OFF
+  const bool lightIsOn =
+    shelly.light.values.ok ? shelly.light.values.isOn : false;
 
+  // Iterate over all configured relays
   for (int i = 0; i < NUM_RELAYS; i++) {
+
     const RelaySchedule& sc = settings.relay.schedule[i];
 
-    // Skip if scheduling is disabled for this relay
+    // Skip relay if scheduling is disabled
     if (!sc.enabled) continue;
 
-    // Skip invalid minute values
-    if (sc.onMin < 0 || sc.onMin >= 1440 || sc.offMin < 0 || sc.offMin >= 1440) continue;
-
-    // Check if current minute is inside schedule window
+    // Check whether the current minute is inside the schedule window
     bool shouldBeOn = isMinuteInWindow(nowMin, sc.onMin, sc.offMin);
 
-    // Optional rule: run only when light is OFF
+    // Optional rule:
+    // If "ifLightOff" is enabled, the relay may run only when the light is OFF
     if (sc.ifLightOff && lightIsOn) {
       shouldBeOn = false;
     }
 
-    // Apply state only if it actually changed
-    const bool isOn = (digitalRead(relayPins[i]) == HIGH); // HIGH = ON in your project
+    // Read current relay state from the GPIO pin
+    // In this project: HIGH = relay ON
+    const bool isOn = (digitalRead(relayPins[i]) == HIGH);
+
+    // Only update the relay if the state actually changed
     if (shouldBeOn != isOn) {
+
       digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
       relayStates[i] = shouldBeOn;
-      logPrint("[SCHED] Relay " + String(i + 1) + (shouldBeOn ? " ON" : " OFF"));
+
+      // Log relay state change
+      logPrint(
+        "[SCHED] Relay " + String(i + 1) +
+        (shouldBeOn ? " ON" : " OFF")
+      );
     }
   }
 }
 
+// Clamp an integer value between a minimum (lo) and maximum (hi)
 static int clampInt(int v, int lo, int hi) {
   if (v < lo) return lo;
   if (v > hi) return hi;
@@ -2238,60 +2252,109 @@ static int clampInt(int v, int lo, int hi) {
 }
 
 static void handleSaveAllRelaySchedules() {
+
+  // Ensure the request contains a body (JSON payload)
   if (!server.hasArg("plain")) {
-    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"missing_body\"}");
+    server.send(
+      400,
+      "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"missing_body\"}"
+    );
     return;
   }
 
+  // Parse JSON body
   JsonDocument doc;
+
+  // If JSON parsing fails, return error
   if (deserializeJson(doc, server.arg("plain"))) {
-    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"bad_json\"}");
+    server.send(
+      400,
+      "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"bad_json\"}"
+    );
     return;
   }
 
+  // Extract the "relays" array from JSON
   JsonArray arr = doc["relays"].as<JsonArray>();
+
+  // Validate that the array exists
   if (arr.isNull()) {
-    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"missing_relays\"}");
+    server.send(
+      400,
+      "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"missing_relays\"}"
+    );
     return;
   }
 
+  // Open preferences namespace for writing
   if (!preferences.begin(PREF_NS, false)) {
-    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"prefs\"}");
+    server.send(
+      500,
+      "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"prefs\"}"
+    );
     return;
   }
 
+  // Iterate over all relay entries in the JSON array
   for (JsonObject r : arr) {
-    int relay = r["relay"] | 0; // 1..4
+
+    // Relay number (expected 1..NUM_RELAYS)
+    int relay = r["relay"] | 0;
     if (relay < 1 || relay > NUM_RELAYS) continue;
 
+    // Convert relay number to zero-based index
     int idx = relay - 1;
+
+    // Read settings from JSON with default values
     bool enabled = r["enabled"] | false;
     bool ifLightOff = r["ifLightOff"] | false;
-    int onMin = clampInt((int)(r["onMin"] | 0), 0, 59);
+
+    // Clamp minute values to valid range (0..59)
+    int onMin  = clampInt((int)(r["onMin"]  | 0), 0, 59);
     int offMin = clampInt((int)(r["offMin"] | 0), 0, 59);
 
-    settings.relay.schedule[idx].enabled = enabled;
+    // Update in-memory settings structure
+    settings.relay.schedule[idx].enabled    = enabled;
     settings.relay.schedule[idx].ifLightOff = ifLightOff;
-    settings.relay.schedule[idx].onMin = onMin;
-    settings.relay.schedule[idx].offMin = offMin;
+    settings.relay.schedule[idx].onMin      = onMin;
+    settings.relay.schedule[idx].offMin     = offMin;
 
-    String keyEn = "relay_enable_" + String(relay);
+    // Build preference keys for this relay
+    String keyEn  = "relay_enable_"     + String(relay);
     String keyILO = "relay_iflightoff_" + String(relay);
 
-    const char* kOn = (relay == 1) ? KEY_RELAY_START_1 :
-    (relay == 2) ? KEY_RELAY_START_2 :
-    (relay == 3) ? KEY_RELAY_START_3 : KEY_RELAY_START_4;
+    // Select preference keys for ON minute depending on relay number
+    const char* kOn =
+      (relay == 1) ? KEY_RELAY_START_1 :
+      (relay == 2) ? KEY_RELAY_START_2 :
+      (relay == 3) ? KEY_RELAY_START_3 :
+                     KEY_RELAY_START_4;
 
-    const char* kOff = (relay == 1) ? KEY_RELAY_END_1 :
-    (relay == 2) ? KEY_RELAY_END_2 :
-    (relay == 3) ? KEY_RELAY_END_3 : KEY_RELAY_END_4;
+    // Select preference keys for OFF minute depending on relay number
+    const char* kOff =
+      (relay == 1) ? KEY_RELAY_END_1 :
+      (relay == 2) ? KEY_RELAY_END_2 :
+      (relay == 3) ? KEY_RELAY_END_3 :
+                     KEY_RELAY_END_4;
 
+    // Persist values to non-volatile storage (NVS)
     preferences.putBool(keyEn.c_str(), enabled);
     preferences.putBool(keyILO.c_str(), ifLightOff);
     preferences.putInt(kOn, onMin);
     preferences.putInt(kOff, offMin);
   }
 
+  // Close preferences namespace
   preferences.end();
-  server.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
+
+  // Respond with success
+  server.send(
+    200,
+    "application/json; charset=utf-8",
+    "{\"ok\":true}"
+  );
 }
