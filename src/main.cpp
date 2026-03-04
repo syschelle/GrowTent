@@ -926,6 +926,8 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSaveWiFi);
   server.on("/saverunsettings", HTTP_POST, handleSaveRunsettings);
+  // Note: we have separate endpoints for single relay schedule updates vs. bulk save-all, to simplify frontend logic and reduce risk of overwriting schedules accidentally.
+  server.on("/api/relay/schedule/save-all", HTTP_POST, handleSaveAllRelaySchedules);
   server.on("/saveshellysettings", HTTP_POST, handleSaveShellySettings);
   server.on("/savesettings", HTTP_POST, handleSaveSettings);
   server.on("/savemessagesettings", HTTP_POST, handleSaveMessageSettings);

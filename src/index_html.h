@@ -577,6 +577,10 @@ const char* htmlPage = R"rawliteral(
                 <input id="espRelay4OffMin" name="webEspRel4Off" type="number" min="0" max="59" step="1" value="%ESPRELAY4_OFFMIN%">
               </div>
             </div>
+      
+          <div class="relay-sched-actions">
+            <button type="button" class="primary" data-i18n="settings.save" onclick="saveAllRelaySchedules()">speichern</button>
+          </div>
           
         </div>
 

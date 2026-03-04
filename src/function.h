@@ -2230,3 +2230,68 @@ static void applyRelaySchedules() {
     }
   }
 }
+
+static int clampInt(int v, int lo, int hi) {
+  if (v < lo) return lo;
+  if (v > hi) return hi;
+  return v;
+}
+
+static void handleSaveAllRelaySchedules() {
+  if (!server.hasArg("plain")) {
+    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"missing_body\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain"))) {
+    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"bad_json\"}");
+    return;
+  }
+
+  JsonArray arr = doc["relays"].as<JsonArray>();
+  if (arr.isNull()) {
+    server.send(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"missing_relays\"}");
+    return;
+  }
+
+  if (!preferences.begin(PREF_NS, false)) {
+    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"prefs\"}");
+    return;
+  }
+
+  for (JsonObject r : arr) {
+    int relay = r["relay"] | 0; // 1..4
+    if (relay < 1 || relay > NUM_RELAYS) continue;
+
+    int idx = relay - 1;
+    bool enabled = r["enabled"] | false;
+    bool ifLightOff = r["ifLightOff"] | false;
+    int onMin = clampInt((int)(r["onMin"] | 0), 0, 59);
+    int offMin = clampInt((int)(r["offMin"] | 0), 0, 59);
+
+    settings.relay.schedule[idx].enabled = enabled;
+    settings.relay.schedule[idx].ifLightOff = ifLightOff;
+    settings.relay.schedule[idx].onMin = onMin;
+    settings.relay.schedule[idx].offMin = offMin;
+
+    String keyEn = "relay_enable_" + String(relay);
+    String keyILO = "relay_iflightoff_" + String(relay);
+
+    const char* kOn = (relay == 1) ? KEY_RELAY_START_1 :
+    (relay == 2) ? KEY_RELAY_START_2 :
+    (relay == 3) ? KEY_RELAY_START_3 : KEY_RELAY_START_4;
+
+    const char* kOff = (relay == 1) ? KEY_RELAY_END_1 :
+    (relay == 2) ? KEY_RELAY_END_2 :
+    (relay == 3) ? KEY_RELAY_END_3 : KEY_RELAY_END_4;
+
+    preferences.putBool(keyEn.c_str(), enabled);
+    preferences.putBool(keyILO.c_str(), ifLightOff);
+    preferences.putInt(kOn, onMin);
+    preferences.putInt(kOff, offMin);
+  }
+
+  preferences.end();
+  server.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
+}

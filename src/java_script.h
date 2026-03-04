@@ -400,6 +400,8 @@ window.toggleShellyRelay = async function(device) {
   }
 };
 
+
+
 // Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
 
@@ -2127,5 +2129,64 @@ async function loadLightScheduleFromState(){
 
 
 }); // end DOMContentLoaded
+
+window.saveAllRelaySchedules = async function () {
+  const relays = [];
+
+  for (let relay = 1; relay <= 4; relay++) {
+    const enabled =
+      document.getElementById(`espRelay${relay}Enabled`)?.checked || false;
+
+    const ifLightOff =
+      document.getElementById(`espRelay${relay}IfLightOff`)?.checked || false;
+
+    const onMinRaw = parseInt(
+      document.getElementById(`espRelay${relay}OnMin`)?.value || "0",
+      10
+    );
+
+    const offMinRaw = parseInt(
+      document.getElementById(`espRelay${relay}OffMin`)?.value || "0",
+      10
+    );
+
+    const onMin = Number.isFinite(onMinRaw)
+      ? Math.max(0, Math.min(59, onMinRaw))
+      : 0;
+
+    const offMin = Number.isFinite(offMinRaw)
+      ? Math.max(0, Math.min(59, offMinRaw))
+      : 0;
+
+    relays.push({
+      relay,
+      enabled,
+      ifLightOff,
+      onMin,
+      offMin
+    });
+  }
+
+  try {
+    const res = await fetch("/api/relay/schedule/save-all", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ relays })
+    });
+
+    if (!res.ok) {
+      alert("Failed to save relay schedules.");
+      return;
+    }
+
+    alert("Relay schedules saved.");
+  } catch (err) {
+    console.error("[SCHED] saveAllRelaySchedules failed:", err);
+    alert("Failed to save relay schedules.");
+  }
+};
+
 
 )rawliteral";
