@@ -171,11 +171,10 @@ void handleRoot() {
 
     html.replace("%TARGETVPD%", String(targetVPD, 1));
 
-    html.replace("%HEAT_RELAY0_SEL%", settings.heating.Relay == 0 ? "selected" : "");
-    html.replace("%HEAT_RELAY1_SEL%", settings.heating.Relay == 1 ? "selected" : "");
-    html.replace("%HEAT_RELAY2_SEL%", settings.heating.Relay == 2 ? "selected" : "");
-    html.replace("%HEAT_RELAY3_SEL%", settings.heating.Relay == 3 ? "selected" : "");
-    html.replace("%HEAT_RELAY4_SEL%", settings.heating.Relay == 4 ? "selected" : "");
+    html.replace("%HEATRELAY1_SEL%", settings.heating.Relay == 1 ? "selected" : "");
+    html.replace("%HEATRELAY2_SEL%", settings.heating.Relay == 2 ? "selected" : "");
+    html.replace("%HEATRELAY3_SEL%", settings.heating.Relay == 3 ? "selected" : "");
+    html.replace("%HEATRELAY4_SEL%", settings.heating.Relay == 4 ? "selected" : "");
 
     html.replace("%SHELLYMAINIP%", settings.shelly.main.ip);
     html.replace("%SHMAINSWKIND1%", settings.shelly.main.gen == 1 ? "selected" : "");

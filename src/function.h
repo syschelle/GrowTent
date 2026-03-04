@@ -2178,3 +2178,55 @@ static void controlHeaterByTemperature() {
   lastTemp = cur.temperatureC;
   lastMs = now;
 }
+
+// Checks if the current minute of the day is within the ON window defined by startMin and endMin.
+static bool isMinuteInWindow(int nowMin, int startMin, int endMin) {
+  // Same start/end means no active window
+  if (startMin == endMin) return false;
+
+  // Normal window
+  if (startMin < endMin) {
+    return (nowMin >= startMin && nowMin < endMin);
+  }
+
+  // Overnight window (crosses midnight)
+  return (nowMin >= startMin || nowMin < endMin);
+}
+
+// Applies the configured relay schedules (if enabled) based on current time and optional light status.
+static void applyRelaySchedules() {
+  // Get local time
+  struct tm t;
+  if (!getLocalTime(&t, 50)) return;
+
+  const int nowMin = t.tm_hour * 60 + t.tm_min;
+
+  // Light status from Shelly light (used by optional "if light off" rule)
+  const bool lightIsOn = shelly.light.values.ok ? shelly.light.values.isOn : false;
+
+  for (int i = 0; i < NUM_RELAYS; i++) {
+    const RelaySchedule& sc = settings.relay.schedule[i];
+
+    // Skip if scheduling is disabled for this relay
+    if (!sc.enabled) continue;
+
+    // Skip invalid minute values
+    if (sc.onMin < 0 || sc.onMin >= 1440 || sc.offMin < 0 || sc.offMin >= 1440) continue;
+
+    // Check if current minute is inside schedule window
+    bool shouldBeOn = isMinuteInWindow(nowMin, sc.onMin, sc.offMin);
+
+    // Optional rule: run only when light is OFF
+    if (sc.ifLightOff && lightIsOn) {
+      shouldBeOn = false;
+    }
+
+    // Apply state only if it actually changed
+    const bool isOn = (digitalRead(relayPins[i]) == HIGH); // HIGH = ON in your project
+    if (shouldBeOn != isOn) {
+      digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
+      relayStates[i] = shouldBeOn;
+      logPrint("[SCHED] Relay " + String(i + 1) + (shouldBeOn ? " ON" : " OFF"));
+    }
+  }
+}
