@@ -365,8 +365,7 @@ void handleSaveRunsettings() {
   // Send redirect response and restart the ESP
   server.sendHeader("Location", "/");
   server.send(303);  // HTTP redirect to status page
-  delay(250);
-  ESP.restart();
+  readPreferences(); // reload preferences to update in-memory variables (e.g. heatingRelay) before restart
 }
 
 // Handle Shelly settings save

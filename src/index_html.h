@@ -453,7 +453,7 @@ const char* htmlPage = R"rawliteral(
             <!-- ESP Relay 1 -->
             <div class="relay-sched-row">
               <div class="relay-sched-name">
-                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay">Relay</div>
+                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay1">Relay</div>
                 <div class="relay-sched-name-value">%RELAYNAMES1%</div>
               </div>
 
@@ -485,7 +485,7 @@ const char* htmlPage = R"rawliteral(
             <!-- ESP Relay 2 -->
             <div class="relay-sched-row">
               <div class="relay-sched-name">
-                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay">Relay</div>
+                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay2">Relay</div>
                 <div class="relay-sched-name-value">%RELAYNAMES2%</div>
               </div>
 
@@ -517,7 +517,7 @@ const char* htmlPage = R"rawliteral(
             <!-- ESP Relay 3 -->
             <div class="relay-sched-row">
               <div class="relay-sched-name">
-                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay">Relay</div>
+                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay3">Relay</div>
                 <div class="relay-sched-name-value">%RELAYNAMES3%</div>
               </div>
 
@@ -549,7 +549,7 @@ const char* htmlPage = R"rawliteral(
             <!-- ESP Relay 4 -->
             <div class="relay-sched-row">
               <div class="relay-sched-name">
-                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay">Relay</div>
+                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay4">Relay</div>
                 <div class="relay-sched-name-value">%RELAYNAMES4%</div>
               </div>
 

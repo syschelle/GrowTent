@@ -129,6 +129,10 @@ const char jsContent[] PROGMEM = R"rawliteral(
     de: "Relais Zeitsteuerung",
     en: "Relay Scheduling"
   },
+  "runsettings.espSchedRelay1": { de: "Relay1", en: "Relay1" },
+  "runsettings.espSchedRelay2": { de: "Relay2", en: "Relay2" },
+  "runsettings.espSchedRelay3": { de: "Relay3", en: "Relay3" },
+  "runsettings.espSchedRelay4": { de: "Relay4", en: "Relay4" },
   "runsetting.relay.enable": { de: "Aktivieren:", en: "Enable:" },
   "runsetting.relay.start": { de: "Start:", en: "Start:" },
   "runsetting.relay.stop": { de: "Stopp:", en: "Stop:" },
