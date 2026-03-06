@@ -349,7 +349,7 @@ void handleSaveRunsettings() {
   }
 
   // Save all run settings
-  savePrefString("webStartDate", KEY_STARTDATE, startDate, "Grow Start Date");
+  savePrefString("webGrowStart", KEY_STARTDATE, startDate, "Grow Start Date");
   savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, "Flowering Start Date");
   savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, "Drying Start Date");
   savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, "Current Phase");
