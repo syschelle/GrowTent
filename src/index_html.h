@@ -74,6 +74,7 @@ const char* htmlPage = R"rawliteral(
       <a class="navlink" data-page="settings" data-i18n="nav.settings">Systemeinstellungen</a>
       <a class="navlink" data-page="logging" data-i18n="nav.logging">Systemprotokoll</a>
       <a class="navlink" data-page="vars" data-i18n="nav.vars">Variablen</a>
+      <a class="navlink" data-page="ota" data-i18n="nav.ota">OTA Update</a>
       <a class="navlink" data-page="factory" data-i18n="nav.factory">Werkseinstellungen</a>
     </nav>
 
@@ -712,6 +713,15 @@ const char* htmlPage = R"rawliteral(
           </tbody>
         </table>
       </div>
+    </section>
+
+
+    <!-- OTA update section -->
+    <section id="ota" class="page card">
+      <h1 data-i18n="ota.title">OTA Update</h1>
+      <p class="hint" data-i18n="ota.hint">Die Firmware wird von \"https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin\" heruntergeladen.</p>
+      <div class="spacer"></div>
+      <button type="button" class="primary" onclick="startOtaUpdate()">OTA Update</button>
     </section>
 
     <!-- factory reset section -->

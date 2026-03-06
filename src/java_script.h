@@ -46,6 +46,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "nav.settings":    { de: "Systemeinstellungen", en: "System Settings" },
   "nav.message":     { de: "Push-Einstellungen", en: "Push Settings" },
   "nav.logging":     { de: "Systemprotokoll", en: "System Log" },
+  "nav.ota":         { de: "OTA Update", en: "OTA Update" },
   "nav.factory":     { de: "Werkseinstellungen", en: "Factory Reset" },
   "nav.diary":      { de: "Grow Tagebuch", en: "Grow Diary" },
 
@@ -254,6 +255,11 @@ const char jsContent[] PROGMEM = R"rawliteral(
   },
 
   "logging.title": { de: "Systemprotokoll", en: "Logging Settings" },
+
+  "ota.hint": {
+    de: "Die Firmware wird von \"https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin\" heruntergeladen.",
+    en: "The firmware will be downloaded from \"https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin\"."
+  },
 
   "factory.title": { de: "Werkseinstellungen", en: "Factory Settings" },
   "factory.reset": { de: "Zurücksetzen / Neustart", en: "Reset / Restart" },
@@ -2192,5 +2198,24 @@ window.saveAllRelaySchedules = async function () {
   }
 };
 
+window.startOtaUpdate = async function () {
+    try {
+        const res = await fetch("/api/ota/update", {
+            method: "POST",
+            cache: "no-store"
+        });
+
+        if (!res.ok) {
+            alert("OTA update failed.");
+            return;
+        }
+
+        alert("OTA update started. Device will reboot if successful.");
+    } 
+    catch (err) {
+        console.error("[OTA] request failed:", err);
+        alert("OTA request failed.");
+    }
+};
 
 )rawliteral";

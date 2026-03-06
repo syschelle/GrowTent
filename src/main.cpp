@@ -960,6 +960,38 @@ void setup() {
   server.on("/relay/3/toggle", HTTP_POST, []() { handleRelayToggleIdx(2); });
   server.on("/relay/4/toggle", HTTP_POST, []() { handleRelayToggleIdx(3); });
 
+  server.on("/shelly/main/toggle", HTTP_POST, []() {
+    bool ok = false;
+    bool newState = false;
+
+    ShellyValues v = getShellyValues(settings.shelly.main, 0);
+    if (v.ok) {
+      newState = !v.isOn;
+      ok = shellySwitchSet(settings.shelly.main.ip, settings.shelly.main.gen, newState, 0, 80);
+    }
+
+    String resp = String("{\"ok\":") + (ok ? "true" : "false") +
+                  String(",\"isOn\":") + (newState ? "true" : "false") + "}";
+
+    server.send(ok ? 200 : 500, "application/json", resp);
+  });
+
+  server.on("/shelly/light/toggle", HTTP_POST, []() {
+    bool ok = false;
+    bool newState = false;
+
+    ShellyValues v = getShellyValues(settings.shelly.light, 0);
+    if (v.ok) {
+      newState = !v.isOn;
+      ok = shellySwitchSet(settings.shelly.light.ip, settings.shelly.light.gen, newState, 0, 80);
+    }
+
+    String resp = String("{\"ok\":") + (ok ? "true" : "false") +
+                  String(",\"isOn\":") + (newState ? "true" : "false") + "}";
+
+    server.send(ok ? 200 : 500, "application/json", resp);
+  });
+
   // hint message
   server.on("/api/hint", HTTP_GET, handleHint);
 
