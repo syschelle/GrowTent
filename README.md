@@ -42,7 +42,7 @@ Wiring notes:
 ## Defaults & Constants
 
 - AP SSID: `new growtent`
-- AP password: `12345678`
+- AP password: `GT-12$34`
 - Measurement interval: `30000 ms` (30 seconds)
 - Default NTP server: `de.pool.ntp.org`
 - Default timezone (POSIX-style): Western European Time, example:
