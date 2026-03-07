@@ -27,6 +27,7 @@ GrowTent is a compact ESP32-based grow-tent controller that reads temperature, h
 
 Default sensor and relay configuration in code:
 - BME I2C address: `0x76` (BME_ADDR)
+- DS18B20 sensor pin 4
 - Relay count: `4` (NUM_RELAYS)
 - Relay pins (in order): `{ 32, 33, 25, 26 }`
 - Relay names (default): `"left fan"`, `"right fan"`, `"pod fan"`, `"humidifier fan"`
@@ -41,7 +42,7 @@ Wiring notes:
 ## Defaults & Constants
 
 - AP SSID: `new growtent`
-- AP password: `12345678`
+- AP password: `GT-12$34`
 - Measurement interval: `30000 ms` (30 seconds)
 - Default NTP server: `de.pool.ntp.org`
 - Default timezone (POSIX-style): Western European Time, example:
