@@ -650,6 +650,18 @@ const char* htmlPage = R"rawliteral(
           </select>
         </div>
 
+        <h2 data-i18n="settings.DS18B20">DS18B20 Sensor</h2>        
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
+           <input type="checkbox" name="webDS18B20Enable" id="webDS18B20Enable" %DS18B20ENABLE%>
+           <span data-i18n="settings.enabled">aktivieren</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <input name="webDS18B20Name" id="webDS18B20Name" type="text" data-i18n="settings.DS18B20Name.ph" data-i18n-attr="placeholder" style="width: 250px;" maxlength="400" value="%DS18B20NAME%">
+        </div>
+
         <h2 data-i18n="settings.relaySettings">Relais Einstellungen</h2>
         <div class="form-group">
           <label for="webRelay1" data-i18n="settings.relay1">Relay 1:</label>

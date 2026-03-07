@@ -318,6 +318,8 @@ String readSensorData() {
     // only update global water temp if valid
     if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
       DS18B20STemperature = dsTemp;
+      cur.extTempC = dsTemp;
+      logPrint("[SENSOR] DS18B20 water temperature: " + String(cur.extTempC, 1) + " °C");
     } else {
       logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
     }

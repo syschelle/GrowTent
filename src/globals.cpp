@@ -8,7 +8,7 @@ const size_t LOG_MAX_LINES = 50;
 
 // WiFi/AP
 const char* KEY_APSSID = "new growtent";
-const char* KEY_APPASSWORD = "12345678";
+const char* KEY_APPASSWORD = "GT-12$34";
 String ssidName = "";
 String ssidPassword = "";
 bool wifiReady = false;
