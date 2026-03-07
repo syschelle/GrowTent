@@ -278,7 +278,7 @@ void readPreferences() {
   loadPrefString(KEY_UNIT, unit, "metric", true, "unit");
   loadPrefString(KEY_TFMT, timeFormat, "24h", true, "timeFormat");
   loadPrefString(KEY_DS18B20ENABLE, DS18B20Enable, "", true, "DS18B20Enable");
-  if (DS18B20Enable) DS18B20 = "checked";
+  DS18B20 = (DS18B20Enable == "checked" || DS18B20Enable == "1" || DS18B20Enable == "true");
   loadPrefString(KEY_DS18NAME, DS18B20Name, "", true, "DS18B20Name");
 
   // notification settings
