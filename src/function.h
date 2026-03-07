@@ -349,16 +349,16 @@ void handleSaveRunsettings() {
   }
 
   // Save all run settings
-  savePrefString("webGrowStart", KEY_STARTDATE, startDate, "Grow Start Date");
-  savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, "Flowering Start Date");
-  savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, "Drying Start Date");
-  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, "Current Phase");
-  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, targetTemperature, "Target Temperature");
-  savePrefFloat("webTargetVPD", KEY_TARGETVPD, targetVPD, "Target VPD");
-  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, "Leaf Temperature Offset");
-  savePrefString("webLightOnTime", KEY_LIGHT_ON_TIME, lightOnTime, "Grow Light On Time");
-  savePrefInt("webLightDayHours", KEY_LIGHT_DAY_HOURS, lightDayHours, "Grow Light Day Hours");
-  savePrefInt("webHeatingRelay", KEY_HEATING_RELAY, heatingRelay, "Heating Relay Pin");
+  savePrefString("webGrowStart", KEY_STARTDATE, startDate, true, "Grow Start Date");
+  savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, true, "Flowering Start Date");
+  savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, true, "Drying Start Date");
+  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, true, "Current Phase");
+  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, targetTemperature, true, "Target Temperature");
+  savePrefFloat("webTargetVPD", KEY_TARGETVPD, targetVPD, true, "Target VPD");
+  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, true, "Leaf Temperature Offset");
+  savePrefString("webLightOnTime", KEY_LIGHT_ON_TIME, lightOnTime, true, "Grow Light On Time");
+  savePrefInt("webLightDayHours", KEY_LIGHT_DAY_HOURS, lightDayHours, true, "Grow Light Day Hours");
+  savePrefInt("webHeatingRelay", KEY_HEATING_RELAY, settings.heating.Relay, true, "Heating Relay");
 
   preferences.end(); // always close Preferences handle
 
