@@ -470,25 +470,21 @@ void handleSaveShellySettings() {
   savePrefInt   ("webShellyLightGen",  KEY_SHELLYLIGHTGEN,  settings.shelly.light.gen,  "Light Gen");
 
   // Read ON/OFF from UI (expected HH:00) and apply directly
-  if (server.hasArg("webShellyLightOnTime") && server.hasArg("webShellyLightOffTime")) {
+  if (server.hasArg("webShellyLightOnTime") && server.hasArg("webShellyLightDayHours") && server.hasArg("webShellyLightOffTime")) {
+    // Read ON time + day hours from UI (expected HH:00 and integer hours), save to settings and apply schedule immediately. OFF time is derived from ON time + day hours, so no need to read separately. But save ON time + day hours for schedule calculation and UI display.
     const String onStr = server.arg("webShellyLightOnTime"); // e.g. 03:00
-    const String offStr = server.arg("webShellyLightOffTime"); // e.g. 21:00
+    // Light ON time - if changed, save to settings and recalculate schedule (OFF time is derived from ON time + day hours)
+    savePrefString("webShellyLightOnTime", KEY_LIGHT_ON_TIME, settings.grow.lightOnTime, true, "Shelly Light ON Time");
+    // Light day hours (1..20) - if changed, save to settings and recalculate schedule (OFF time is derived from ON time + day hours)
+    settings.grow.lightDayHours = server.arg("webShellyLightDayHours").toInt(); // e.g. 18
+    // Light OFF time is derived from ON time + day hours, so no need to save separately. But save ON time + day hours for schedule calculation and UI display.
+    savePrefInt   ("webShellyLightDayHours",  KEY_LIGHT_DAY_HOURS,  settings.grow.lightDayHours,  "Light Day Hours");
 
     // Keep ON time as-is (already HH:00 from UI)
     settings.grow.lightOnTime = onStr;
 
     // Derive day length from ON->OFF (hours only)
     const int onH = onStr.substring(0, 2).toInt();
-    const int offH = offStr.substring(0, 2).toInt();
-
-    int dayHours = offH - onH;
-    if (dayHours <= 0) dayHours += 24;
-
-    // Keep within allowed range
-    if (dayHours < 1) dayHours = 1;
-    if (dayHours > 20) dayHours = 20;
-
-    settings.grow.lightDayHours = dayHours;
   }
 
   // --- AUTH ---
@@ -497,9 +493,7 @@ void handleSaveShellySettings() {
 
   preferences.end();
 
-  // Sync runtime + apply schedule to Shelly
-  settings.grow.lightOnTime = lightOnTime;
-  settings.grow.lightDayHours = lightDayHours;
+  // Sync runtime + apply schedule to Shelly immediately (in case light on/off time changed)
   applyGrowLightSchedule();
 
   server.sendHeader("Location", "/");
