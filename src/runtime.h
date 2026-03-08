@@ -380,9 +380,9 @@ String readSensorData() {
     json += "\"curTemperature\":null,\n";
   } 
   if (!isnan(cur.extTempC)) {
-    json += "\"curDS18B20-1\":" + String(cur.extTempC, 1) + ",\n";
+    json += "\"curDS18B20Se1\":" + String(cur.extTempC, 1) + ",\n";
   } else {
-    json += "\"curDS18B20-1\":null,\n";
+    json += "\"curDS18B20Se1\":null,\n";
   }
   if (!isnan(cur.humidityPct)) {
     json += "\"curHumidity\":" + String(cur.humidityPct, 0) + ",\n";

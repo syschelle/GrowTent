@@ -119,7 +119,7 @@ const char* htmlPage = R"rawliteral(
             <div class="twoinone-label">
               <div class="metric-label">%DS18B20NAME%</div>
               <div class="metric-value">
-                <span id="waterTempSpan">%WATERTEMPERATURE%</span><span class="unit">°C</span>
+                <span id="ext1TempSpan">%WATERTEMPERATURE%</span><span class="unit">°C</span>
             </div>
           </div>
         </div>

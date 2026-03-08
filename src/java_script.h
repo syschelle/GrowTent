@@ -846,7 +846,7 @@ if (!statusActive) return;
 
       // current
       if (isNum(data.curTemperature))        { setText('tempSpan', data.curTemperature.toFixed(1)); }
-      if (isNum(data.curDS18B20-1))   { setText('waterTempSpan', data.curDS18B20-1.toFixed(1)); }
+      if (isNum(data.curDS18B20Se1))          { setText('ext1TempSpan', data.curDS18B20Se1.toFixed(1)); }
       if (isNum(data.curHumidity))           { setText('humSpan',  data.curHumidity.toFixed(0)); }
       if (isNum(data.curVpd))                { setText('vpdSpan',  data.curVpd.toFixed(1)); }
       
