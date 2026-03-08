@@ -348,9 +348,9 @@ const char* htmlPage = R"rawliteral(
             <option value="2" %SHLIGHTKIND2%>Gen2</option>
             <option value="3" %SHLIGHTKIND3%>Gen3</option>
           </select>
-          <select id="shellyLightOnTime"></select>
+          <select name="webShellyLightOnTime" id="shellyLightOnTime"></select>
           <select id="shellyLightDayHours"></select>
-          <input id="shellyLightOffTime" type="text" readonly value="—">
+          <input name="webShellyLightOffTime" id="shellyLightOffTime" type="text" readonly value="—">
         </div>
       </div>
 

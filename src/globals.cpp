@@ -29,6 +29,7 @@ const char* KEY_LEAFTEMP = "offsetLeaf";
 const char* KEY_TARGETVPD = "targetVPD";
 const char* KEY_LIGHT_ON_TIME = "lightOnTime";
 const char* KEY_LIGHT_DAY_HOURS = "lightDayHours";
+const char* KEY_LIGHT_OFF_TIME = "lightOffTime";
 
 // heating relay key
 const char* KEY_HEATING_RELAY = "heatingRelay";

@@ -353,6 +353,13 @@ void handleSaveRunsettings() {
   savePrefInt("webLightDayHours", KEY_LIGHT_DAY_HOURS, lightDayHours, true, "Grow Light Day Hours");
   savePrefInt("webHeatingRelay", KEY_HEATING_RELAY, settings.heating.Relay, true, "Heating Relay");
 
+  // Keep settings struct in sync
+  settings.grow.lightOnTime = lightOnTime;
+  settings.grow.lightDayHours = lightDayHours;
+
+  // Apply schedule to Shelly immediately
+  applyGrowLightSchedule();
+
   preferences.end(); // always close Preferences handle
 
   // Send redirect response and restart the ESP
@@ -462,20 +469,42 @@ void handleSaveShellySettings() {
   savePrefString("webShellyLightIP",   KEY_SHELLYLIGHTIP,   settings.shelly.light.ip,   "Light IP");
   savePrefInt   ("webShellyLightGen",  KEY_SHELLYLIGHTGEN,  settings.shelly.light.gen,  "Light Gen");
 
+  // Read ON/OFF from UI (expected HH:00) and apply directly
+  if (server.hasArg("webShellyLightOnTime") && server.hasArg("webShellyLightOffTime")) {
+    const String onStr = server.arg("webShellyLightOnTime"); // e.g. 03:00
+    const String offStr = server.arg("webShellyLightOffTime"); // e.g. 21:00
+
+    // Keep ON time as-is (already HH:00 from UI)
+    settings.grow.lightOnTime = onStr;
+
+    // Derive day length from ON->OFF (hours only)
+    const int onH = onStr.substring(0, 2).toInt();
+    const int offH = offStr.substring(0, 2).toInt();
+
+    int dayHours = offH - onH;
+    if (dayHours <= 0) dayHours += 24;
+
+    // Keep within allowed range
+    if (dayHours < 1) dayHours = 1;
+    if (dayHours > 20) dayHours = 20;
+
+    settings.grow.lightDayHours = dayHours;
+  }
+
   // --- AUTH ---
   savePrefString("webShellyUsername", KEY_SHELLYUSERNAME, settings.shelly.username, "User");
   savePrefString("webShellyPassword", KEY_SHELLYPASSWORD, settings.shelly.password, "Pass");
 
   preferences.end();
 
+  // Sync runtime + apply schedule to Shelly
   settings.grow.lightOnTime = lightOnTime;
   settings.grow.lightDayHours = lightDayHours;
   applyGrowLightSchedule();
 
   server.sendHeader("Location", "/");
-  server.send(303);
-  delay(250);
-  ESP.restart();
+  server.send(303);  // HTTP redirect to status page
+  readPreferences(); // reload preferences to update in-memory variables (e.g. heatingRelay) before restart
 }
 
 // Helper function to save a string preference to a C-style string if the corresponding argument is present
