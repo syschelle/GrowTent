@@ -289,6 +289,71 @@ const char jsContent[] PROGMEM = R"rawliteral(
   
 })();
 
+// ---------- Toast ----------
+window.showToast = function (message, type = "info", duration = 2600) {
+  let container = document.getElementById("toastContainer");
+
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toastContainer";
+    container.style.cssText = [
+      "position:fixed",
+      "right:16px",
+      "bottom:16px",
+      "z-index:9999",
+      "display:flex",
+      "flex-direction:column",
+      "gap:10px",
+      "max-width:360px",
+      "pointer-events:none"
+    ].join(";");
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+
+  let borderColor = "#3b82f6";
+  if (type === "success") borderColor = "#16a34a";
+  else if (type === "error") borderColor = "#dc2626";
+  else if (type === "warn") borderColor = "#d97706";
+
+  toast.style.cssText = [
+    "background:#1f2937",
+    "color:#ffffff",
+    "border-left:4px solid " + borderColor,
+    "border-radius:10px",
+    "padding:12px 14px",
+    "box-shadow:0 10px 24px rgba(0,0,0,0.25)",
+    "font-size:14px",
+    "line-height:1.4",
+    "opacity:0",
+    "transform:translateY(8px)",
+    "transition:opacity 180ms ease, transform 180ms ease",
+    "word-break:break-word",
+    "pointer-events:auto"
+  ].join(";");
+
+  toast.textContent = String(message || "");
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+  });
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(8px)";
+
+    setTimeout(() => {
+      toast.remove();
+      if (!container.children.length) {
+        container.remove();
+      }
+    }, 220);
+  }, Math.max(1000, Number(duration) || 2600));
+};
+
 // ---------- Sensor polling ----------
 window.sensorTimer = null;
 // Sensor poll interval (ms). We'll dynamically slow down when Status page is not visible.
@@ -864,11 +929,13 @@ if (!statusActive) return;
         const rawStatus = data.shellyMainSwitchStatus;
         const rawPower  = data.shellyMainSwitchPower;
         const rawTotalWh = data.shellyMainSwitchTotalWh;
+        const rawTotalCost = data.shellyMainSwitchCostEur;
 
         const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
         const powerW = (typeof rawPower === 'number') ? rawPower : 0;
         const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
         const totalKWh = totalWh / 1000;
+        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
 
         setShellyStateClass(mainSwitchEl, isOn);
 
@@ -884,7 +951,7 @@ if (!statusActive) return;
           mainSwitchEl._sum = s;
         }
         mainSwitchEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        mainSwitchEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+        mainSwitchEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
       }
 
       // ---------- Heater ----------
@@ -893,11 +960,13 @@ if (!statusActive) return;
         const rawStatus = data.shellyHeaterStatus;
         const rawPower  = data.shellyHeaterPower;
         const rawTotalWh = data.shellyHeaterTotalWh;
+        const rawTotalCost = data.shellyHeaterCostEur;
 
         const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
         const powerW = (typeof rawPower === 'number') ? rawPower : 0;
         const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
         const totalKWh = totalWh / 1000;
+        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
 
         setShellyStateClass(heaterStateEl, isOn);
 
@@ -912,7 +981,7 @@ if (!statusActive) return;
           heaterStateEl._sum = s;
         }
         heaterStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        heaterStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+        heaterStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
       }
 
       // ---------- Humidifier ----------
@@ -921,11 +990,13 @@ if (!statusActive) return;
         const rawStatus = data.shellyHumidifierStatus;
         const rawPower  = data.shellyHumidifierPower;
         const rawTotalWh = data.shellyHumidifierTotalWh;
+        const rawTotalCost = data.shellyHumidifierCostEur;
 
         const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
         const powerW = (typeof rawPower === 'number') ? rawPower : 0;
         const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
         const totalKWh = totalWh / 1000;
+        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
 
         setShellyStateClass(humidifierStateEl, isOn);
 
@@ -940,7 +1011,7 @@ if (!statusActive) return;
           humidifierStateEl._sum = s;
         }
         humidifierStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        humidifierStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+        humidifierStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
       }
 
       // ---------- Fan ----------
@@ -949,11 +1020,13 @@ if (!statusActive) return;
         const rawStatus = data.shellyFanStatus;
         const rawPower  = data.shellyFanPower;
         const rawTotalWh = data.shellyFanTotalWh;
+        const rawTotalCost = data.shellyFanCostEur;
 
         const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
         const powerW = (typeof rawPower === 'number') ? rawPower : 0;
         const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
         const totalKWh = totalWh / 1000;
+        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
 
         setShellyStateClass(fanStateEl, isOn);
 
@@ -968,7 +1041,7 @@ if (!statusActive) return;
           fanStateEl._sum = s;
         }
         fanStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        fanStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+        fanStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
       }
 
 
@@ -981,11 +1054,13 @@ if (!statusActive) return;
         const rawStatus = (typeof data.shellyLightStatus !== 'undefined') ? data.shellyLightStatus : (v ? v.status : undefined);
         const rawPower  = (typeof data.shellyLightPower  !== 'undefined') ? data.shellyLightPower  : (v ? v.power  : undefined);
         const rawTotalWh= (typeof data.shellyLightTotalWh!== 'undefined') ? data.shellyLightTotalWh: (v ? v.totalWh: undefined);
+        const rawTotalCost = (typeof data.shellyLightCostEur !== 'undefined') ? data.shellyLightCostEur : (v ? v.totalCost : undefined);
 
         const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
         const powerW = (typeof rawPower === 'number') ? rawPower : (Number(rawPower) || 0);
         const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : (Number(rawTotalWh) || 0);
         const totalKWh = totalWh / 1000;
+        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : (Number(rawTotalCost) || 0);
 
         setShellyStateClass(lightStateEl, isOn);
 
@@ -1000,7 +1075,7 @@ if (!statusActive) return;
           lightStateEl._sum = s;
         }
         lightStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        lightStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh`;
+        lightStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
       }
 
       // ---------- Averages ----------
@@ -2215,6 +2290,58 @@ window.startOtaUpdate = async function () {
     catch (err) {
         console.error("[OTA] request failed:", err);
         alert("OTA request failed.");
+    }
+};
+
+window.resetShellyEnergy = async function (buttonEl) {
+    const confirmed = confirm("Reset Shelly energy counters to 0?");
+    if (!confirmed) return;
+
+    const button = buttonEl instanceof HTMLElement ? buttonEl : null;
+    const originalText = button ? button.textContent : "";
+    const originalDisabled = button ? button.disabled : false;
+
+    try {
+        if (button) {
+            button.disabled = true;
+            button.textContent = "Resetting...";
+        }
+
+        const response = await fetch("/api/shelly/reset-energy", {
+            method: "POST",
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            window.showToast("Reset failed.", "error");
+            return;
+        }
+
+        const data = await response.json();
+
+        const mainStatus = data.main ? "OK" : "N/A";
+        const lightStatus = data.light ? "OK" : "N/A";
+
+        window.showToast(
+            `Reset done. Main: ${mainStatus}, Light: ${lightStatus}`,
+            "success",
+            3200
+        );
+
+        if (typeof window.updateSensorValues === "function") {
+            setTimeout(() => {
+                window.updateSensorValues();
+            }, 800);
+        }
+
+    } catch (error) {
+        console.error("[SHELLY] reset energy failed:", error);
+        window.showToast("Reset failed.", "error");
+    } finally {
+        if (button) {
+            button.disabled = originalDisabled;
+            button.textContent = originalText || "Reset Energy";
+        }
     }
 };
 

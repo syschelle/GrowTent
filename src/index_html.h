@@ -379,7 +379,7 @@ const char* htmlPage = R"rawliteral(
         <div class="tile-right-settings">
           <div class="form-group">
             <label for="webGrowStart" data-i18n="runsetting.startGrow">Start Grow Date:</label>
-            <input id="webGrowStart" name="webGrowStart" type="date" style="width: 170px;" value="%GROWSTARTDATE%">
+            <input id="webGrowStart" name="webGrowStart" type="date" style="width: 170px;" value="%GROWSTARTDATE%">&nbsp;&nbsp;&nbsp;<button type="button" class="primary" style="margin-left: 10px;" onclick="resetShellyEnergy(this)">Reset Shelly kWh</button>
           </div>
           <div class="form-group">
             <label for="webFloweringStart" data-i18n="runsetting.startFlower">Start Flowering Date:</label>
@@ -648,6 +648,12 @@ const char* htmlPage = R"rawliteral(
             <option value="C" data-i18n="settings.celsius">°C (Celsius)</option>
             <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
           </select>
+        </div>
+
+        <h2 data-i18n="settings.powerPrice">Preis pro kWh</h2> 
+        <div class="form-group">
+          <label for="webPowerPriceKwh">Power price (€/kWh):</label>
+          <input name="webPowerPriceKwh" id="webPowerPriceKwh" type="number" step="0.01" min="0" style="width: 120px;" value="%POWERPRICEKWH%">
         </div>
 
         <h2 data-i18n="settings.DS18B20">DS18B20 Sensor</h2>        

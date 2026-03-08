@@ -615,6 +615,7 @@ void handleSaveSettings() {
   savePrefString("webTempUnit", KEY_UNIT, unit);
   savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
   savePrefBool("webDS18B20Enable", KEY_DS18B20ENABLE, DS18B20, "DS18B20 Enable");
+  savePrefFloat("webPowerPriceKwh", KEY_POWER_PRICE_KWH, powerPriceKwhEur, true, "Power Price €/kWh");
   savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
   savePrefString("webRelayName1", KEY_RELAY_1, relayNames[0], "Relay 1 Name");
   savePrefString("webRelayName2", KEY_RELAY_2, relayNames[1], "Relay 2 Name");
@@ -2450,4 +2451,49 @@ static void handleSaveAllRelaySchedules() {
     "application/json; charset=utf-8",
     "{\"ok\":true}"
   );
+}
+
+// Resets Shelly energy counters for both main and light devices (if configured).
+static void handleResetShellyEnergy() {
+    if (!preferences.begin(PREF_NS, false)) {
+        server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"prefs\"}");
+        return;
+    }
+
+    auto resetOne = [&](ShellyDevice& device, const char* offsetKey) -> bool {
+        if (device.ip.isEmpty()) {
+            return false;
+        }
+
+        device.energyOffsetWh = 0.0f;
+
+        const ShellyValues values = getShellyValues(device, 0, 80);
+        const float rawEnergyWh = isnan(values.energyWh) ? 0.0f : values.energyWh;
+
+        device.energyOffsetWh = rawEnergyWh;
+        preferences.putFloat(offsetKey, rawEnergyWh);
+
+        const bool resetSucceeded = shellyResetEnergyCounters(device, 0, 80);
+
+        if (resetSucceeded) {
+            device.energyOffsetWh = 0.0f;
+            preferences.putFloat(offsetKey, 0.0f);
+        }
+
+        return resetSucceeded;
+    };
+
+    const bool mainResetOk  = resetOne(settings.shelly.main, KEY_SHELLYMAINOFF);
+    const bool lightResetOk = resetOne(settings.shelly.light, KEY_SHELLYLIGHTOFF);
+
+    preferences.end();
+
+    String response =
+        String("{\"ok\":true,\"main\":") +
+        (mainResetOk ? "true" : "false") +
+        ",\"light\":" +
+        (lightResetOk ? "true" : "false") +
+        "}";
+
+    server.send(200, "application/json; charset=utf-8", response);
 }

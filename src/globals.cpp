@@ -147,6 +147,10 @@ bool DS18B20 = false;
 String DS18B20Enable = "";
 String DS18B20Name = "";
 
+// Power price
+const char* KEY_POWER_PRICE_KWH = "pwrPriceKwh";
+float powerPriceKwhEur = 0.30f; // default €/kWh
+
 // LED
 unsigned long previousMillis = 0;
 const unsigned long blinkInterval = 500;

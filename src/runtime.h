@@ -186,6 +186,8 @@ void handleRoot() {
     html.replace("%SHLIGHTKIND2%", settings.shelly.light.gen == 2 ? "selected" : "");
     html.replace("%SHLIGHTKIND3%", settings.shelly.light.gen == 3 ? "selected" : "");
 
+    html.replace("%POWERPRICEKWH%", String(powerPriceKwhEur, 2));
+
     html.replace("%SHUSER%", settings.shelly.username);
     html.replace("%SHPASSWORD%", settings.shelly.password);
 
@@ -268,6 +270,9 @@ void readPreferences() {
   // Shelly credentials (optional Basic Auth)
   loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");
   loadPrefString(KEY_SHELLYPASSWORD, settings.shelly.password, "", false, "Shelly Password");
+
+  // Power price
+  loadPrefFloat(KEY_POWER_PRICE_KWH, powerPriceKwhEur, 0.30f, true, "powerPriceKwhEur", 3);
 
   // settings
   loadPrefString(KEY_NAME, boxName, "newGrowTent", true, "boxName");
@@ -427,6 +432,14 @@ String readSensorData() {
     }
   }
 
+  // Main cost in EUR (energyWh -> kWh)
+  if (!isnan(shelly.main.values.energyWh) && !isinf(shelly.main.values.energyWh)) {
+    const float mainCost = (shelly.main.values.energyWh / 1000.0f) * powerPriceKwhEur;
+    json += "\"shellyMainSwitchCostEur\":" + String(mainCost, 2) + ",\n";
+  } else {
+    json += "\"shellyMainSwitchCostEur\":null,\n";
+  } 
+
   // ---- Shelly Light ----
   if (!shelly.light.values.ok) {
     logPrint("[API] LIGHT request not ok");
@@ -445,6 +458,14 @@ String readSensorData() {
     } else {
       json += "\"shellyLightTotalWh\":null,\n";
     }
+  }
+
+  // Light cost in EUR
+  if (!isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
+    const float lightCost = (shelly.light.values.energyWh / 1000.0f) * powerPriceKwhEur;
+    json += "\"shellyLightCostEur\":" + String(lightCost, 2) + ",\n";
+  } else {
+    json += "\"shellyLightCostEur\":null,\n";
   }
 
   // ---- ESP32 stats ----
