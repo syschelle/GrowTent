@@ -90,10 +90,6 @@ const char* htmlPage = R"rawliteral(
         <span data-i18n="status.updated">Letztes Update:</span>
         <span id="capturedSpan">--</span>
       </p>
-      <p style="margin-top:10px">
-        <a class="btn" href="/download/history" data-i18n="status.download">CSV herunterladen</a>
-        <a class="btn" href="/deletelog" data-i18n="status.delete">CSV löschen</a>
-      </p>
       <div class="spacer"></div>
       <h2 data-i18n="status.currentValues">aktuelle Werte</h2>
       <!-- 3 values side by side -->
@@ -162,67 +158,6 @@ const char* htmlPage = R"rawliteral(
         </div>
       </div>
       <div class="spacer"></div>
-      <div class="history-head">
-        <h2 data-i18n="status.history">Verlauf (letzte Stunde)</h2>
-        <button class="btn" type="button" onclick="updateHistoryCharts(true)" data-i18n="status.refresh">Aktualisieren</button>
-      </div>
-      <div class="history-grid">
-        <!-- Temperatur -->
-        <div class="chart-card">
-          <div class="chart-title" data-i18n="status.temperature">Temperatur</div>
-          <canvas id="chartTemp" height="110"></canvas>
-          <div class="chart-foot">
-            <span>Min:</span> <span id="chartTempMin">–</span>
-            <span class="sep">·</span>
-            <span>Avg:</span> <span id="chartTempAvg">–</span>
-            <span class="sep">·</span>
-            <span>Max:</span> <span id="chartTempMax">–</span>
-            <span class="unit">°C</span>
-          </div>
-        </div>
-
-        <!-- Luftfeuchte -->
-        <div class="chart-card">
-          <div class="chart-title" data-i18n="status.humidity">Luftfeuchte</div>
-          <canvas id="chartHum" height="110"></canvas>
-          <div class="chart-foot">
-            <span>Min:</span> <span id="chartHumMin">–</span>
-            <span class="sep">·</span>
-            <span>Avg:</span> <span id="chartHumAvg">–</span>
-            <span class="sep">·</span>
-            <span>Max:</span> <span id="chartHumMax">–</span>
-            <span class="unit">%</span>
-          </div>
-        </div>
-
-        <!-- VPD -->
-        <div class="chart-card">
-          <div class="chart-title">VPD</div>
-          <canvas id="chartVpd" height="110"></canvas>
-          <div class="chart-foot">
-            <span>Min:</span> <span id="chartVpdMin">–</span>
-            <span class="sep">·</span>
-            <span>Avg:</span> <span id="chartVpdAvg">–</span>
-            <span class="sep">·</span>
-            <span>Max:</span> <span id="chartVpdMax">–</span>
-            <span class="unit">kPa</span>
-          </div>
-        </div>
-
-        <!-- %DS18B20NAME% -->
-        <div class="chart-card" id="chartWaterCard">
-          <div class="chart-title">%DS18B20NAME%</div>
-          <canvas id="chartWater" height="110"></canvas>
-          <div class="chart-foot">
-            <span>Min:</span> <span id="chartWaterMin">–</span>
-            <span class="sep">·</span>
-            <span>Avg:</span> <span id="chartWaterAvg">–</span>
-            <span class="sep">·</span>
-            <span>Max:</span> <span id="chartWaterMax">–</span>
-            <span class="unit">°C</span>
-          </div>
-        </div>
-      </div>
 
     <h2 data-i18n="status.relayControl">Relais Steuerung</h2>
     <div class="relay-row" id="relayRow">

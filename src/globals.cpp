@@ -192,16 +192,3 @@ int daysSinceFlowering = 0, weeksSinceFlowering = 0;
 int daysSinceDrying = 0, weeksSinceDrying = 0;
 const char* phaseNames[3] = { "Vegetative", "Flowering", "Drying" };
 
-// Log file
-const char* LOG_PATH = "/envlog.csv";
-const uint32_t RETAIN_MS = 48UL * 3600UL * 1000UL;
-uint32_t lastCompact = 0;
-const uint32_t COMPACT_EVERY_MS = 3600UL * 1000UL;
-const unsigned long LOG_INTERVAL_MS = 60000;
-unsigned long lastLog = 0;
-
-String csvFieldToString(const String& s) {
-  String t = s;
-  t.trim();
-  return t;
-}

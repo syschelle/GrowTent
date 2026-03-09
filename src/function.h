@@ -997,108 +997,6 @@ float pingTankLevel(uint8_t trigPin, uint8_t echoPin,
   return sum / ok;
 }
 
-static void handleHistory() {
-  // Query-Parameter
-  uint32_t hours = 48;
-  uint32_t maxPts = 1500;
-  if (server.hasArg("hours"))  hours  = std::max<uint32_t>(1, server.arg("hours").toInt());
-  if (server.hasArg("max"))    maxPts = std::max<uint32_t>(50, server.arg("max").toInt());
-
-  uint32_t nowms = millis();
-  uint32_t from  = (hours >= 596523) ? 0 : (nowms - hours * 3600UL * 1000UL); // guard overflow
-
-  // 1. Datei öffnen und erst mal zählen (wie viele im Zeitraum?)
-  auto f = LittleFS.open(LOG_PATH, FILE_READ);
-  if (!f) { server.send(200, "application/json", "[]"); 
-    logPrint(String("[LITTLEFS]: ") + LOG_PATH + " open failed!");
-    return; 
-  }
-
-  // Zählen
-  size_t count = 0;
-  {
-    String line;
-    while (f.available()) {
-      line = f.readStringUntil('\n');
-      int c1 = line.indexOf(',');
-      if (c1 <= 0) continue;
-      uint32_t ts = strtoul(line.substring(0, c1).c_str(), nullptr, 10);
-      if (ts >= from) count++;
-    }
-  }
-
-  // stride berechnen
-  size_t stride = (count > maxPts) ? (count / maxPts + ((count % maxPts) ? 1 : 0)) : 1;
-  f.seek(0);
-
-  // 2. JSON streamen
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "application/json", "[");
-  String chunk; chunk.reserve(64);
-
-  size_t i = 0, kept = 0;
-  bool first = true;
-
-  String line;
-  while (f.available()) {
-    line = f.readStringUntil('\n');
-    int c1 = line.indexOf(',');
-    if (c1 <= 0) continue;
-    uint32_t ts = strtoul(line.substring(0, c1).c_str(), nullptr, 10);
-    if (ts < from) continue;
-
-    if ((i++ % stride) != 0) continue; // ausdünnen
-
-    // Felder parsen
-    int c2 = line.indexOf(',', c1 + 1);
-    int c3 = line.indexOf(',', c2 + 1);
-    if (c2 < 0 || c3 < 0) continue;
-
-    float t = atof(line.substring(c1 + 1, c2).c_str());
-    float h = atof(line.substring(c2 + 1, c3).c_str());
-    float v = atof(line.substring(c3 + 1).c_str());
-
-    if (!first) server.sendContent(",");
-    first = false;
-
-    chunk = "{\"ts\":";
-    chunk += String(ts);
-    chunk += ",\"tempC\":";
-    chunk += String(t, 2);
-    chunk += ",\"hum\":";
-    chunk += String(h, 0);
-    chunk += ",\"vpd\":";
-    chunk += String(v, 3);
-    chunk += "}";
-    server.sendContent(chunk);
-    kept++;
-  }
-  f.close();
-  server.sendContent("]");
-}
-
-static void handleDownloadHistory() {
-  if (!LittleFS.exists(LOG_PATH)) { server.send(404, "text/plain", "No log file"); return; }
-  File f = LittleFS.open(LOG_PATH, FILE_READ);
-  if (!f) { server.send(500, "text/plain", "Open failed"); return; }
-
-  server.sendHeader("Content-Type", "text/csv");
-  server.sendHeader("Content-Disposition", "attachment; filename=envlog.csv");
-  server.sendHeader("Cache-Control", "no-store");
-  server.streamFile(f, "text/csv");
-  f.close();
-}
-
-static void handleDeleteLog() {
-  if (LittleFS.exists(LOG_PATH)) {
-    LittleFS.remove(LOG_PATH);
-    server.send(200, "text/html", "<html><body>Gel&ouml;scht <a href=\"/\">Back</a></body></html>");
-    logPrint("[WEB] CSV deleted: " + String(LOG_PATH));
-  } else {
-    server.send(404, "text/html", "<html><body>No CSV found. <a href=\"/\">Back</a></body></html>");
-  }
-}
-
 void handleApiLogBuffer() {
   String txt; txt.reserve(4096);
   for (const auto& line : logBuffer) {
@@ -2514,9 +2412,20 @@ static void handleResetShellyEnergy() {
 
 String buildSensorJsonFromCache() {
   String json;
-  json.reserve(2500);
+  json.reserve(4096);
+
+  struct tm timeinfo;
+  char timeStr[32] = "";
+  if (getLocalTime(&timeinfo)) {
+    strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
+  }
 
   json += "{";
+
+  // ---------------- current readings ----------------
+  json += "\"curGrowPhase\":";
+  json += String(curPhase);
+  json += ",";
 
   json += "\"curTemperature\":";
   json += isnan(cur.temperatureC) ? "null" : String(cur.temperatureC, 1);
@@ -2532,6 +2441,142 @@ String buildSensorJsonFromCache() {
 
   json += "\"curVpd\":";
   json += isnan(cur.vpdKpa) ? "null" : String(cur.vpdKpa, 1);
+  json += ",";
+
+  // ---------------- irrigation / time-left ----------------
+  // Falls du später echte Berechnung hast, hier ersetzen.
+  json += "\"curTimeLeftIrrigation\":\"00:00\",";
+
+  // ---------------- averages ----------------
+  json += "\"avgTemperature\":";
+  json += (tempAvg.count > 0) ? String(tempAvg.avg(), 1) : "null";
+  json += ",";
+
+  json += "\"avgTemp\":";
+  json += (tempAvg.count > 0) ? String(tempAvg.avg(), 1) : "null";
+  json += ",";
+
+  json += "\"avgWaterTemperature\":";
+  json += (waterTempAvg.count > 0) ? String(waterTempAvg.avg(), 1) : "null";
+  json += ",";
+
+  json += "\"avgWaterTemp\":";
+  json += (waterTempAvg.count > 0) ? String(waterTempAvg.avg(), 1) : "null";
+  json += ",";
+
+  json += "\"avgHumidity\":";
+  json += (humAvg.count > 0) ? String(humAvg.avg(), 1) : "null";
+  json += ",";
+
+  json += "\"avgVpd\":";
+  json += (vpdAvg.count > 0) ? String(vpdAvg.avg(), 2) : "null";
+  json += ",";
+
+  // ---------------- relays ----------------
+  json += "\"relays\":[";
+  for (int i = 0; i < NUM_RELAYS; i++) {
+    bool on = (digitalRead(relayPins[i]) == HIGH);
+    json += on ? "true" : "false";
+    if (i < NUM_RELAYS - 1) json += ",";
+  }
+  json += "],";
+
+  // ---------------- Shelly Main ----------------
+  json += "\"shellyMainSwitchStatus\":";
+  json += shelly.main.values.ok ? (shelly.main.values.isOn ? "true" : "false") : "false";
+  json += ",";
+
+  json += "\"shellyMainSwitchPower\":";
+  json += (shelly.main.values.ok && !isnan(shelly.main.values.powerW) && !isinf(shelly.main.values.powerW))
+            ? String(shelly.main.values.powerW, 2)
+            : "null";
+  json += ",";
+
+  json += "\"shellyMainSwitchTotalWh\":";
+  json += (shelly.main.values.ok && !isnan(shelly.main.values.energyWh) && !isinf(shelly.main.values.energyWh))
+            ? String(shelly.main.values.energyWh, 2)
+            : "null";
+  json += ",";
+
+  json += "\"shellyMainSwitchCostEur\":";
+  if (shelly.main.values.ok && !isnan(shelly.main.values.energyWh) && !isinf(shelly.main.values.energyWh)) {
+    json += String((shelly.main.values.energyWh / 1000.0f) * powerPriceKwhEur, 2);
+  } else {
+    json += "null";
+  }
+  json += ",";
+
+  // ---------------- Shelly Light ----------------
+  json += "\"shellyLightStatus\":";
+  json += shelly.light.values.ok ? (shelly.light.values.isOn ? "true" : "false") : "false";
+  json += ",";
+
+  json += "\"shellyLightPower\":";
+  json += (shelly.light.values.ok && !isnan(shelly.light.values.powerW) && !isinf(shelly.light.values.powerW))
+            ? String(shelly.light.values.powerW, 2)
+            : "null";
+  json += ",";
+
+  json += "\"shellyLightTotalWh\":";
+  json += (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh))
+            ? String(shelly.light.values.energyWh, 2)
+            : "null";
+  json += ",";
+
+  json += "\"shellyLightCostEur\":";
+  if (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
+    json += String((shelly.light.values.energyWh / 1000.0f) * powerPriceKwhEur, 2);
+  } else {
+    json += "null";
+  }
+  json += ",";
+
+  // Optional nested fallback for older/newer JS paths
+  json += "\"shelly\":{";
+  json += "\"light\":{";
+  json += "\"values\":{";
+  json += "\"status\":";
+  json += shelly.light.values.ok ? (shelly.light.values.isOn ? "true" : "false") : "false";
+  json += ",";
+  json += "\"power\":";
+  json += (shelly.light.values.ok && !isnan(shelly.light.values.powerW) && !isinf(shelly.light.values.powerW))
+            ? String(shelly.light.values.powerW, 2)
+            : "null";
+  json += ",";
+  json += "\"totalWh\":";
+  json += (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh))
+            ? String(shelly.light.values.energyWh, 2)
+            : "null";
+  json += ",";
+  json += "\"totalCost\":";
+  if (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
+    json += String((shelly.light.values.energyWh / 1000.0f) * powerPriceKwhEur, 2);
+  } else {
+    json += "null";
+  }
+  json += "}}},";
+
+  // ---------------- ESP stats ----------------
+  json += "\"espFreeHeap\":";
+  json += String(ESP.getFreeHeap());
+  json += ",";
+
+  json += "\"espMinFreeHeap\":";
+  json += String(ESP.getMinFreeHeap());
+  json += ",";
+
+  json += "\"espCpuMhz\":";
+  json += String(ESP.getCpuFreqMHz());
+  json += ",";
+
+  json += "\"espUptimeS\":";
+  json += String((uint32_t)(millis() / 1000UL));
+  json += ",";
+
+  // ---------------- timestamp ----------------
+  json += "\"captured\":\"";
+  json += String(timeStr);
+  json += "\"";
 
   json += "}";
 

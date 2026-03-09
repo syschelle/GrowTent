@@ -64,112 +64,6 @@ TaskHandle_t sensorTaskHandle = nullptr;
 // Forward declarations
 void startSoftAP();
 
-// -------------------- History API (ring buffer -> JSON) --------------------
-static void handleApiHistory() {
-  // Snapshot (simple; good enough for UI)
-  const int n = (count < NUM_VALUES) ? count : NUM_VALUES;
-  const int start = (index_pos - n + NUM_VALUES) % NUM_VALUES;
-
-  server.sendHeader("Cache-Control", "no-store");
-
-  // If empty after reboot: return an empty payload (no stale values)
-  if (n <= 0) {
-    String json =
-      String("{\"n\":0,\"intervalSec\":") + String(HISTORY_INTERVAL_SEC) +
-      ",\"targetTempC\":null,\"targetVpdKpa\":null,"
-      "\"temp\":[],\"hum\":[],\"vpd\":[],\"water\":[]}";
-    server.send(200, "application/json; charset=utf-8", json);
-    return;
-  }
-
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "application/json; charset=utf-8", "");
-
-  auto sendNumOrNullN = [](float v, uint8_t dec) -> String {
-    if (isnan(v)) return String("null");
-
-    char buf[16];
-    dtostrf(v, 0, dec, buf);   // width=0 → no padding
-    return String(buf);
-  };
-
-  // Header
-  server.sendContent("{\"n\":" + String(n) +
-                     ",\"intervalSec\":" + String(HISTORY_INTERVAL_SEC) + ",");
-
-  // ---- targets ----
-  server.sendContent("\"targetTempC\":" + sendNumOrNullN(targetTemperature, 1) + ",");
-  server.sendContent("\"targetVpdKpa\":" + sendNumOrNullN(targetVPD, 2) + ",");
-
-  // ---- temp ----
-  server.sendContent("\"temp\":[");
-  for (int i = 0; i < n; i++) {
-    const int idx = (start + i) % NUM_VALUES;
-    if (i) server.sendContent(",");
-
-    if (isnan(temps[idx])) {
-      server.sendContent("null");
-    } else {
-      char buf[16];
-      dtostrf(temps[idx], 0, 1, buf);
-      server.sendContent(buf);
-    }
-  }
-  server.sendContent("],");
-  // ---- hum ----
-  server.sendContent("\"hum\":[");
-  for (int i = 0; i < n; i++) {
-    const int idx = (start + i) % NUM_VALUES;
-    if (i) server.sendContent(",");
-
-    if (isnan(hums[idx])) {
-      server.sendContent("null");
-    } else {
-      char buf[16];
-      dtostrf(hums[idx], 0, 0, buf);   // humidity: 0 decimals
-      server.sendContent(buf);
-    }
-  }
-  server.sendContent("],");
-
-  // ---- vpd ----
-  server.sendContent("\"vpd\":[");
-  for (int i = 0; i < n; i++) {
-    const int idx = (start + i) % NUM_VALUES;
-    if (i) server.sendContent(",");
-
-    if (isnan(vpds[idx])) {
-      server.sendContent("null");
-    } else {
-      char buf[16];
-      dtostrf(vpds[idx], 0, 2, buf);   // VPD: 2 decimals
-      server.sendContent(buf);
-    }
-  }
-  server.sendContent("],");
-
-  // ---- water ----
-  // Keep the key name as "water" because your JS expects d.water
-  server.sendContent("\"water\":[");
-  for (int i = 0; i < n; i++) {
-    const int idx = (start + i) % NUM_VALUES;
-    if (i) server.sendContent(",");
-
-    if (isnan(waterTemps[idx])) {
-      server.sendContent("null");
-    } else {
-      char buf[16];
-      dtostrf(waterTemps[idx], 0, 1, buf);  // water temp: 1 decimal
-      server.sendContent(buf);
-    }
-  }
-  server.sendContent("]");
-  server.sendContent("}");
-
-  server.client().stop();
-}
-
-
 // -------------------- Grow Diary (CSV in LittleFS) --------------------
 static const char* DIARY_PATH = "/growdiary.csv";
 
@@ -943,9 +837,6 @@ void setup() {
   server.send(200, "application/json; charset=utf-8", jsonSensorData);
   });
 
-  // history (last hour) for charts
-  server.on("/api/history", HTTP_GET, handleApiHistory);
-
   // grow diary (LittleFS CSV)
   server.on("/api/diary/add", HTTP_POST, handleDiaryAdd);
   server.on("/api/diary/update", HTTP_POST, handleDiaryUpdate);
@@ -1001,9 +892,6 @@ void setup() {
   server.on("/api/diary/list", HTTP_GET, handleDiaryList);
 
   server.on("/factory-reset", handleFactoryReset);
-  server.on("/history", HTTP_GET, handleHistory);
-  server.on("/download/history", HTTP_GET, handleDownloadHistory);
-  server.on("/deletelog", HTTP_GET, handleDeleteLog);
 
   server.on("/favicon.ico", HTTP_GET, []() {
     String data = FAVICON_ICO_BASE64;

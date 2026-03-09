@@ -637,10 +637,6 @@ window.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('theme', theme);
     const sel = $('theme');
     if (sel && sel.value !== theme) sel.value = theme;
-
-    // charts: avoid repeated getComputedStyle cost after theme changes
-    try { invalidateChartStyleCache(); } catch(e) {}
-    window.updateHistoryCharts?.(true);
   }
   (function initTheme(){
     const saved = localStorage.getItem('theme');
@@ -893,8 +889,71 @@ async function startNewGrow(){
     }
   }
 
+  function setSwitchWithMetrics(baseId, status, power, totalWh, costEur) {
+    let stateId = '';
+    let infoId = '';
+
+    switch (baseId) {
+      case 'mainSwitch':
+        stateId = 'shelly-main-switch-state';
+        infoId = 'shellyMainInfo';
+        break;
+      case 'heater':
+        stateId = 'shelly-heater-state';
+        infoId = 'shellyHeaterInfo';
+        break;
+      case 'humidifier':
+        stateId = 'shelly-humidifier-state';
+        infoId = 'shellyHumidifierInfo';
+        break;
+      case 'fan':
+        stateId = 'shelly-fan-state';
+        infoId = 'shellyFanInfo';
+        break;
+      case 'light':
+        stateId = 'shelly-light-state';
+        infoId = 'shellyLightInfo';
+        break;
+      default:
+        return;
+    }
+
+    const stateEl = document.getElementById(stateId);
+    const infoEl = document.getElementById(infoId);
+
+    if (stateEl) {
+      stateEl.classList.toggle('shelly-on', !!status);
+      stateEl.classList.toggle('shelly-off', !status);
+      stateEl.textContent = status ? 'On' : 'Off';
+    }
+
+    if (infoEl) {
+      const p = isNum(power) ? power.toFixed(2) + ' W' : 'n/a';
+      const t = isNum(totalWh) ? totalWh.toFixed(2) + ' Wh' : 'n/a';
+      const c = isNum(costEur) ? costEur.toFixed(2) + ' €' : 'n/a';
+      const txt = `Power: ${p} | Total: ${t} | Cost: ${c}`;
+
+      if (infoEl.textContent !== txt) infoEl.textContent = txt;
+    }
+  }
+
+  function updateRelayStates(relays) {
+    if (!Array.isArray(relays)) return;
+
+    for (let i = 0; i < RELAY_COUNT; i++) {
+      relayStates[i] = !!(i < relays.length ? relays[i] : false);
+    }
+
+    window.updateRelayButtons();
+  }
+
   // ---------- Sensor fetch (/sensordata) ----------
+  let sensorFetchInFlight = false;
+
   async function updateSensorValues() {
+    if (sensorFetchInFlight) return;
+    sensorFetchInFlight = true;
+
     try {
       const response = await fetch('/sensordata', { cache: 'no-store' });
       if (!response.ok) {
@@ -902,218 +961,102 @@ async function startNewGrow(){
         setNA();
         return;
       }
+
       const data = await response.json();
-
-      // Only do heavy DOM work when the status page (with grids) is visible.
-      // This dramatically reduces layout/reflow cost on other pages.
       const statusActive = (getActivePageId() === 'status');
-      // If we're not on the Status page, stop here.
-if (!statusActive) return;
+      if (!statusActive) return;
 
-      // current
-      if (isNum(data.curTemperature))        { setText('tempSpan', data.curTemperature.toFixed(1)); }
-      if (isNum(data.curDS18B20Se1))          { setText('ext1TempSpan', data.curDS18B20Se1.toFixed(1)); }
-      if (isNum(data.curHumidity))           { setText('humSpan',  data.curHumidity.toFixed(0)); }
-      if (isNum(data.curVpd))                { setText('vpdSpan',  data.curVpd.toFixed(1)); }
-      
+      if (isNum(data.curTemperature)) setText('tempSpan', data.curTemperature.toFixed(1));
+      else setText('tempSpan', 'n/a');
+
+      if (isNum(data.curDS18B20Se1)) setText('ext1TempSpan', data.curDS18B20Se1.toFixed(1));
+      else setText('ext1TempSpan', 'n/a');
+
+      if (isNum(data.curHumidity)) setText('humSpan', data.curHumidity.toFixed(0));
+      else setText('humSpan', 'n/a');
+
+      if (isNum(data.curVpd)) setText('vpdSpan', data.curVpd.toFixed(1));
+      else setText('vpdSpan', 'n/a');
+
       const isText = x => typeof x === 'string' && x.trim() !== '';
+      setText('irTimeLeftSpan', isText(data.curTimeLeftIrrigation) ? data.curTimeLeftIrrigation : '00:00');
 
-      if (isText(data.curTimeLeftIrrigation)) {
-        setText('irTimeLeftSpan', data.curTimeLeftIrrigation);
-      } else {
-        setText('irTimeLeftSpan', '00:00');
-      }
+      if (isNum(data.avgTemperature)) setText('avgTempSpan', data.avgTemperature.toFixed(1));
+      else if (isNum(data.avgTemp)) setText('avgTempSpan', data.avgTemp.toFixed(1));
+      else setText('avgTempSpan', 'n/a');
 
-      // ---- Shelly Main Switch ----
-      const mainSwitchEl = document.getElementById('shelly-main-switch-state');
-      if (mainSwitchEl) {
-        const rawStatus = data.shellyMainSwitchStatus;
-        const rawPower  = data.shellyMainSwitchPower;
-        const rawTotalWh = data.shellyMainSwitchTotalWh;
-        const rawTotalCost = data.shellyMainSwitchCostEur;
+      if (isNum(data.avgWaterTemperature)) setText('avgWaterTempSpan', data.avgWaterTemperature.toFixed(1));
+      else if (isNum(data.avgWaterTemp)) setText('avgWaterTempSpan', data.avgWaterTemp.toFixed(1));
+      else setText('avgWaterTempSpan', 'n/a');
 
-        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
-        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
-        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
-        const totalKWh = totalWh / 1000;
-        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
+      if (isNum(data.avgHumidity)) setText('avgHumSpan', data.avgHumidity.toFixed(1));
+      else setText('avgHumSpan', 'n/a');
 
-        setShellyStateClass(mainSwitchEl, isOn);
+      if (isNum(data.avgVpd)) setText('avgVpdSpan', data.avgVpd.toFixed(2));
+      else setText('avgVpdSpan', 'n/a');
 
-        // Create child nodes once (avoid innerHTML churn + reflow every 10s)
-        if (!mainSwitchEl._pwr) {
-          mainSwitchEl.textContent = '';
-          const p = document.createElement('div');
-          const s = document.createElement('div');
-          s.className = 'sub';
-          mainSwitchEl.appendChild(p);
-          mainSwitchEl.appendChild(s);
-          mainSwitchEl._pwr = p;
-          mainSwitchEl._sum = s;
-        }
-        mainSwitchEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        mainSwitchEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
-      }
+      setText('capturedSpan', isText(data.captured) ? data.captured : '--:--:--');
 
-      // ---------- Heater ----------
-      const heaterStateEl = document.getElementById('shelly-heater-state');
-      if (heaterStateEl) {
-        const rawStatus = data.shellyHeaterStatus;
-        const rawPower  = data.shellyHeaterPower;
-        const rawTotalWh = data.shellyHeaterTotalWh;
-        const rawTotalCost = data.shellyHeaterCostEur;
+      if (isNum(data.espFreeHeap)) setText('espFreeHeapSpan', String(data.espFreeHeap));
+      else setText('espFreeHeapSpan', 'n/a');
 
-        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
-        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
-        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
-        const totalKWh = totalWh / 1000;
-        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
+      if (isNum(data.espMinFreeHeap)) setText('espMinFreeHeapSpan', String(data.espMinFreeHeap));
+      else setText('espMinFreeHeapSpan', 'n/a');
 
-        setShellyStateClass(heaterStateEl, isOn);
+      if (isNum(data.espCpuMhz)) setText('espCpuMhzSpan', String(data.espCpuMhz));
+      else setText('espCpuMhzSpan', 'n/a');
 
-        if (!heaterStateEl._pwr) {
-          heaterStateEl.textContent = '';
-          const p = document.createElement('div');
-          const s = document.createElement('div');
-          s.className = 'sub';
-          heaterStateEl.appendChild(p);
-          heaterStateEl.appendChild(s);
-          heaterStateEl._pwr = p;
-          heaterStateEl._sum = s;
-        }
-        heaterStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        heaterStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
-      }
+      if (isNum(data.espUptimeS)) setText('espUptimeSpan', String(data.espUptimeS));
+      else setText('espUptimeSpan', 'n/a');
 
-      // ---------- Humidifier ----------
-      const humidifierStateEl = document.getElementById('shelly-humidifier-state');
-      if (humidifierStateEl) {
-        const rawStatus = data.shellyHumidifierStatus;
-        const rawPower  = data.shellyHumidifierPower;
-        const rawTotalWh = data.shellyHumidifierTotalWh;
-        const rawTotalCost = data.shellyHumidifierCostEur;
+      setSwitchWithMetrics('mainSwitch',
+        data.shellyMainSwitchStatus,
+        data.shellyMainSwitchPower,
+        data.shellyMainSwitchTotalWh,
+        data.shellyMainSwitchCostEur
+      );
 
-        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
-        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
-        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
-        const totalKWh = totalWh / 1000;
-        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
+      setSwitchWithMetrics('heater',
+        data.shellyHeaterStatus,
+        data.shellyHeaterPower,
+        data.shellyHeaterTotalWh,
+        data.shellyHeaterCostEur
+      );
 
-        setShellyStateClass(humidifierStateEl, isOn);
+      setSwitchWithMetrics('humidifier',
+        data.shellyHumidifierStatus,
+        data.shellyHumidifierPower,
+        data.shellyHumidifierTotalWh,
+        data.shellyHumidifierCostEur
+      );
 
-        if (!humidifierStateEl._pwr) {
-          humidifierStateEl.textContent = '';
-          const p = document.createElement('div');
-          const s = document.createElement('div');
-          s.className = 'sub';
-          humidifierStateEl.appendChild(p);
-          humidifierStateEl.appendChild(s);
-          humidifierStateEl._pwr = p;
-          humidifierStateEl._sum = s;
-        }
-        humidifierStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        humidifierStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
-      }
+      setSwitchWithMetrics('fan',
+        data.shellyFanStatus,
+        data.shellyFanPower,
+        data.shellyFanTotalWh,
+        data.shellyFanCostEur
+      );
 
-      // ---------- Fan ----------
-      const fanStateEl = document.getElementById('shelly-fan-state');
-      if (fanStateEl) {
-        const rawStatus = data.shellyFanStatus;
-        const rawPower  = data.shellyFanPower;
-        const rawTotalWh = data.shellyFanTotalWh;
-        const rawTotalCost = data.shellyFanCostEur;
-
-        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
-        const powerW = (typeof rawPower === 'number') ? rawPower : 0;
-        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : 0;
-        const totalKWh = totalWh / 1000;
-        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : 0;
-
-        setShellyStateClass(fanStateEl, isOn);
-
-        if (!fanStateEl._pwr) {
-          fanStateEl.textContent = '';
-          const p = document.createElement('div');
-          const s = document.createElement('div');
-          s.className = 'sub';
-          fanStateEl.appendChild(p);
-          fanStateEl.appendChild(s);
-          fanStateEl._pwr = p;
-          fanStateEl._sum = s;
-        }
-        fanStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        fanStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
-      }
-
-
-      // ---------- Grow Light ----------
-      const lightStateEl = (document.getElementById('shelly-light-switch-state') || document.getElementById('shelly-light-state'));
-      if (lightStateEl) {
-        // support both flat fields and nested shelly.light.values
-        const v = (data && data.shelly && data.shelly.light && data.shelly.light.values) ? data.shelly.light.values : null;
-
-        const rawStatus = (typeof data.shellyLightStatus !== 'undefined') ? data.shellyLightStatus : (v ? v.status : undefined);
-        const rawPower  = (typeof data.shellyLightPower  !== 'undefined') ? data.shellyLightPower  : (v ? v.power  : undefined);
-        const rawTotalWh= (typeof data.shellyLightTotalWh!== 'undefined') ? data.shellyLightTotalWh: (v ? v.totalWh: undefined);
-        const rawTotalCost = (typeof data.shellyLightCostEur !== 'undefined') ? data.shellyLightCostEur : (v ? v.totalCost : undefined);
-
-        const isOn = (rawStatus === true) || (rawStatus === 'true') || (rawStatus === 1) || (rawStatus === '1');
-        const powerW = (typeof rawPower === 'number') ? rawPower : (Number(rawPower) || 0);
-        const totalWh = (typeof rawTotalWh === 'number') ? rawTotalWh : (Number(rawTotalWh) || 0);
-        const totalKWh = totalWh / 1000;
-        const totalCostEur = (typeof rawTotalCost === 'number') ? rawTotalCost : (Number(rawTotalCost) || 0);
-
-        setShellyStateClass(lightStateEl, isOn);
-
-        if (!lightStateEl._pwr) {
-          lightStateEl.textContent = '';
-          const p = document.createElement('div');
-          const s = document.createElement('div');
-          s.className = 'sub';
-          lightStateEl.appendChild(p);
-          lightStateEl.appendChild(s);
-          lightStateEl._pwr = p;
-          lightStateEl._sum = s;
-        }
-        lightStateEl._pwr.textContent = `${powerW.toFixed(1)} W`;
-        lightStateEl._sum.textContent = `${totalKWh.toFixed(2)} kWh - ${totalCostEur.toFixed(2)} €`;
-      }
-
-      // ---------- Averages ----------
-      // averages (support both naming styles from backend)
-      const avgTemp = isNum(data.avgTemperature) ? data.avgTemperature : (isNum(data.avgTemp) ? data.avgTemp : null);
-      if (avgTemp !== null) setText('avgTempSpan', avgTemp.toFixed(1));
-
-      const avgWater = isNum(data.avgWaterTemperature) ? data.avgWaterTemperature : (isNum(data.avgWaterTemp) ? data.avgWaterTemp : null);
-      if (avgWater !== null) setText('avgWaterTempSpan', avgWater.toFixed(1));
-
-      const avgHum = isNum(data.avgHumidity) ? data.avgHumidity : null;
-      if (avgHum !== null) setText('avgHumSpan', avgHum.toFixed(1));
-
-      const avgVpd = isNum(data.avgVpd) ? data.avgVpd : null;
-      if (avgVpd !== null) setText('avgVpdSpan', avgVpd.toFixed(1));
-
-      // captured / timestamp
-      const cap =
-        (typeof data.captured === 'string' && data.captured.length) ? data.captured :
-        (isNum(data.ts) ? new Date(data.ts).toLocaleString() : 'N/A');
-      setText('capturedSpan', cap);
+      setSwitchWithMetrics('light',
+        data.shellyLightStatus,
+        data.shellyLightPower,
+        data.shellyLightTotalWh,
+        data.shellyLightCostEur
+      );
 
       if (Array.isArray(data.relays)) {
-      relayStates = data.relays.map(v => !!v);
-      updateRelayButtons();
-      }
+        updateRelayStates(data.relays);
+     }
 
     } catch (error) {
       console.error('Exception in updateSensorValues():', error?.message || error, error);
       setNA();
+    } finally {
+      sensorFetchInFlight = false;
     }
   }
 
   window.updateSensorValues = updateSensorValues;
-
-  // ---------- History charts (/api/history) ----------
-  let historyTimer = null;
 
   // ---------- Shelly light schedule poll (only active on Shelly page) ----------
   window._shellyLightTimer = null;
@@ -1123,373 +1066,6 @@ if (!statusActive) return;
     return p ? p.id : '';
   }
 
-  function canvasHiDPI(canvas){
-    const dpr = window.devicePixelRatio || 1;
-    const cssW = canvas.clientWidth || canvas.width;
-    const cssH = canvas.clientHeight || canvas.height;
-    const w = Math.max(1, Math.floor(cssW * dpr));
-    const h = Math.max(1, Math.floor(cssH * dpr));
-    if (canvas.width !== w) canvas.width = w;
-    if (canvas.height !== h) canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return ctx;
-  }
-
-  // ---------- chart perf helpers ----------
-  // Downsample to at most ~1 point per CSS pixel (huge speedup),
-  // and smooth only the DRAW line (stats stay raw/real).
-  const CHART_CFG = {
-    pointsPerPixel: 1.0,   // 1.0 = max ~1 point per pixel
-    smoothWindow: 5        // 1 = no smoothing, 3..9 typical
-  };
-
-  function movingAverage(arr, window){
-    const w = Math.max(1, window|0);
-    if (w <= 1 || arr.length < 3) return arr;
-    const half = Math.floor(w / 2);
-    const out = new Array(arr.length).fill(null);
-
-    for (let i = 0; i < arr.length; i++) {
-      let sum = 0, ok = 0;
-      const a = Math.max(0, i - half);
-      const b = Math.min(arr.length - 1, i + half);
-      for (let j = a; j <= b; j++) {
-        const v = arr[j];
-        if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
-        sum += v; ok++;
-      }
-      out[i] = ok ? (sum / ok) : null;
-    }
-    return out;
-  }
-
-  function prepareSeries(arr, maxPoints, smoothWindow){
-    const n = Array.isArray(arr) ? arr.length : 0;
-    if (!n) return { draw: [], stats: { min: null, max: null, avg: null } };
-
-    const mp = Math.max(20, maxPoints|0);
-
-    let min = Infinity, max = -Infinity, sum = 0, ok = 0;
-
-    // already small enough: compute stats on raw; draw = raw (then smooth)
-    if (n <= mp) {
-      const draw = new Array(n);
-      for (let i = 0; i < n; i++) {
-        const v = arr[i];
-        draw[i] = v;
-        if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
-        ok++; sum += v;
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-      const stats = ok ? { min, max, avg: (sum/ok) } : { min: null, max: null, avg: null };
-      return { draw: movingAverage(draw, smoothWindow), stats };
-    }
-
-    // bucket downsampling: each bucket -> avg for draw, stats from raw values
-    const bucketSize = Math.ceil(n / mp);
-    const draw = [];
-
-    for (let i = 0; i < n; i += bucketSize) {
-      const end = Math.min(n, i + bucketSize);
-      let bSum = 0, bOk = 0;
-
-      for (let j = i; j < end; j++) {
-        const v = arr[j];
-        if (v === null || typeof v !== 'number' || !isFinite(v)) continue;
-
-        // stats from RAW
-        ok++; sum += v;
-        if (v < min) min = v;
-        if (v > max) max = v;
-
-        // draw avg
-        bOk++; bSum += v;
-      }
-      draw.push(bOk ? (bSum / bOk) : null);
-    }
-
-    const stats = ok ? { min, max, avg: (sum/ok) } : { min: null, max: null, avg: null };
-    return { draw: movingAverage(draw, smoothWindow), stats };
-  }
-
-  // Draws a series of data into a canvas element
-  function drawSeries(canvasId, arr, minSpanId, avgSpanId, maxSpanId, decimals, targetValue, intervalSec){
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-
-  const cssW = (canvas.clientWidth || canvas.width || 300);
-  const maxPoints = Math.max(60, Math.floor(cssW * CHART_CFG.pointsPerPixel));
-  const prep = prepareSeries(arr, maxPoints, CHART_CFG.smoothWindow);
-  const drawArr = prep.draw;
-  const { min, max, avg } = prep.stats;
-
-  // --- optional: Sollwert in Skala einbeziehen, damit Linie nicht "außerhalb" liegt ---
-  let min2 = min, max2 = max;
-  const tOk = (typeof targetValue === 'number' && isFinite(targetValue));
-  if (tOk && min2 !== null && max2 !== null) {
-    if (targetValue < min2) min2 = targetValue;
-    if (targetValue > max2) max2 = targetValue;
-    if (min2 === max2) { min2 -= 0.5; max2 += 0.5; }
-  }
-
-  // If the series is flat (often happens when only the first value exists),
-  // expand the range a bit so the grid and the first red marker can be drawn.
-  if (min2 !== null && max2 !== null && min2 === max2) {
-    const eps = (decimals >= 2) ? 0.05 : (decimals === 1 ? 0.5 : 1);
-    min2 -= eps;
-    max2 += eps;
-  }
-
-  const minEl = document.getElementById(minSpanId);
-  const avgEl = document.getElementById(avgSpanId);
-  const maxEl = document.getElementById(maxSpanId);
-  if (minEl) minEl.textContent = (min2 === null) ? '–' : min2.toFixed(decimals);
-  if (avgEl) avgEl.textContent = (avg === null) ? '–' : avg.toFixed(decimals);
-  if (maxEl) maxEl.textContent = (max2 === null) ? '–' : max2.toFixed(decimals);
-
-  const ctx = canvasHiDPI(canvas);
-  const stroke = getChartStroke();
-  ctx.strokeStyle = stroke;
-
-  const w = canvas.clientWidth || canvas.width;
-  const h = canvas.clientHeight || canvas.height;
-  ctx.clearRect(0, 0, w, h);
-
-  // --- Layout: Platz links für Skala ---
-  const padTop = 6, padRight = 6, padBottom = 22; // extra space for X-axis labels
-  const padLeft = 44; // Platz für Zahlen links (bei Bedarf 50 machen)
-
-  const innerW = w - padLeft - padRight;
-  const innerH = h - padTop - padBottom;
-
-  // kleine Hilfsfunktion für "schöne" Tick-Abstände
-  function niceStep(range, ticks){
-    if (!(range > 0) || !(ticks > 0)) return 1;
-    const rough = range / ticks;
-    const pow10 = Math.pow(10, Math.floor(Math.log10(rough)));
-    const r = rough / pow10;
-    let nice = 1;
-    if (r >= 5) nice = 5;
-    else if (r >= 2) nice = 2;
-    else nice = 1;
-    return nice * pow10;
-  }
-
-  // background grid + Y-Achsen-Labels
-  ctx.save();
-  const ticks = 4; // 4 Zwischenlinien
-  const range = (max2 - min2);
-  const step = niceStep(range, ticks);
-
-  // Ticks so wählen, dass sie "rund" sind
-  const yMinTick = Math.floor(min2 / step) * step;
-  const yMaxTick = Math.ceil(max2 / step) * step;
-
-  ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-
-  // Grid-Linien + Labels
-  for (let v = yMinTick; v <= yMaxTick + 0.000001; v += step) {
-    const t = (v - min2) / (max2 - min2);         // 0..1
-    const y = padTop + innerH * (1 - t);          // invertiert (oben max)
-
-    // Linie
-    ctx.globalAlpha = 0.20;
-    ctx.beginPath();
-    ctx.moveTo(padLeft, y);
-    ctx.lineTo(w - padRight, y);
-    ctx.stroke();
-
-    // Label links
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = stroke;
-    ctx.fillText(v.toFixed(decimals), padLeft - 6, y);
-  }
-
-  // Y-Achse (links)
-  ctx.globalAlpha = 0.35;
-  ctx.beginPath();
-  ctx.moveTo(padLeft, padTop);
-  ctx.lineTo(padLeft, h - padBottom);
-  ctx.stroke();
-  ctx.restore();
-  if (min2 === null || max2 === null) return;
-
-  // Count finite values; if we only have one, draw a small start marker instead of a line.
-  let firstValid = -1;
-  let validCount = 0;
-  for (let i = 0; i < drawArr.length; i++) {
-    const v = drawArr[i];
-    if (typeof v === 'number' && isFinite(v)) {
-      if (firstValid < 0) firstValid = i;
-      validCount++;
-    }
-  }
-  if (validCount === 0) return;
-
-  const n = drawArr.length;
-
-  const xStep = innerW / Math.max(1, n - 1);
-  const yScale = innerH / (max2 - min2);
-
-  // ---- X-axis (relative time) ----
-  // Uses /api/history intervalSec; shows minutes ago -> now.
-  if (intervalSec && isFinite(intervalSec) && intervalSec > 0) {
-    ctx.save();
-    ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = stroke;
-
-    const axisY = h - padBottom;
-
-    // bottom axis line
-    ctx.globalAlpha = 0.35;
-    ctx.beginPath();
-    ctx.moveTo(padLeft, axisY);
-    ctx.lineTo(w - padRight, axisY);
-    ctx.stroke();
-
-    // labels
-    ctx.globalAlpha = 0.85;
-    const ticksX = 4; // start, 1/3, 2/3, end
-    for (let t = 0; t < ticksX; t++) {
-      const frac = t / (ticksX - 1);
-      const i = Math.round(frac * (n - 1));
-      const x = padLeft + xStep * i;
-
-      const secondsAgo = (n - 1 - i) * intervalSec;
-      const minutesAgo = Math.round(secondsAgo / 60);
-      const labelNow = (currentLang === 'de') ? 'jetzt' : 'now';
-      const txt = (i === n - 1) ? labelNow : `-${minutesAgo}m`;
-
-      ctx.fillText(txt, x, axisY + 4);
-    }
-
-    ctx.restore();
-  }
-
-
-  // ---- Soll-Linie (gestrichelt) ----
-  if (tOk) {
-    const yT = padTop + (max2 - targetValue) * yScale;
-    ctx.save();
-    ctx.globalAlpha = 0.75;
-    ctx.setLineDash([6, 4]);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padLeft, yT);
-    ctx.lineTo(w - padRight, yT);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Datenlinie (IST-Wert) -> ROT
-  ctx.save();
-  ctx.strokeStyle = 'red';
-  ctx.lineWidth = 2;
-
-  if (validCount >= 2) {
-    ctx.beginPath();
-    let started = false;
-    for (let i = 0; i < n; i++) {
-      const v = drawArr[i];
-      if (v === null || typeof v !== 'number' || !isFinite(v)) {
-        started = false;
-        continue;
-      }
-      const x = padLeft + xStep * i;
-      const y = padTop + (max2 - v) * yScale;
-      if (!started) {
-        ctx.moveTo(x, y);
-        started = true;
-      } else {
-        ctx.lineTo(x, y);
-      }
-    }
-    ctx.stroke();
-  } else if (firstValid >= 0) {
-    // Only one value so far: draw a small "start bar" so the user sees something immediately.
-    const v = drawArr[firstValid];
-    const x = padLeft + xStep * firstValid;
-    const y = padTop + (max2 - v) * yScale;
-
-    // vertical mini bar + dot
-    ctx.beginPath();
-    ctx.moveTo(x, y - 6);
-    ctx.lineTo(x, y + 6);
-    ctx.stroke();
-
-    ctx.fillStyle = 'red';
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-
- }
-
-  // Only redraw when history actually changes
-  let _histSig = "";
-  function _sig(arr){
-    const n = arr?.length || 0;
-    const a = n ? arr[0] : '';
-    const b = n ? arr[n-1] : '';
-    return `${n}|${a}|${b}`;
-  }
-
-  let historyFetchInFlight = false;
-
-  window.updateHistoryCharts = async function(force){
-    if (historyFetchInFlight) return;
-    if (!force && getActivePageId() !== 'status') return;
-    if (document.visibilityState !== 'visible') return;
-
-    historyFetchInFlight = true;
-    try {
-      const r = await fetch('/api/history', { cache: 'no-store' });
-      if (!r.ok) return;
-      const d = await r.json();
-      if (!d || !Array.isArray(d.temp)) return;
-
-      const sig = [
-        _sig(d.temp),
-        _sig(d.hum),
-        _sig(d.vpd),
-        _sig(d.water),
-        d.intervalSec,
-        d.targetTempC,
-        d.targetVpdKpa
-      ].join('||');
-
-      if (!force && sig === _histSig) return;
-      _histSig = sig;
-
-      drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempAvg',  'chartTempMax',  1, d.targetTempC,  d.intervalSec);
-      drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumAvg',   'chartHumMax',   1, null,           d.intervalSec);
-      drawSeries('chartVpd',   d.vpd,   'chartVpdMin',   'chartVpdAvg',   'chartVpdMax',   2, d.targetVpdKpa, d.intervalSec);
-      drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterAvg', 'chartWaterMax', 1, null,           d.intervalSec);
-    } catch (e) {
-      console.warn('history fetch failed', e);
-    } finally {
-      historyFetchInFlight = false;
-    }
-  };
-
-  function startHistoryPoll(){
-    if (historyTimer) return;
-    historyTimer = setInterval(() => {
-      if (getActivePageId() !== 'status') return;
-      if (document.visibilityState !== 'visible') return;
-      window.updateHistoryCharts(false);
-    }, 120000);
-  }
-  startHistoryPoll();
-
   function setNA(){
     setText('tempSpan', 'N/A');
     setText('waterTempSpan', 'N/A');
@@ -1498,9 +1074,8 @@ if (!statusActive) return;
     setText('capturedSpan', 'N/A');
     // averages optional
   }
-    window._startSensorPoll();     // intervall start
+  window._startSensorPoll();     // intervall start
   window.updateSensorValues();
-  window.updateHistoryCharts(true);
 
   
   // ---------- Embedded Web-Log ----------
