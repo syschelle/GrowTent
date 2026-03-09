@@ -105,6 +105,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   /* -------------------- runsetting.* -------------------- */
   "runsetting.title": { de: "Betriebseinstellungen", en: "Operating settings" },
+  "runsetting.resetkWh": { de: "kWh Zähler zurücksetzen", en: "Reset kWh counter" },
   "runsetting.newGrowError": {"de": "Fehler: Neuer Grow konnte nicht gesetzt werden.", "en": "Error: could not set new grow."},
   "runsetting.newGrowDone": {"de": "Neuer Grow wurde gesetzt.", "en": "New grow has been set."},
   "runsetting.newGrowWorking": {"de": "Setze neuen Grow…", "en": "Setting new grow…"},

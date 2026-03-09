@@ -378,8 +378,11 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <div class="tile-right-settings">
           <div class="form-group">
+            <button class="primary" id="saverunsettingsBtn" data-i18n="runsetting.resetkWh" onclick="resetShellyEnergy(this)">Reset Shelly kWh</button>
+          </div>
+          <div class="form-group">
             <label for="webGrowStart" data-i18n="runsetting.startGrow">Start Grow Date:</label>
-            <input id="webGrowStart" name="webGrowStart" type="date" style="width: 170px;" value="%GROWSTARTDATE%">&nbsp;&nbsp;&nbsp;<button type="button" class="primary" style="margin-left: 10px;" onclick="resetShellyEnergy(this)">Reset Shelly kWh</button>
+            <input id="webGrowStart" name="webGrowStart" type="date" style="width: 170px;" value="%GROWSTARTDATE%">
           </div>
           <div class="form-group">
             <label for="webFloweringStart" data-i18n="runsetting.startFlower">Start Flowering Date:</label>
