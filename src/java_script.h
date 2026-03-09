@@ -2094,7 +2094,7 @@ function initLightScheduleControls(){
     for (let h = 0; h < 24; h++) {
       for (let m = 0; m < 60; m += 15) {
         const opt = document.createElement('option');
-        const v = `${h}:${pad2(m)}`;
+        const v = `${pad2(h)}:${pad2(m)}`;
         opt.value = v;
         opt.textContent = v;
         onSel.appendChild(opt);
@@ -2106,7 +2106,7 @@ function initLightScheduleControls(){
   // Fill Day length select (12..23 hours)
   if (!daySel._filled) {
     daySel.innerHTML = '';
-    for (let h = 12; h <= 23; h++) {
+    for (let h = 1; h <= 20; h++) {
       const opt = document.createElement('option');
       opt.value = String(h);
       opt.textContent = String(h);
@@ -2117,7 +2117,7 @@ function initLightScheduleControls(){
 
   function recalcOff(){
     const onMin = parseHHMM(onSel.value);
-    const dayHours = clampInt(daySel.value, 12, 23);
+    const dayHours = clampInt(daySel.value, 1, 20);
     if (onMin == null) { offInp.value = '—'; return; }
     const offMin = (onMin + dayHours * 60) % 1440;
     offInp.value = fmtHHMM(offMin);
@@ -2263,14 +2263,14 @@ window.saveAllRelaySchedules = async function () {
     });
 
     if (!res.ok) {
-      alert("Failed to save relay schedules.");
+      window.showToast("Failed to save relay schedules.", "error");
       return;
     }
 
-    alert("Relay schedules saved.");
+    window.showToast("Relay schedules saved.", "success");
   } catch (err) {
     console.error("[SCHED] saveAllRelaySchedules failed:", err);
-    alert("Failed to save relay schedules.");
+    window.showToast("Failed to save relay schedules.", "error");
   }
 };
 
@@ -2295,54 +2295,29 @@ window.startOtaUpdate = async function () {
 };
 
 window.resetShellyEnergy = async function (buttonEl) {
-    const confirmed = confirm("Reset Shelly energy counters to 0?");
-    if (!confirmed) return;
 
-    const button = buttonEl instanceof HTMLElement ? buttonEl : null;
-    const originalText = button ? button.textContent : "";
-    const originalDisabled = button ? button.disabled : false;
+    // verhindert Formular-Submit
+    if (buttonEl && typeof buttonEl.preventDefault === "function") {
+        buttonEl.preventDefault();
+    }
+
+    const evt = window.event;
+    if (evt && typeof evt.preventDefault === "function") {
+        evt.preventDefault();
+    }
 
     try {
-        if (button) {
-            button.disabled = true;
-            button.textContent = "Resetting...";
-        }
+        const res = await fetch('/reset-shelly-energy', { method: 'POST' });
 
-        const response = await fetch("/api/shelly/reset-energy", {
-            method: "POST",
-            cache: "no-store"
-        });
-
-        if (!response.ok) {
-            window.showToast("Reset failed.", "error");
+        if (!res.ok) {
+            window.showToast("Failed to reset Shelly energy.", "error");
             return;
         }
 
-        const data = await response.json();
+        window.showToast("Shelly energy reset.", "success");
 
-        const mainStatus = data.main ? "OK" : "N/A";
-        const lightStatus = data.light ? "OK" : "N/A";
-
-        window.showToast(
-            `Reset done. Main: ${mainStatus}, Light: ${lightStatus}`,
-            "success",
-            3200
-        );
-
-        if (typeof window.updateSensorValues === "function") {
-            setTimeout(() => {
-                window.updateSensorValues();
-            }, 800);
-        }
-
-    } catch (error) {
-        console.error("[SHELLY] reset energy failed:", error);
-        window.showToast("Reset failed.", "error");
-    } finally {
-        if (button) {
-            button.disabled = originalDisabled;
-            button.textContent = originalText || "Reset Energy";
-        }
+    } catch (err) {
+        window.showToast("Failed to reset Shelly energy.", "error");
     }
 };
 

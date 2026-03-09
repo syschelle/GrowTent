@@ -144,8 +144,8 @@ static String g_notify_gotifyToken() { return jMasked(); }
 // For the main device we also show schedule & generation in one line
 static String g_sh_main_ip() { return jStr(settings.shelly.main.ip); }
 static String g_sh_main_gen() { return jInt(settings.shelly.main.gen); }
-static String g_sh_main_on()  { return jTimeOrNull(settings.shelly.main.schedules.days[0].onHour, settings.shelly.main.schedules.days[0].onMinute); }
-static String g_sh_main_off() { return jTimeOrNull(settings.shelly.main.schedules.days[0].offHour, settings.shelly.main.schedules.days[0].offMinute); }
+static String g_sh_main_on()  { return String("null"); }
+static String g_sh_main_off() { return String("null"); }
 static String g_sh_main_line(){ return jShellyLine(settings.shelly.main); }
 // For the light devices we show schedule & generation in one line
 static String g_sh_light_ip()  { return jStr(settings.shelly.light.ip); }

@@ -378,7 +378,7 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <div class="tile-right-settings">
           <div class="form-group">
-            <button class="primary" id="saverunsettingsBtn" data-i18n="runsetting.resetkWh" onclick="resetShellyEnergy(this)">Reset Shelly kWh</button>
+            <button type="button" class="primary" id="saverunsettingsBtn" data-i18n="runsetting.resetkWh" onclick="resetShellyEnergy(this)">Reset Shelly kWh</button>
           </div>
           <div class="form-group">
             <label for="webGrowStart" data-i18n="runsetting.startGrow">Start Grow Date:</label>

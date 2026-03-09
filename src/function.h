@@ -1836,7 +1836,10 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   // Fills dev.schedules.days[0..6] with identical times.
   // Unset values are -1.
   // ------------------------------------------------------------
-  if (dev.gen >= 2) {
+  const bool isLightShelly =
+    settings.shelly.light.ip.length() > 0 && dev.ip == settings.shelly.light.ip;
+
+  if (dev.gen >= 2 && isLightShelly) {
 
     // Initialize schedules to "unset"
     for (int i = 0; i < 7; i++) {
