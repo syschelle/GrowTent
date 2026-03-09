@@ -434,14 +434,20 @@ void handleSaveShellySettings() {
         return;
     }
 
-    // Normalizes an IPv4 string in-place.
-    // Invalid values are cleared so we don't persist DNS names, IPv6, or garbage.
+    struct PreferencesGuard {
+        Preferences& prefs;
+        ~PreferencesGuard() { prefs.end(); }
+    } guard{preferences};
+
+    auto clampInt = [](int value, int minValue, int maxValue) -> int {
+        if (value < minValue) return minValue;
+        if (value > maxValue) return maxValue;
+        return value;
+    };
+
     auto normalizeIPv4 = [](String& ip) {
         ip.trim();
-
-        if (ip.isEmpty()) {
-            return;
-        }
+        if (ip.isEmpty()) return;
 
         IPAddress parsedIp;
         if (!parsedIp.fromString(ip)) {
@@ -452,8 +458,22 @@ void handleSaveShellySettings() {
         ip = parsedIp.toString();
     };
 
+    auto isValidTimeHHMM = [](const String& value) -> bool {
+        if (value.length() != 5 || value[2] != ':') return false;
+
+        if (!isDigit(value[0]) || !isDigit(value[1]) ||
+            !isDigit(value[3]) || !isDigit(value[4])) {
+            return false;
+        }
+
+        const int hh = (value[0] - '0') * 10 + (value[1] - '0');
+        const int mm = (value[3] - '0') * 10 + (value[4] - '0');
+
+        return (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59);
+    };
+
     auto saveShellyDevice = [&](String& ip,
-                                int gen,
+                                int& gen,
                                 const char* webKeyIp,
                                 const char* prefKeyIp,
                                 const char* labelIp,
@@ -461,19 +481,65 @@ void handleSaveShellySettings() {
                                 const char* prefKeyGen,
                                 const char* labelGen) {
         normalizeIPv4(ip);
+        gen = clampInt(gen, 1, 2);  // falls nur Gen1 / Gen2 erlaubt sind
+
         savePrefString(webKeyIp, prefKeyIp, ip, true, labelIp);
         savePrefInt(webKeyGen, prefKeyGen, gen, true, labelGen);
     };
 
-    auto clampInt = [](int value, int minValue, int maxValue) {
-        if (value < minValue) return minValue;
-        if (value > maxValue) return maxValue;
-        return value;
+    auto saveGrowLightSettings = [&]() {
+        if (server.hasArg("webShellyLightOnTime")) {
+            String newTime = server.arg("webShellyLightOnTime");
+            newTime.trim();
+
+            if (isValidTimeHHMM(newTime)) {
+                settings.grow.lightOnTime = newTime;
+                savePrefString(
+                    "webShellyLightOnTime",
+                    KEY_LIGHT_ON_TIME,
+                    settings.grow.lightOnTime,
+                    true,
+                    "Shelly Light ON Time"
+                );
+            }
+        }
+
+        if (server.hasArg("webShellyLightDayHours")) {
+            settings.grow.lightDayHours = clampInt(
+                server.arg("webShellyLightDayHours").toInt(),
+                1,
+                20
+            );
+
+            savePrefInt(
+                "webShellyLightDayHours",
+                KEY_LIGHT_DAY_HOURS,
+                settings.grow.lightDayHours,
+                true,
+                "Light Day Hours"
+            );
+        }
     };
 
-    // -------------------------------------------------------------------------
-    // MAIN Shelly
-    // -------------------------------------------------------------------------
+    auto saveAuthSettings = [&]() {
+        savePrefString(
+            "webShellyUsername",
+            KEY_SHELLYUSERNAME,
+            settings.shelly.username,
+            true,
+            "User"
+        );
+
+        savePrefString(
+            "webShellyPassword",
+            KEY_SHELLYPASSWORD,
+            settings.shelly.password,
+            false,
+            "Pass"
+        );
+    };
+
+    // Shelly devices
     saveShellyDevice(
         settings.shelly.main.ip,
         settings.shelly.main.gen,
@@ -485,9 +551,6 @@ void handleSaveShellySettings() {
         "Main Gen"
     );
 
-    // -------------------------------------------------------------------------
-    // LIGHT Shelly
-    // -------------------------------------------------------------------------
     saveShellyDevice(
         settings.shelly.light.ip,
         settings.shelly.light.gen,
@@ -499,66 +562,14 @@ void handleSaveShellySettings() {
         "Light Gen"
     );
 
-    // -------------------------------------------------------------------------
-    // Grow light settings from UI
-    // -------------------------------------------------------------------------
-    if (server.hasArg("webShellyLightOnTime")) {
-        settings.grow.lightOnTime = server.arg("webShellyLightOnTime");  // e.g. "03:00"
-        savePrefString(
-            "webShellyLightOnTime",
-            KEY_LIGHT_ON_TIME,
-            settings.grow.lightOnTime,
-            true,
-            "Shelly Light ON Time"
-        );
-    }
+    // Other settings
+    saveGrowLightSettings();
+    saveAuthSettings();
 
-    if (server.hasArg("webShellyLightDayHours")) {
-        settings.grow.lightDayHours = clampInt(
-            server.arg("webShellyLightDayHours").toInt(),
-            1,
-            20
-        );
-
-        savePrefInt(
-            "webShellyLightDayHours",
-            KEY_LIGHT_DAY_HOURS,
-            settings.grow.lightDayHours,
-            true,
-            "Light Day Hours"
-        );
-    }
-
-    // Keep legacy globals in sync (still used elsewhere)
-    lightOnTime   = settings.grow.lightOnTime;
+    // Update runtime values immediately
+    lightOnTime = settings.grow.lightOnTime;
     lightDayHours = settings.grow.lightDayHours;
-
-    // -------------------------------------------------------------------------
-    // Authentication
-    // -------------------------------------------------------------------------
-    savePrefString(
-        "webShellyUsername",
-        KEY_SHELLYUSERNAME,
-        settings.shelly.username,
-        true,
-        "User"
-    );
-
-    savePrefString(
-        "webShellyPassword",
-        KEY_SHELLYPASSWORD,
-        settings.shelly.password,
-        false,
-        "Pass"
-    );
-
-    preferences.end();
-
-    // Apply schedule immediately using current in-memory values
     applyGrowLightSchedule();
-
-    // Reload persisted settings into RAM
-    readPreferences();
 
     // Redirect back to status page
     server.sendHeader("Location", "/");
