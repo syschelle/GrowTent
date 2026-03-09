@@ -58,7 +58,6 @@ extern String readSensorData();
 extern void calculateTimeSince(const String& dateStr, int& daysOut, int& weeksOut);
 extern void logPrint(const String& msg);
 extern void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd);
-extern void compactLog();
 
 // forward declaration for calcVPD (defined elsewhere)
 float calcVPD(float temperatureC, float leafOffset, float humidityPct);
@@ -349,24 +348,9 @@ String readSensorData() {
     if (now - lastRead >= READ_INTERVAL_MS) {
       lastRead = now;
 
-      cur.temperatureC = bme.readTemperature();
+      cur.temperatureC   = bme.readTemperature();
       cur.humidityPct    = bme.readHumidity();
       cur.vpdKpa         = calcVPD(cur.temperatureC, offsetLeafTemperature, cur.humidityPct);
-
-      // log every 60s if valid
-      if ((now - lastLog >= LOG_INTERVAL_MS) && !isnan(cur.temperatureC) && !isnan(cur.humidityPct) && !isnan(cur.vpdKpa)) {
-        appendLog(now, cur.temperatureC, cur.humidityPct, cur.vpdKpa);
-        lastLog = now;
-        logPrint("[LITTLEFS] Logged data to " + String(LOG_PATH));
-      }
-
-      // compact hourly
-      static unsigned long lastCompact = 0;
-      if (now - lastCompact >= COMPACT_EVERY_MS) {
-        compactLog();  // keeps only the last 48 hours
-        lastCompact = now;
-        logPrint("[LITTLEFS] Compacted log file " + String(LOG_PATH));
-      }
     }
   }
 

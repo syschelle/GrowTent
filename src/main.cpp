@@ -140,6 +140,11 @@ static bool csvSplitLine(const String& line, String* out, int outMax, int& outCo
 }
 
 // CSV: remove surrounding quotes already handled by csvSplitLine; trim and keep as-is
+String csvFieldToString(const String& s) {
+  String out = s;
+  out.trim();
+  return out;
+}
 
 // ---- Grow Diary storage helpers ----
 // We store each diary row with a stable numeric id in column 0.

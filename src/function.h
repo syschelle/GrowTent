@@ -878,37 +878,6 @@ void appendLog(unsigned long timestamp, float temperature, float humidity, float
   f.close();
 }
 
-// Compaction: discard everything < (now-RETAIN_MS)
-void compactLog() {
-  const uint32_t now = millis();
-  const uint32_t cutoff = (now > RETAIN_MS) ? (now - RETAIN_MS) : 0;
-
-  File in = LittleFS.open(LOG_PATH, FILE_READ);
-  if (!in) return; // nothing to do
-
-  File out = LittleFS.open("/envlog.tmp", FILE_WRITE);
-  if (!out) { in.close(); return; }
-
-  // Copy line by line
-  String line;
-  while (in.available()) {
-    line = in.readStringUntil('\n');
-    if (line.length() < 5) continue;
-    // extract ts at beginning
-    int c1 = line.indexOf(',');
-    if (c1 <= 0) continue;
-    uint32_t ts = strtoul(line.substring(0, c1).c_str(), nullptr, 10);
-    if (ts >= cutoff) {
-      out.print(line); out.print('\n');
-    }
-  }
-  in.close();
-  out.close();
-
-  LittleFS.remove(LOG_PATH);
-  LittleFS.rename("/envlog.tmp", LOG_PATH);
-}
-
 inline float avgValue(float sum, uint32_t count) {
   return (count == 0) ? 0.0f : (sum / count);
 }
