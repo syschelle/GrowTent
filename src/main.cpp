@@ -939,8 +939,8 @@ void setup() {
   server.on("/script.js", []() { server.send_P(200, "application/javascript", jsContent); });
 
   server.on("/sensordata", HTTP_GET, []() {
-    String jsonSensorData = readSensorData();
-    server.send(200, "application/json; charset=utf-8", jsonSensorData);
+  String jsonSensorData = buildSensorJsonFromCache();
+  server.send(200, "application/json; charset=utf-8", jsonSensorData);
   });
 
   // history (last hour) for charts

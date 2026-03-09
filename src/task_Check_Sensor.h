@@ -18,7 +18,7 @@ void taskCheckBMESensor(void *parameter) {
   const uint32_t sensorReadIntervalMs = 10UL * 1000UL;
 
   // Store history only every 10 minutes
-  const uint32_t historyStoreIntervalMs = 10UL * 60UL * 1000UL;
+  const uint32_t historyStoreIntervalMs = HISTORY_INTERVAL_SEC * 1000UL;
 
   static uint32_t lastSensorReadMs   = 0;
   static uint32_t lastHistoryStoreMs = 0;

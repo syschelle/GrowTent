@@ -1442,13 +1442,32 @@ if (!statusActive) return;
     return `${n}|${a}|${b}`;
   }
 
+  let historyFetchInFlight = false;
+
   window.updateHistoryCharts = async function(force){
+    if (historyFetchInFlight) return;
+    if (!force && getActivePageId() !== 'status') return;
+    if (document.visibilityState !== 'visible') return;
+
+    historyFetchInFlight = true;
     try {
-      if (!force && getActivePageId() !== 'status') return;
       const r = await fetch('/api/history', { cache: 'no-store' });
       if (!r.ok) return;
       const d = await r.json();
       if (!d || !Array.isArray(d.temp)) return;
+
+      const sig = [
+        _sig(d.temp),
+        _sig(d.hum),
+        _sig(d.vpd),
+        _sig(d.water),
+        d.intervalSec,
+        d.targetTempC,
+        d.targetVpdKpa
+      ].join('||');
+
+      if (!force && sig === _histSig) return;
+      _histSig = sig;
 
       drawSeries('chartTemp',  d.temp,  'chartTempMin',  'chartTempAvg',  'chartTempMax',  1, d.targetTempC,  d.intervalSec);
       drawSeries('chartHum',   d.hum,   'chartHumMin',   'chartHumAvg',   'chartHumMax',   1, null,           d.intervalSec);
@@ -1456,12 +1475,18 @@ if (!statusActive) return;
       drawSeries('chartWater', d.water, 'chartWaterMin', 'chartWaterAvg', 'chartWaterMax', 1, null,           d.intervalSec);
     } catch (e) {
       console.warn('history fetch failed', e);
+    } finally {
+      historyFetchInFlight = false;
     }
   };
 
   function startHistoryPoll(){
     if (historyTimer) return;
-    historyTimer = setInterval(() => window.updateHistoryCharts(false), 30000);
+    historyTimer = setInterval(() => {
+      if (getActivePageId() !== 'status') return;
+      if (document.visibilityState !== 'visible') return;
+      window.updateHistoryCharts(false);
+    }, 120000);
   }
   startHistoryPoll();
 

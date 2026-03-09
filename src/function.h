@@ -2511,3 +2511,29 @@ static void handleResetShellyEnergy() {
 
     server.send(200, "application/json; charset=utf-8", response);
 }
+
+String buildSensorJsonFromCache() {
+  String json;
+  json.reserve(2500);
+
+  json += "{";
+
+  json += "\"curTemperature\":";
+  json += isnan(cur.temperatureC) ? "null" : String(cur.temperatureC, 1);
+  json += ",";
+
+  json += "\"curDS18B20Se1\":";
+  json += isnan(cur.extTempC) ? "null" : String(cur.extTempC, 1);
+  json += ",";
+
+  json += "\"curHumidity\":";
+  json += isnan(cur.humidityPct) ? "null" : String(cur.humidityPct, 0);
+  json += ",";
+
+  json += "\"curVpd\":";
+  json += isnan(cur.vpdKpa) ? "null" : String(cur.vpdKpa, 1);
+
+  json += "}";
+
+  return json;
+}

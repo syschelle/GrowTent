@@ -324,7 +324,7 @@ extern const uint32_t READ_INTERVAL_MS;
 extern uint32_t lastRead;
 extern const uint32_t MEASUREMENT_INTERVAL_MS;
 
-#define HISTORY_INTERVAL_SEC 300  // record one point every 5 minutes
+#define HISTORY_INTERVAL_SEC 600  // record one point every 10 minutes
 #define HISTORY_WINDOW_HOURS 12
 #define NUM_VALUES (HISTORY_WINDOW_HOURS * 3600 / HISTORY_INTERVAL_SEC)  // store up to 12 hours of history
 extern float temps[NUM_VALUES];
