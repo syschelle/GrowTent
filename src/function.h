@@ -617,6 +617,7 @@ void handleSaveSettings() {
     return;
   }
 
+  savePrefBool("webDebugEnable", KEY_DEBUG_ENABLED, debugLog, true, "Debug Enable");
   savePrefString("webBoxName", KEY_NAME, boxName, "Boxname");
   savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
   savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);
@@ -2385,7 +2386,8 @@ String buildSensorJsonFromCache() {
 
   struct tm timeinfo;
   char timeStr[32] = "";
-  if (getLocalTime(&timeinfo)) {
+  // keep /sensordata responsive even if time source is shaky
+  if (getLocalTime(&timeinfo, 10)) {
     strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
   }
 

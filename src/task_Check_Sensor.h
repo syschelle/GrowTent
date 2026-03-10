@@ -27,15 +27,28 @@ void taskCheckBMESensor(void *parameter) {
   for (;;) {
     // --- stack watermark logging (debug) ---
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
-    if (freeWords < minFree) minFree = freeWords;
+
+    if (freeWords < minFree) {
+      minFree = freeWords;
+    }
 
     static uint32_t lastLogMs = 0;
-    if (millis() - lastLogMs > 5000) {
+    const uint32_t debugLogIntervalMs = 60000; // 60 seconds
+
+    if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
       lastLogMs = millis();
+
       char buf[96];
-      snprintf(buf, sizeof(buf),
-               "[TASK][Check_Sensor] free=%u words (%u bytes), min=%u words",
-               freeWords, freeWords * 4, minFree);
+
+      snprintf(
+        buf,
+        sizeof(buf),
+        "[TASK][Check_Sensor] free=%u words (%u bytes), min=%u words",
+        freeWords,
+        freeWords * 4,
+        minFree
+      );
+
       logPrint(String(buf));
     }
 

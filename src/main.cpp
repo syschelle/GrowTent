@@ -833,10 +833,10 @@ void setup() {
   server.on("/savesettings", HTTP_POST, handleSaveSettings);
   server.on("/savemessagesettings", HTTP_POST, handleSaveMessageSettings);
   server.on("/api/newgrow", HTTP_POST, handleNewGrow);
-
+  // Static assets (from PROGMEM)
   server.on("/style.css", []() { server.send_P(200, "text/css", cssContent); });
   server.on("/script.js", []() { server.send_P(200, "application/javascript", jsContent); });
-
+  // Sensor data API (from cache, not live, to keep it snappy and avoid blocking)
   server.on("/sensordata", HTTP_GET, []() {
   String jsonSensorData = buildSensorJsonFromCache();
   server.send(200, "application/json; charset=utf-8", jsonSensorData);
@@ -895,18 +895,18 @@ void setup() {
 
   // diary list (for UI)
   server.on("/api/diary/list", HTTP_GET, handleDiaryList);
-
+  // Factory reset (clears WiFi credentials and restarts)
   server.on("/factory-reset", handleFactoryReset);
-
+  // Favicon (from PROGMEM)
   server.on("/favicon.ico", HTTP_GET, []() {
     String data = FAVICON_ICO_BASE64;
     server.send(200, "image/x-icon;base64", data);
   });
-
+  // Log buffer (for UI)
   server.on("/api/logbuffer", HTTP_GET, handleApiLogBuffer);
   server.on("/api/logbuffer/clear", HTTP_POST, handleClearLog);
   server.on("/log", HTTP_GET, handleDownloadLog);
-
+  // Catch-all for undefined routes
   server.onNotFound([]() {
     Serial.printf("404 Not Found: %s (method %d)\n", server.uri().c_str(), (int)server.method());
   });
@@ -921,6 +921,16 @@ void setup() {
 
 // -------------------- loop --------------------
 void loop() {
+  // Check WiFi every 10s and reconnect if needed (but only if we have credentials; otherwise we're in AP mode and shouldn't try to connect).
+  static uint32_t lastWifiCheck = 0;
+  if (millis() - lastWifiCheck > 10000) {
+    lastWifiCheck = millis();
+    if (!espMode && WiFi.status() != WL_CONNECTED && ssidName.length() > 0) {
+      WiFi.disconnect(false, true);
+      WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
+    }
+  }
+
   server.handleClient();
   delay(1);
 

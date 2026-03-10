@@ -160,6 +160,7 @@ struct AvgAccumulator {
 // -------------------- Globale Variablen: nur extern! --------------------
 
 // Debug
+extern const char* KEY_DEBUG_ENABLED;
 extern bool debugLog;
 
 // Logging

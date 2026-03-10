@@ -12,14 +12,19 @@ void taskShellyStatus(void *parameter){
 
   for (;;) {
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+    if (freeWords < minFree) {
+      minFree = freeWords;
+    }
 
-    if (freeWords < minFree) minFree = freeWords;
-      static uint32_t last = 0;
-      if (millis() - last > 5000) {
-        last = millis();
+    static uint32_t lastLogMs = 0;
+    const uint32_t debugLogIntervalMs = 60000; // 60 seconds
 
-        char buf[96];
-        snprintf(
+    if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
+      lastLogMs = millis();
+
+      char buf[96];
+
+      snprintf(
         buf,
         sizeof(buf),
         "[TASK][CheckShellyStatus] free=%u words (%u bytes), min=%u words",
@@ -29,7 +34,7 @@ void taskShellyStatus(void *parameter){
       );
 
       logPrint(String(buf));
-    }
+  }
 
     shelly.main.values = getShellyValues(settings.shelly.main, 0);
     shelly.light.values = getShellyValues(settings.shelly.light, 0);

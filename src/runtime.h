@@ -159,6 +159,8 @@ void handleRoot() {
     html.replace("%ESPRELAY4_ONMIN%", String(settings.relay.schedule[3].onMin));
     html.replace("%ESPRELAY4_OFFMIN%", String(settings.relay.schedule[3].offMin));
 
+    html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
+
     html.replace("%CONTROLLERNAME%", boxName);
     html.replace("%GROWSTARTDATE%", String(startDate));
     html.replace("%GROWFLOWERDATE%", String(startFlowering));
@@ -214,6 +216,9 @@ void handleRoot() {
 // Read stored preferences
 void readPreferences() {
   preferences.begin(PREF_NS, true);
+
+  // debug
+  loadPrefBool(KEY_DEBUG_ENABLED, debugLog, false, true, "debugLog");
 
   // relays
   settings.relay.name[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");

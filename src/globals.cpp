@@ -81,6 +81,9 @@ const char* KEY_GOTIFY = "gotify";
 const char* KEY_GOTIFYSERVER = "gotifyServer";
 const char* KEY_GOTIFYTOKEN = "gotifyToken";
 
+// Global variables
+bool debugLog;
+
 // NTP/time globals
 int lastSyncDay = -1;
 bool ntpSyncPending = false;
