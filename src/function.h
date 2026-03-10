@@ -2153,19 +2153,19 @@ static void controlHeaterByTemperature() {
   lastMs = now;
 }
 
-// Returns true if the current minute-of-hour is inside the schedule window (0..59).
-// Supports wrap windows, e.g. 50 -> 10.
+// Returns true if current minute-of-hour is inside the schedule window (0..59).
+// Supports wrapped windows, e.g. 50 -> 10.
 static bool isMinuteInWindowHour(int nowMin, int startMin, int endMin) {
 
-  // Same start/end means the window is disabled
+  // Same start/end means no active window
   if (startMin == endMin) return false;
 
-  // Normal window within the same hour
+  // Normal window (e.g. 10 -> 40)
   if (startMin < endMin) {
     return (nowMin >= startMin && nowMin < endMin);
   }
 
-  // Wrapped window across the hour boundary
+  // Wrapped window across hour boundary (e.g. 50 -> 10)
   return (nowMin >= startMin || nowMin < endMin);
 }
 
@@ -2173,7 +2173,6 @@ static bool isMinuteInWindowHour(int nowMin, int startMin, int endMin) {
 // Applies relay schedules once per task cycle.
 // Scheduling works per hour and compares only the minute-of-hour.
 static void applyRelaySchedules() {
-
   // Abort if local time is not ready yet (e.g. NTP not synced)
   struct tm t;
   if (!getLocalTime(&t, 50)) return;
@@ -2181,50 +2180,49 @@ static void applyRelaySchedules() {
   // Per-hour mode: use the current minute inside the hour (0..59)
   const int nowMin = t.tm_min;
 
-  // Optional dependency: relay operation may depend on light state
-  const bool lightIsOn =
-    shelly.light.values.ok ? shelly.light.values.isOn : false;
+  // Determine whether Shelly light status is reliable
+  const bool lightStatusValid = shelly.light.values.ok;
+  const bool lightIsOn = lightStatusValid ? shelly.light.values.isOn : false;
 
   // Iterate through all relays
   for (int i = 0; i < NUM_RELAYS; i++) {
+      const RelaySchedule& sc = settings.relay.schedule[i];
 
-    const RelaySchedule& sc = settings.relay.schedule[i];
+      // Skip relay if scheduling is disabled
+      if (!sc.enabled) continue;
 
-    // Skip relay if scheduling is disabled
-    if (!sc.enabled) continue;
+      // Validate minute values for per-hour scheduling mode
+      if (sc.onMin < 0 || sc.onMin > 59 || sc.offMin < 0 || sc.offMin > 59) {
+          continue;
+      }
 
-    // Validate minute values for per-hour scheduling mode
-    if (sc.onMin < 0 || sc.onMin > 59 || sc.offMin < 0 || sc.offMin > 59)
-      continue;
+      // Determine desired relay state by schedule window
+      bool shouldBeOn = isMinuteInWindowHour(nowMin, sc.onMin, sc.offMin);
 
-    // Determine the desired relay state
-    bool shouldBeOn = isMinuteInWindowHour(nowMin, sc.onMin, sc.offMin);
+      // Optional rule: relay may run only when light is OFF
+      // If light status is unknown, fail-safe = force OFF
+      if (sc.ifLightOff) {
+          if (!lightStatusValid || lightIsOn) {
+              shouldBeOn = false;
+          }
+      }
 
-    // Optional rule: relay may run only when the light is OFF
-    if (sc.ifLightOff && lightIsOn) {
-      shouldBeOn = false;
-    }
+      // Read current physical relay state (HIGH = ON in this project)
+      const bool isOn = (digitalRead(relayPins[i]) == HIGH);
 
-    // Read current physical relay state (HIGH = ON in this project)
-    const bool isOn = (digitalRead(relayPins[i]) == HIGH);
+      // Apply state only if needed
+      if (shouldBeOn != isOn) {
+          digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
+          relayStates[i] = shouldBeOn;
 
-    // Apply state immediately if it differs from the desired state
-    // (also ensures correct state after reboot)
-    if (shouldBeOn != isOn) {
-
-      digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
-      relayStates[i] = shouldBeOn;
-
-      logPrint(
-        "[SCHED] Relay " + String(i + 1) +
-        (shouldBeOn ? " ON" : " OFF")
-      );
-
-    } else {
-
-      // Keep internal relay state mirror synchronized
-      relayStates[i] = isOn;
-    }
+          logPrint(
+              "[SCHED] Relay " + String(i + 1) +
+              (shouldBeOn ? " ON" : " OFF")
+          );
+      } else {
+          // Keep internal mirror synchronized
+          relayStates[i] = isOn;
+      }
   }
 }
 

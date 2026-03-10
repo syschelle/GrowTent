@@ -889,53 +889,52 @@ async function startNewGrow(){
     }
   }
 
+  const shellyMap = {
+    mainSwitch: ['shelly-main-switch-state', 'shellyMainInfo', 'settings.shelly.main'],
+    light: ['shelly-light-switch-state', 'shellyLightInfo', 'settings.shelly.light'],
+    heater: ['shelly-heater-state', 'shellyHeaterInfo', 'settings.shelly.heat'],
+    humidifier: ['shelly-humidifier-state', 'shellyHumidifierInfo', 'settings.shelly.hum'],
+    fan: ['shelly-fan-state', 'shellyFanInfo', 'settings.shelly.fan']
+  };
+
+  function fmtNum(value, digits, unit) {
+    return isNum(value) ? `${value.toFixed(digits)} ${unit}` : 'n/a';
+  }
+
+  function fmtStateValue(value) {
+    return value == null || value === '' ? '—' : String(value);
+  }
+
   function setSwitchWithMetrics(baseId, status, power, totalWh, costEur) {
-    let stateId = '';
-    let infoId = '';
+    const cfg = shellyMap[baseId];
+    if (!cfg) return;
 
-    switch (baseId) {
-      case 'mainSwitch':
-        stateId = 'shelly-main-switch-state';
-        infoId = 'shellyMainInfo';
-        break;
-      case 'heater':
-        stateId = 'shelly-heater-state';
-        infoId = 'shellyHeaterInfo';
-        break;
-      case 'humidifier':
-        stateId = 'shelly-humidifier-state';
-        infoId = 'shellyHumidifierInfo';
-        break;
-      case 'fan':
-        stateId = 'shelly-fan-state';
-        infoId = 'shellyFanInfo';
-        break;
-      case 'light':
-        stateId = 'shelly-light-state';
-        infoId = 'shellyLightInfo';
-        break;
-      default:
-        return;
-    }
-
+    const [stateId, infoId, prefix] = cfg;
     const stateEl = document.getElementById(stateId);
     const infoEl = document.getElementById(infoId);
 
+    const p = fmtNum(power, 1, 'W');
+    const kwh = isNum(totalWh) ? `${(totalWh / 1000).toFixed(3)} kWh` : 'n/a';
+    const eur = fmtNum(costEur, 2, '€');
+
     if (stateEl) {
-      stateEl.classList.toggle('shelly-on', !!status);
-      stateEl.classList.toggle('shelly-off', !status);
-      stateEl.textContent = status ? 'On' : 'Off';
+        stateEl.classList.toggle('shelly-on', !!status);
+        stateEl.classList.toggle('shelly-off', !status);
+        stateEl.innerHTML = `
+            <div>${p}</div>
+            <div class="sub">Total: ${kwh} - ${eur}</div>
+        `;
     }
 
-    if (infoEl) {
-      const p = isNum(power) ? power.toFixed(2) + ' W' : 'n/a';
-      const t = isNum(totalWh) ? totalWh.toFixed(2) + ' Wh' : 'n/a';
-      const c = isNum(costEur) ? costEur.toFixed(2) + ' €' : 'n/a';
-      const txt = `Power: ${p} | Total: ${t} | Cost: ${c}`;
-
-      if (infoEl.textContent !== txt) infoEl.textContent = txt;
+    if (infoEl && window._lastStateObj) {
+        const s = window._lastStateObj;
+        infoEl.textContent =
+            `${s[`${prefix}.ip`] || '—'} | ` +
+            `Gen ${fmtStateValue(s[`${prefix}.gen`])} | ` +
+            `ON ${fmtStateValue(s[`${prefix}.on`])} | ` +
+            `OFF ${fmtStateValue(s[`${prefix}.off`])}`;
     }
-  }
+  }  
 
   function updateRelayStates(relays) {
     if (!Array.isArray(relays)) return;
