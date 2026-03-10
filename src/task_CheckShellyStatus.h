@@ -9,6 +9,10 @@ extern int amountOfWater;
 
 void taskShellyStatus(void *parameter){
   static UBaseType_t minFree = UINT32_MAX;
+  static ShellyValues lastGoodMain;
+  static ShellyValues lastGoodLight;
+  static bool haveMainGood = false;
+  static bool haveLightGood = false;
 
   for (;;) {
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
@@ -36,8 +40,25 @@ void taskShellyStatus(void *parameter){
       logPrint(String(buf));
   }
 
-    shelly.main.values = getShellyValues(settings.shelly.main, 0);
-    shelly.light.values = getShellyValues(settings.shelly.light, 0);
+    // Read Shelly main; keep previous good value on transient request failure
+    ShellyValues mainNow = getShellyValues(settings.shelly.main, 0);
+    if (mainNow.ok) {
+      shelly.main.values = mainNow;
+      lastGoodMain = mainNow;
+      haveMainGood = true;
+    } else if (haveMainGood) {
+      shelly.main.values = lastGoodMain;
+    }
+
+    // Read Shelly light; keep previous good value on transient request failure
+    ShellyValues lightNow = getShellyValues(settings.shelly.light, 0);
+    if (lightNow.ok) {
+      shelly.light.values = lightNow;
+      lastGoodLight = lightNow;
+      haveLightGood = true;
+    } else if (haveLightGood) {
+      shelly.light.values = lastGoodLight;
+    }
 
     // task delay 10 seconds
     vTaskDelay(pdMS_TO_TICKS(10000)); 
