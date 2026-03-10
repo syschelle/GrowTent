@@ -2208,8 +2208,8 @@ static void applyRelaySchedules() {
 
       // Optional rule: relay may run only when light is OFF
       // If light status is unknown, fail-safe = force OFF
-      if (sc.ifLightOff) {
-          if (!lightStatusValid || lightIsOn) {
+      if (!sc.ifLightOff) {
+          if (!lightStatusValid || !lightIsOn) {    
               shouldBeOn = false;
           }
       }
