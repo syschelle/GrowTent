@@ -1636,9 +1636,21 @@ async function fetchStateAndUpdateShellyUI(){
           if (!offStr && mOff) offStr = mOff[1];
         }
 
-        // Apply ON
+        // Apply ON (normalize H:MM -> HH:MM to match select option values)
         if (typeof onStr === 'string' && onStr.includes(':')) {
-          onSel.value = onStr;
+          const m = onStr.match(/^(\d{1,2}):(\d{2})$/);
+
+          if (m) {
+            const hh = String(
+              Math.max(0, Math.min(23, parseInt(m[1], 10)))
+            ).padStart(2, '0');
+
+            const mm = m[2];
+
+            onSel.value = `${hh}:${mm}`;
+          } else {
+            onSel.value = onStr;
+          }
         }
 
         // Derive day hours from ON/OFF if possible (12..23)
