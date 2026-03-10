@@ -17,9 +17,9 @@ void taskShellyStatus(void *parameter){
     }
 
     static uint32_t lastLogMs = 0;
-    const uint32_t debugLogIntervalMs = 60000; // 60 seconds
+    const uint32_t logIntervalMs = debugLog ? 5000UL : 60000UL;
 
-    if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
+    if (millis() - lastLogMs > logIntervalMs) {
       lastLogMs = millis();
 
       char buf[96];
@@ -29,7 +29,7 @@ void taskShellyStatus(void *parameter){
         sizeof(buf),
         "[TASK][CheckShellyStatus] free=%u words (%u bytes), min=%u words",
         freeWords,
-        freeWords * 4,
+        freeWords * sizeof(StackType_t),
         minFree
       );
 

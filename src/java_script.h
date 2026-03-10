@@ -1078,51 +1078,81 @@ async function startNewGrow(){
   window.updateSensorValues();
 
   
-  // ---------- Embedded Web-Log ----------
-  let logTimer = null;  // (nur EINMAL deklarieren)
+  // ---------- Embedded Web Log ----------
+
+  // Timer handle for periodic log polling
+  let logTimer = null;
+
+  // If true, keep scrolling to bottom when new log data arrives
   let autoScroll = true;
+
+  // Cache of last rendered log text to avoid unnecessary DOM updates/reflows
+  let lastWebLogText = '';
 
   async function fetchWebLog() {
     try {
-      const r = await fetch('/api/logbuffer', { cache: 'no-store' });
-      if (!r.ok) return;
-      const t = await r.text();
-      const pre = document.getElementById('weblog');
-      if (pre) {
-        const atBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 5;
-        pre.textContent = t || '—';
-        if (autoScroll && atBottom) {
-          pre.scrollTop = pre.scrollHeight;
+        // Request latest log buffer from backend
+        const r = await fetch('/api/logbuffer', { cache: 'no-store' });
+        if (!r.ok) return;
+
+        const t = await r.text();
+        const pre = document.getElementById('weblog');
+        if (!pre) return;
+
+        // Update DOM only when content actually changed
+        if (t !== lastWebLogText) {
+            const atBottom =
+                Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 5;
+
+            pre.textContent = t || '—';
+            lastWebLogText = t;
+
+            // Keep view pinned to bottom only if user was already near bottom
+            if (autoScroll && atBottom) {
+                pre.scrollTop = pre.scrollHeight;
+            }
         }
-      }
     } catch (e) {
-      console.warn('weblog fetch failed', e);
+        console.warn('weblog fetch failed', e);
     }
   }
+
   const pre = document.getElementById('weblog');
   if (!pre) return;
 
+  // Detect whether user manually scrolled away from bottom
   pre.addEventListener('scroll', () => {
-    const nearBottom = Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 10;
+    const nearBottom =
+        Math.abs(pre.scrollTop + pre.clientHeight - pre.scrollHeight) < 10;
     autoScroll = nearBottom;
   });
 
+  // Start periodic polling (every 5 seconds)
   function startWebLog() {
     if (logTimer) return;
-    fetchWebLog();
-    logTimer = setInterval(fetchWebLog, 2000);
+
+    fetchWebLog(); // initial immediate fetch
+    logTimer = setInterval(fetchWebLog, 5000);
   }
+
+  // Stop periodic polling
   function stopWebLog() {
     if (!logTimer) return;
+
     clearInterval(logTimer);
     logTimer = null;
   }
- 
-  // Sichtbarkeit
+
+  // Pause polling when tab/page is hidden; resume only on logging page
   document.addEventListener('visibilitychange', () => {
-    const loggingActive = document.getElementById('logging')?.classList.contains('active');
-    if (document.visibilityState === 'visible' && loggingActive) startWebLog();
-    else stopWebLog();
+    const loggingActive =
+        document.getElementById('logging')?.classList.contains('active');
+
+    if (document.visibilityState === 'visible' && loggingActive) {
+        startWebLog();
+    } else {
+        stopWebLog();
+    }
   });
 
 

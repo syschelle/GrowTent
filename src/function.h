@@ -110,14 +110,22 @@ bool checkFS() {
 }
 
 void sensorTask(void* pvParameters) {
-  for (;;) {
-    // ... dein Task-Code ...
+    static uint32_t lastLogMs = 0;
+    const uint32_t debugLogIntervalMs = 60000; // 60s
 
-    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
-    logPrint("[TASK][sensor] free stack: " + String(freeWords) + " words (" + String(freeWords * 4) + " bytes)");
+    for (;;) {
+        if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
+            lastLogMs = millis();
 
-    vTaskDelay(pdMS_TO_TICKS(5000));
-  }
+            UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+            logPrint(
+                "[TASK][sensor] free stack: " + String(freeWords) +
+                " words (" + String(freeWords * sizeof(StackType_t)) + " bytes)"
+            );
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
 }
 
 // Helper function: Send JSON from PROGMEM

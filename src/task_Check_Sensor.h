@@ -23,6 +23,7 @@ void taskCheckBMESensor(void *parameter) {
   static uint32_t lastSensorReadMs   = 0;
   static uint32_t lastHistoryStoreMs = 0;
   static bool firstHistoryPoint = true;
+  static uint32_t lastLogMs = 0;
 
   for (;;) {
     // --- stack watermark logging (debug) ---
@@ -32,10 +33,9 @@ void taskCheckBMESensor(void *parameter) {
       minFree = freeWords;
     }
 
-    static uint32_t lastLogMs = 0;
-    const uint32_t debugLogIntervalMs = 60000; // 60 seconds
+    const uint32_t logIntervalMs = debugLog ? 5000UL : 60000UL;
 
-    if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
+    if (millis() - lastLogMs > logIntervalMs) {
       lastLogMs = millis();
 
       char buf[96];
