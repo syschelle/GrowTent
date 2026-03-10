@@ -1718,7 +1718,8 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   // Throttle Schedule.List requests to reduce latency/timeout risk
   static uint32_t lastScheduleFetchMs = 0;
   const uint32_t scheduleFetchIntervalMs = 60000UL; // 60 seconds
-  const bool scheduleDue = (millis() - lastScheduleFetchMs) >= scheduleFetchIntervalMs;
+  const bool scheduleDue = (lastScheduleFetchMs == 0) ||((millis() - lastScheduleFetchMs) >= scheduleFetchIntervalMs);
+
 
   if (dev.gen >= 2 && isLightShelly && scheduleDue) {
     lastScheduleFetchMs = millis();

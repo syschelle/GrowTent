@@ -922,7 +922,7 @@ async function startNewGrow(){
         stateEl.classList.toggle('shelly-off', !status);
         stateEl.innerHTML = `
             <div>${p}</div>
-            <div class="sub">Total: ${kwh} - ${eur}</div>
+            <div class="sub">${kwh} - ${eur}</div>
         `;
     }
 
