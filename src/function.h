@@ -2437,6 +2437,16 @@ static void reconcileGrowLightStateNow() {
     if (!shelly.light.values.ok) return;
     if (shelly.light.values.isOn == shouldOn) return;
 
+    // Avoid repeated blocking switch attempts when Shelly is unreachable
+    static uint32_t lastSwitchAttemptMs = 0;
+    const uint32_t switchAttemptIntervalMs = 300000UL; // 5 minutes
+
+    // Allow first attempt immediately, then throttle retries
+    if (lastSwitchAttemptMs != 0 && (millis() - lastSwitchAttemptMs < switchAttemptIntervalMs)) {
+      return;
+    }
+    lastSwitchAttemptMs = millis();
+
     bool ok = shouldOn
         ? shellySwitchOn(settings.shelly.light.ip, settings.shelly.light.gen, 0, 80)
         : shellySwitchOff(settings.shelly.light.ip, settings.shelly.light.gen, 0, 80);
@@ -2448,6 +2458,11 @@ static void reconcileGrowLightStateNow() {
 
         logPrint(
             String("[SHELLY][LIGHT] Reconciled to ") +
+            (shouldOn ? "ON" : "OFF")
+        );
+    } else {
+        logPrint(
+            String("[SHELLY][LIGHT] Failed to reconcile to ") +
             (shouldOn ? "ON" : "OFF")
         );
     }

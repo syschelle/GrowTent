@@ -64,7 +64,6 @@ void taskShellyStatus(void *parameter){
     if (millis() - lastReconcileMs >= 60000UL) {
       lastReconcileMs = millis();
       reconcileGrowLightStateNow();
-      logPrint("[TASK][CheckShellyStatus] Reconciled grow light state");
     }
 
     // task delay 10 seconds
