@@ -60,6 +60,13 @@ void taskShellyStatus(void *parameter){
       shelly.light.values = lastGoodLight;
     }
 
+    static uint32_t lastReconcileMs = 0; // once
+    if (millis() - lastReconcileMs >= 60000UL) {
+      lastReconcileMs = millis();
+      reconcileGrowLightStateNow();
+      logPrint("[TASK][CheckShellyStatus] Reconciled grow light state");
+    }
+
     // task delay 10 seconds
     vTaskDelay(pdMS_TO_TICKS(10000)); 
   }
