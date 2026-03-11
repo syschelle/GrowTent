@@ -897,11 +897,6 @@ void setup() {
   server.on("/api/diary/list", HTTP_GET, handleDiaryList);
   // Factory reset (clears WiFi credentials and restarts)
   server.on("/factory-reset", handleFactoryReset);
-  // Favicon (from PROGMEM)
-  server.on("/favicon.ico", HTTP_GET, []() {
-    String data = FAVICON_ICO_BASE64;
-    server.send(200, "image/x-icon;base64", data);
-  });
   // Log buffer (for UI)
   server.on("/api/logbuffer", HTTP_GET, handleApiLogBuffer);
   server.on("/api/logbuffer/clear", HTTP_POST, handleClearLog);
