@@ -61,6 +61,7 @@ void taskCheckBMESensor(void *parameter) {
       // Read temperature, humidity and VPD
       readSensorData();
       controlHeaterByTemperature();
+      controlHumidifierByVPD();
       applyRelaySchedules();
     }
 

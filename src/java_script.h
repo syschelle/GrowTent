@@ -893,7 +893,7 @@ async function startNewGrow(){
     mainSwitch: ['shelly-main-switch-state', 'shellyMainInfo', 'settings.shelly.main'],
     light: ['shelly-light-switch-state', 'shellyLightInfo', 'settings.shelly.light'],
     heater: ['shelly-heater-state', 'shellyHeaterInfo', 'settings.shelly.heat'],
-    humidifier: ['shelly-humidifier-state', 'shellyHumidifierInfo', 'settings.shelly.hum'],
+    humidifier: ['shelly-humidifier-switch-state', 'shellyHumidifierInfo', 'settings.shelly.humidifier'],
     fan: ['shelly-fan-state', 'shellyFanInfo', 'settings.shelly.fan']
   };
 
