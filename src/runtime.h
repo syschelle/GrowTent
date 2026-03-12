@@ -267,10 +267,14 @@ void readPreferences() {
   // Shelly devices
   loadPrefString(KEY_SHELLYMAINIP, settings.shelly.main.ip, "", true, "Shelly Main IP");
   loadPrefInt(KEY_SHELLYMAINGEN, settings.shelly.main.gen, 0, true, "Shelly Main Generation");
+  loadPrefFloat(KEY_SHELLYMAINOFF, settings.shelly.main.energyOffsetWh, 0.0f, true, "Shelly Main Energy Offset");
   loadPrefString(KEY_SHELLYLIGHTIP, settings.shelly.light.ip, "", true, "Shelly Light IP");
   loadPrefInt(KEY_SHELLYLIGHTGEN, settings.shelly.light.gen, 0, true, "Shelly Light Generation");
-  loadPrefFloat(KEY_SHELLYMAINOFF, settings.shelly.main.energyOffsetWh, 0.0f, true, "Shelly Main Energy Offset");
   loadPrefFloat(KEY_SHELLYLIGHTOFF, settings.shelly.light.energyOffsetWh, 0.0f, true, "Shelly Light Energy Offset");
+  loadPrefString(KEY_SHELLYHUMIP, settings.shelly.humidifier.ip, "", true, "Shelly Humidifier IP");
+  loadPrefInt(KEY_SHELLYHUMGEN, settings.shelly.humidifier.gen, 0, true, "Shelly Humidifier Generation");
+  loadPrefFloat(KEY_SHELLYHUMOFF, settings.shelly.humidifier.energyOffsetWh, 0.0f, true, "Shelly Humidifier Energy Offset");
+
   // Shelly credentials (optional Basic Auth)
   loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");
   loadPrefString(KEY_SHELLYPASSWORD, settings.shelly.password, "", false, "Shelly Password");

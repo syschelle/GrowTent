@@ -2393,81 +2393,6 @@ static void handleResetShellyEnergy() {
     server.send(200, "application/json; charset=utf-8", response);
 }
 
-// Ensure Shelly light state matches the configured grow schedule "now".
-// Useful after ESP reboot when current time is already inside ON window.
-static void reconcileGrowLightStateNow() {
-    // Need WiFi + valid Shelly config
-    if (WiFi.status() != WL_CONNECTED) return;
-    if (settings.shelly.light.ip.length() == 0) return;
-
-    // Parse ON time from existing grow settings
-    int onH = 0, onM = 0;
-    if (!_parseHHMM(settings.grow.lightOnTime, onH, onM)) return;
-
-    // Clamp day length (same limits as applyGrowLightSchedule)
-    int dayHours = (int)settings.grow.lightDayHours;
-    if (dayHours < 1) dayHours = 1;
-    if (dayHours > 20) dayHours = 20;
-
-    // Need local time
-    struct tm t;
-    if (!getLocalTime(&t, 50)) return;
-
-    const int nowMin = t.tm_hour * 60 + t.tm_min;
-    const int onMin = onH * 60 + onM;
-    const int offMin = (onMin + dayHours * 60) % 1440;
-
-    // Determine desired state for current minute
-    bool shouldOn = false;
-
-    if (onMin < offMin) {
-        shouldOn = (nowMin >= onMin && nowMin < offMin);
-    } 
-    else if (onMin > offMin) {
-        // Window wraps midnight
-        shouldOn = (nowMin >= onMin || nowMin < offMin);
-    } 
-    else {
-        // Same time => no window
-        shouldOn = false;
-    }
-
-    // Compare with last known Shelly state (from task polling)
-    // If unknown, skip to avoid blind switching
-    if (!shelly.light.values.ok) return;
-    if (shelly.light.values.isOn == shouldOn) return;
-
-    // Avoid repeated blocking switch attempts when Shelly is unreachable
-    static uint32_t lastSwitchAttemptMs = 0;
-    const uint32_t switchAttemptIntervalMs = 300000UL; // 5 minutes
-
-    // Allow first attempt immediately, then throttle retries
-    if (lastSwitchAttemptMs != 0 && (millis() - lastSwitchAttemptMs < switchAttemptIntervalMs)) {
-      return;
-    }
-    lastSwitchAttemptMs = millis();
-
-    bool ok = shouldOn
-        ? shellySwitchOn(settings.shelly.light.ip, settings.shelly.light.gen, 0, 80)
-        : shellySwitchOff(settings.shelly.light.ip, settings.shelly.light.gen, 0, 80);
-
-    if (ok) {
-        // Update cache immediately to avoid UI lag
-        shelly.light.values.isOn = shouldOn;
-        shelly.light.values.ok = true;
-
-        logPrint(
-            String("[SHELLY][LIGHT] Reconciled to ") +
-            (shouldOn ? "ON" : "OFF")
-        );
-    } else {
-        logPrint(
-            String("[SHELLY][LIGHT] Failed to reconcile to ") +
-            (shouldOn ? "ON" : "OFF")
-        );
-    }
-}
-
 String buildSensorJsonFromCache() {
   String json;
   json.reserve(4096);
@@ -2590,6 +2515,28 @@ String buildSensorJsonFromCache() {
   }
   json += ",";
 
+  // ---------------- Shelly Humidifier ----------------
+  json += "\"shellyHumidifierStatus\":";
+  json += shelly.humidifier.values.ok ? (shelly.humidifier.values.isOn ? "true" : "false") : "false";
+  json += ",";
+  json += "\"shellyHumidifierPower\":";
+  json += (shelly.humidifier.values.ok && !isnan(shelly.humidifier.values.powerW) && !isinf(shelly.humidifier.values.powerW))
+            ? String(shelly.humidifier.values.powerW, 2)
+            : "null";
+  json += ",";
+  json += "\"shellyHumidifierTotalWh\":";
+  json += (shelly.humidifier.values.ok && !isnan(shelly.humidifier.values.energyWh) && !isinf(shelly.humidifier.values.energyWh))
+            ? String(shelly.humidifier.values.energyWh, 2)
+            : "null";
+  json += ",";
+  json += "\"shellyHumidifierCostEur\":";
+  if (shelly.humidifier.values.ok && !isnan(shelly.humidifier.values.energyWh) && !isinf(shelly.humidifier.values.energyWh)) {
+    json += String((shelly.humidifier.values.energyWh / 1000.0f) * powerPriceKwhEur, 2);
+  } else {
+    json += "null";
+  }
+  json += ",";
+
   // Optional nested fallback for older/newer JS paths
   json += "\"shelly\":{";
   json += "\"light\":{";
@@ -2606,7 +2553,7 @@ String buildSensorJsonFromCache() {
   json += (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh))
             ? String(shelly.light.values.energyWh, 2)
             : "null";
-  json += ",";
+  
   json += "\"totalCost\":";
   if (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
     json += String((shelly.light.values.energyWh / 1000.0f) * powerPriceKwhEur, 2);

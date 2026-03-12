@@ -11,8 +11,10 @@ void taskShellyStatus(void *parameter){
   static UBaseType_t minFree = UINT32_MAX;
   static ShellyValues lastGoodMain;
   static ShellyValues lastGoodLight;
+  static ShellyValues lastGoodHumidifier;
   static bool haveMainGood = false;
   static bool haveLightGood = false;
+  static bool haveHumidifierGood = false;
 
   for (;;) {
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
@@ -60,10 +62,13 @@ void taskShellyStatus(void *parameter){
       shelly.light.values = lastGoodLight;
     }
 
-    static uint32_t lastReconcileMs = 0; // once
-    if (millis() - lastReconcileMs >= 60000UL) {
-      lastReconcileMs = millis();
-      reconcileGrowLightStateNow();
+    ShellyValues humNow = getShellyValues(settings.shelly.humidifier, 0);
+    if (humNow.ok) {
+      shelly.humidifier.values = humNow;
+      lastGoodHumidifier = humNow;
+      haveHumidifierGood = true;
+    } else if (haveHumidifierGood) {
+      shelly.humidifier.values = lastGoodHumidifier;
     }
 
     // task delay 10 seconds

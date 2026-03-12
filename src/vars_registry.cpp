@@ -152,6 +152,12 @@ static String g_sh_light_gen() { return jInt(settings.shelly.light.gen); }
 static String g_sh_light_on()  { return jTimeOrNull(settings.shelly.light.schedules.days[0].onHour, settings.shelly.light.schedules.days[0].onMinute); }
 static String g_sh_light_off() { return jTimeOrNull(settings.shelly.light.schedules.days[0].offHour, settings.shelly.light.schedules.days[0].offMinute); }
 static String g_sh_light_line(){ return jShellyLine(settings.shelly.light); }
+
+static String g_sh_hum_ip() { return jStr(settings.shelly.humidifier.ip); }
+static String g_sh_hum_gen() { return jInt(settings.shelly.humidifier.gen); }
+static String g_sh_hum_on()  { return String("null"); }
+static String g_sh_hum_off() { return String("null"); }
+static String g_sh_hum_line(){ return jShellyLine(settings.shelly.humidifier); }
 // For username/password we always return masked value
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
@@ -229,6 +235,11 @@ const VarItem VARS[] = {
   {"settings.shelly.light.on",  g_sh_light_on,  false, "settings.shelly"},
   {"settings.shelly.light.off", g_sh_light_off, false, "settings.shelly"},
   {"settings.shelly.light.line", g_sh_light_line, false, "settings.shelly"},
+  {"settings.shelly.humidifier.ip", g_sh_hum_ip, false, "settings.shelly"},
+  {"settings.shelly.humidifier.gen", g_sh_hum_gen, false, "settings.shelly"},
+  {"settings.shelly.humidifier.on",  g_sh_hum_on,  false, "settings.shelly"},
+  {"settings.shelly.humidifier.off", g_sh_hum_off, false, "settings.shelly"},
+  {"settings.shelly.humidifier.line", g_sh_hum_line, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 

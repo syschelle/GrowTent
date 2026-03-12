@@ -192,6 +192,12 @@ const char* htmlPage = R"rawliteral(
         <div class="info" id="shellyLightInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('light')">Toggle</button>
       </div>
+      <div class="relay-card" data-relay="shellyHumidifier">
+        <div class="relay-title" data-i18n="status.shellyHumidifier">Luftbefeuchter</div>
+        <div id="shelly-humidifier-switch-state" class="shelly-status shelly-off"></div>
+        <div class="info" id="shellyHumidifierInfo">—</div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('humidifier')">Toggle</button>
+      </div>
     </div>
     
     </section>
@@ -276,6 +282,18 @@ const char* htmlPage = R"rawliteral(
           <select name="webShellyLightOnTime" id="shellyLightOnTime"></select>
           <select name="webShellyLightDayHours" id="shellyLightDayHours"></select>
           <input name="webShellyLightOffTime" id="shellyLightOffTime" type="text" readonly value="—">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="shellyIP" data-i18n="shelly.shellyIPHumidifier">Shelly IP Adresse für Luftbefeuchter:</label>
+        <div class="twoinone-label">
+          <input name="webShellyHumidifierIP" id="shellyHumidifierIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%">
+          <select name="webShellyHumidifierGen" id="shellyHumidifierGen" class="control-sm control-xs">
+            <option value="1" %SHHUMIDIFIERKIND1%>Gen1</option>
+            <option value="2" %SHHUMIDIFIERKIND2%>Gen2</option>
+            <option value="3" %SHHUMIDIFIERKIND3%>Gen3</option>
+          </select>
         </div>
       </div>
 
