@@ -52,6 +52,9 @@ const char* KEY_SHELLYLIGHTOFF = "shLightOff";
 const char* KEY_SHELLYLIGHTIP = "shLightIP";
 const char* KEY_SHELLYLIGHTGEN = "shLightGen";
 const char* KEY_SHELLYHEATOFF = "shHeatOff";
+const char* KEY_SHELLYHUMIP = "shHumIP";
+const char* KEY_SHELLYHUMGEN = "shHumGen";
+const char* KEY_SHELLYHUMOFF = "shHumOff";
 
 
 const char* KEY_SHELLYUSERNAME = "shUser";

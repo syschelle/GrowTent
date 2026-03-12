@@ -187,6 +187,11 @@ void handleRoot() {
     html.replace("%SHLIGHTKIND2%", settings.shelly.light.gen == 2 ? "selected" : "");
     html.replace("%SHLIGHTKIND3%", settings.shelly.light.gen == 3 ? "selected" : "");
 
+    html.replace("%SHELLYHUMIDIFIERIP%", settings.shelly.humidifier.ip);
+    html.replace("%SHHUMIDIFIERKIND1%", settings.shelly.humidifier.gen == 1 ? "selected" : "");
+    html.replace("%SHHUMIDIFIERKIND2%", settings.shelly.humidifier.gen == 2 ? "selected" : "");
+    html.replace("%SHHUMIDIFIERKIND3%", settings.shelly.humidifier.gen == 3 ? "selected" : "");
+
     html.replace("%POWERPRICEKWH%", String(powerPriceKwhEur, 2));
 
     html.replace("%SHUSER%", settings.shelly.username);

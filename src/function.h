@@ -570,6 +570,17 @@ void handleSaveShellySettings() {
         "Light Gen"
     );
 
+    saveShellyDevice(
+        settings.shelly.humidifier.ip,
+        settings.shelly.humidifier.gen,
+        "webShellyHumidifierIP",
+        KEY_SHELLYHUMIP,
+        "Humidifier IP",
+        "webShellyHumidifierGen",
+        KEY_SHELLYHUMGEN,
+        "Humidifier Gen"
+    );
+
     // Other settings
     saveGrowLightSettings();
     saveAuthSettings();
