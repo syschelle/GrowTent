@@ -2407,35 +2407,38 @@ static void handleResetShellyEnergy() {
     server.send(200, "application/json; charset=utf-8", response);
 }
 
-// Turn humidifier Shelly ON when current VPD is below target VPD.
-// Shelly auto-off is handled on the Shelly device itself.
 static void controlHumidifierByVPD() {
-    if (isnan(cur.vpdKpa) || isnan(targetVPD)) return;
+    // Run this check only every 20 seconds
+    static uint32_t lastCheckMs = 0;
+    const uint32_t checkIntervalMs = 20000UL;
+
+    if (millis() - lastCheckMs < checkIntervalMs) return;
+    lastCheckMs = millis();
+
+    if (isnan(cur.vpdKpa) || isnan(target.targetVpdKpa)) return;
     if (settings.shelly.humidifier.ip.length() == 0) return;
 
-    // Avoid frequent ON retriggers
-    static uint32_t lastTriggerMs = 0;
-    const uint32_t retriggerMs = 120000UL; // 2 min
-
-    // Optional deadband to avoid jitter
     const float HYST = 0.05f;
 
-    // Requested logic: trigger when VPD is lower than target
-    if (cur.vpdKpa > (targetVPD + HYST)) {
-        if (millis() - lastTriggerMs >= retriggerMs) {
-            // Only send ON if status known and currently OFF
-            if (shelly.humidifier.values.ok && !shelly.humidifier.values.isOn) {
-                bool ok = shellySwitchOn(
-                    settings.shelly.humidifier.ip,
-                    settings.shelly.humidifier.gen,
-                    0,
-                    80
-                );
+    logPrint(
+        "[HUM] VPD=" + String(cur.vpdKpa, 2) +
+        " kPa, target=" + String(target.targetVpdKpa, 2) + " kPa"
+    );
 
-                if (ok) {
-                    lastTriggerMs = millis();
-                    logPrint("[HUM] Triggered humidifier ON (Shelly auto-off)");
-                }
+    // Trigger only when VPD is clearly above target
+    if (cur.vpdKpa > (target.targetVpdKpa + HYST)) {
+        if (shelly.humidifier.values.ok && !shelly.humidifier.values.isOn) {
+            bool ok = shellySwitchOn(
+                settings.shelly.humidifier.ip,
+                settings.shelly.humidifier.gen,
+                0,
+                80
+            );
+
+            if (ok) {
+                logPrint("[HUM] Triggered humidifier ON (Shelly auto-off)");
+            } else {
+                logPrint("[HUM] Failed to trigger humidifier ON");
             }
         }
     }
