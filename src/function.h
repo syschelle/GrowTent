@@ -2421,7 +2421,7 @@ static void controlHumidifierByVPD() {
     const float HYST = 0.05f;
 
     // Requested logic: trigger when VPD is lower than target
-    if (cur.vpdKpa > (targetVPD - HYST)) {
+    if (cur.vpdKpa > (targetVPD + HYST)) {
         if (millis() - lastTriggerMs >= retriggerMs) {
             // Only send ON if status known and currently OFF
             if (shelly.humidifier.values.ok && !shelly.humidifier.values.isOn) {
