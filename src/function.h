@@ -423,6 +423,7 @@ void handleNewGrow() {
 
   bool okMain = resetOne(settings.shelly.main, KEY_SHELLYMAINOFF);
   bool okLight= resetOne(settings.shelly.light,KEY_SHELLYLIGHTOFF);
+  bool okHum = resetOne(settings.shelly.humidifier, KEY_SHELLYHUMOFF);
 
   // Response
   String resp = "{";
@@ -431,6 +432,8 @@ void handleNewGrow() {
   resp += "\"reset\":{";
   resp += "\"main\":" + String(okMain ? "true" : "false") + ",";
   resp += "\"light\":" + String(okLight ? "true" : "false") + ",";
+  resp += "\"humidifier\":" + String(okHum ? "true" : "false") + ",";
+
   resp += "}}";
 
   server.send(200, "application/json; charset=utf-8", resp);
@@ -2564,7 +2567,7 @@ String buildSensorJsonFromCache() {
   json += (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh))
             ? String(shelly.light.values.energyWh, 2)
             : "null";
-  
+  json += ",";
   json += "\"totalCost\":";
   if (shelly.light.values.ok && !isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
     json += String((shelly.light.values.energyWh / 1000.0f) * powerPriceKwhEur, 2);
