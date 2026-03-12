@@ -1686,6 +1686,7 @@ function updateShellyInfoLinesFromState(s){
     const map = [
       { ids: ['shellyMainInfo'],                         key: 'main'  },
       { ids: ['shellyLightInfo'],                        key: 'light' },
+      { ids: ['shellyHumidifierInfo'],                 key: 'humidifier' }
     ];
 
     for (const it of map) {
