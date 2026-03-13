@@ -261,8 +261,8 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPMainSw">Shelly IP Adresse für Hauptschalter:</label>
         <div class="twoinone-label">
-          <input name="webShellyMainIP" id="shellyMainSwIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYMAINIP%">
-          <select name="webShellyMainGen" id="shellyMainSwGen" class="control-sm control-xs">
+          <input name="webShellyMainIP" id="shellyMainSwIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYMAINIP%">
+          <select name="webShellyMainGen" id="shellyMainSwGen" class="control-sm shelly-other">
             <option value="1" %SHMAINSWKIND1%>Gen1</option>
             <option value="2" %SHMAINSWKIND2%>Gen2</option>
             <option value="3" %SHMAINSWKIND3%>Gen3</option>
@@ -273,23 +273,23 @@ const char* htmlPage = R"rawliteral(
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPLight">Shelly IP Adresse für Pflanzlicht:</label>
         <div class="twoinone-label">
-          <input name="webShellyLightIP" id="shellyLightIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYLIGHTIP%">
-          <select name="webShellyLightGen" id="shellyLightGen" class="control-sm control-xs">
+          <input name="webShellyLightIP" id="shellyLightIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYLIGHTIP%">
+          <select name="webShellyLightGen" id="shellyLightGen" class="control-sm shelly-other">
             <option value="1" %SHLIGHTKIND1%>Gen1</option>
             <option value="2" %SHLIGHTKIND2%>Gen2</option>
             <option value="3" %SHLIGHTKIND3%>Gen3</option>
           </select>
-          <select name="webShellyLightOnTime" id="shellyLightOnTime"></select>
-          <select name="webShellyLightDayHours" id="shellyLightDayHours"></select>
-          <input name="webShellyLightOffTime" id="shellyLightOffTime" type="text" readonly value="—">
+          <select name="webShellyLightOnTime" id="shellyLightOnTime" class="control-sm shelly-other"></select>
+          <select name="webShellyLightDayHours" id="shellyLightDayHours" class="control-sm shelly-other"></select>
+          <input name="webShellyLightOffTime" id="shellyLightOffTime" class="control-sm shelly-other" type="text" readonly value="—">
         </div>
       </div>
 
       <div class="form-group">
         <label for="shellyIP" data-i18n="shelly.shellyIPHumidifier">Shelly IP Adresse für Luftbefeuchter:</label>
         <div class="twoinone-label">
-          <input name="webShellyHumidifierIP" id="shellyHumidifierIP" class="control-sm" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%">
-          <select name="webShellyHumidifierGen" id="shellyHumidifierGen" class="control-sm control-xs">
+          <input name="webShellyHumidifierIP" id="shellyHumidifierIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%">
+          <select name="webShellyHumidifierGen" id="shellyHumidifierGen" class="control-sm shelly-other">
             <option value="1" %SHHUMIDIFIERKIND1%>Gen1</option>
             <option value="2" %SHHUMIDIFIERKIND2%>Gen2</option>
             <option value="3" %SHHUMIDIFIERKIND3%>Gen3</option>
@@ -300,12 +300,12 @@ const char* htmlPage = R"rawliteral(
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
       <div class="form-group">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
-        <input name="webShellyUsername" id="shellyUsername" class="control-sm" type="text" value="%SHUSER%">
+        <input name="webShellyUsername" id="shellyUsername" class="control-sm shelly-other" type="text" value="%SHUSER%">
       </div>
 
       <div class="form-group">
         <label for="shellyPassword" data-i18n="shelly.shellyAuthPassword">Shelly Passwort:</label>
-        <input name="webShellyPassword" id="shellyPassword" class="control-sm" type="password" value="%SHPASSWORD%">
+        <input name="webShellyPassword" id="shellyPassword" class="control-sm shelly-other" type="password" value="%SHPASSWORD%">
       </div>
       
       <div class="spacer"></div>

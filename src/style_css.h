@@ -463,6 +463,16 @@ const char cssContent[] PROGMEM = R"rawliteral(
       min-width: 120px;
       max-width: 160px;
     }
+    
+    .shelly-ip {
+      width: 120px; /* adjust as you like */
+      max-width: 120px;
+    }
+
+    .shelly-other {
+      width: 90px; /* adjust as you like */
+      max-width: 90px;
+    }
 
     .info {
       font-size: 0.6rem;

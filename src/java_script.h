@@ -94,12 +94,20 @@ const char jsContent[] PROGMEM = R"rawliteral(
   /* Shelly */
   "status.shellyControl": { de: "Shelly Steuerung", en: "Shelly Control" },
   "status.shellyMainSw": { de: "Hauptschalter", en: "Main Switch" },
+  "shelly.shellyIPMainSw": { de: "Shelly IP Adresse für Hauptschalter:", en: "Shelly IP address for main switch:" },
   "status.shellyHeater": { de: "Heizung", en: "Heater" },
+  "shelly.shellyIPLight": { de: "Shelly IP Adresse für Pflanzlicht:", en: "Shelly IP address for grow light:" },
   "status.shellyHumidifier": { de: "Luftbefeuchter", en: "Humidifier" },
+  "shelly.shellyIPHumidifier": { de: "Shelly IP Adresse für Luftbefeuchter:", en: "Shelly IP address for humidifier:" },
   "status.shellyFan": { de: "Ventilator", en: "Fan" },
+  "shelly.shellyIPFan": { de: "Shelly IP Adresse für Ventilator:", en: "Shelly IP address for fan:" },
   "status.shellyLight": { de: "Pflanzlicht", en: "Grow Light" },
   "status.shellyAuth": { de: "Authentifizierung", en: "Authentication" },
   "status.shellyDevices": { de: "Shelly Geräte", en: "Shelly Devices" },
+
+  "shelly.shellyAuthUser": { de: "Shelly Benutzername (optional):", en: "Shelly username (optional):" },
+  "shelly.shellyAuthPassword": { de: "Shelly Passwort (optional):", en: "Shelly password (optional):" },
+
 
   "status.relayOn": { de: "einschalten (10s)", en: "turn on (10s)" },
 
