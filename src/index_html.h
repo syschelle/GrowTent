@@ -61,6 +61,7 @@ const char* htmlPage = R"rawliteral(
       <a class="navlink" data-page="diary"   data-i18n="nav.diary">Grow Diary</a>
       <a class="navlink" data-page="runsettings" data-i18n="nav.runsetting">Betriebseinstellungen</a>
       <a class="navlink" data-page="shelly" data-i18n="nav.shelly">Shelly Einstellungen</a>
+      <a class="navlink" data-page="message" data-i18n="nav.message">Push-Einstellungen</a>
       <a class="navlink" data-page="settings" data-i18n="nav.settings">Systemeinstellungen</a>
       <a class="navlink" data-page="logging" data-i18n="nav.logging">Systemprotokoll</a>
       <a class="navlink" data-page="vars" data-i18n="nav.vars">Variablen</a>
@@ -532,6 +533,58 @@ const char* htmlPage = R"rawliteral(
         </div>
 
     </section> 
+    </form>
+
+    <!-- runsettings section -->
+    <form action="/savemessagesettings" method="POST">
+    <section id="message" class="page card">
+      <h1 data-i18n="message.title">Nachrichteneinstellungen</h1>
+
+      <h2 data-i18n="message.pushoverSettings">Pushover Einstellungen</h2>
+
+      <div class="form-group checkbox">
+        <label class="inline-checkbox">
+         <input type="checkbox" name="webPushoverEnabled" id="webPushoverEnabled" %PUSHOVERENABLED%>
+         <span data-i18n="message.enabled">aktivieren</span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="webPushoverUserKey" data-i18n="message.pushoverUserKey">Pushover Benutzer:</label>
+        <input name="webPushoverUserKey" id="webPushoverUserKey" type="text" data-i18n="message.pushoverUserKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERUSERKEY%">
+      </div>
+
+      <div class="form-group">
+        <label for="webPushoverAppKey" data-i18n="message.pushoverAppKey">Pushover Token:</label>
+        <input name="webPushoverAppKey" id="webPushoverAppKey" type="text" data-i18n="message.pushoverAppKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERAPPKEY%">
+      </div>
+
+      <div class="form-group">
+        <label for="webPushoverDevice" data-i18n="message.pushoverDevice">Pushover Gerät:</label>
+        <input name="webPushoverDevice" id="webPushoverDevice" type="text" data-i18n="message.pushoverDevice.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERDEVICE%">
+      </div>
+
+      <h2 data-i18n="message.gotifySettings">Gotify Einstellungen</h2>
+
+      <div class="form-group checkbox">
+        <label class="inline-checkbox">
+         <input type="checkbox" name="webGotifyEnabled" id="webGotifyEnabled" %GOTIFYENABLED%>
+         <span data-i18n="message.enabled">aktivieren</span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="webGotifyURL" data-i18n="message.gotifyURL">Gotify URL:</label>
+        <input name="webGotifyURL" id="webGotifyURL" type="text" data-i18n="message.gotifyUrl.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%GOTIFYURL%">
+      </div>
+
+      <div class="form-group">
+        <label for="webGotifyToken" data-i18n="message.gotifyToken">Gotify Token:</label>
+        <input name="webGotifyToken" id="webGotifyToken" type="text" data-i18n="message.gotifyToken.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%GOTIFYTOKEN%">
+      </div>
+
+      <button class="primary" id="saveMessageBtn" data-i18n="settings.save">Speichern</button>
+    </section>
     </form>
 
     <!-- setting section -->
