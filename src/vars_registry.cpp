@@ -108,9 +108,6 @@ static String g_hum() { return jNumOrNull(cur.humidityPct, 1); }
 static String g_extTemp() { return jNumOrNull(cur.extTempC, 1); }
 static String g_vpd() { return jNumOrNull(cur.vpdKpa, 2); }
 
-static String g_tgtTemp() { return jNumOrNull(targetTemperature, 1); }
-static String g_tgtVpd() { return jNumOrNull(target.targetVpdKpa, 2); }
-
 static String g_avgTemp() { return jNumOrNull(avgTemp(), 1); }
 static String g_avgHum() { return jNumOrNull(avgHum(), 1); }
 static String g_avgVpd() { return jNumOrNull(avgVPD(), 2); }
@@ -195,10 +192,6 @@ const VarItem VARS[] = {
   {"sensors.cur.humidityPct", g_hum, false, "sensors"},
   {"sensors.cur.extTempC", g_extTemp, false, "sensors"},
   {"sensors.cur.vpdKpa", g_vpd, false, "sensors"},
-
-  // --- targets ---
-  {"targets.tempC", g_tgtTemp, false, "targets"},
-  {"targets.vpdKpa", g_tgtVpd, false, "targets"},
 
   // --- settings.ui ---
   {"settings.ui.boxName", g_ui_box, false, "settings.ui"},

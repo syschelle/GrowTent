@@ -354,9 +354,9 @@ void handleSaveRunsettings() {
   savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, true, "Flowering Start Date");
   savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, true, "Drying Start Date");
   savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, true, "Current Phase");
-  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, targetTemperature, true, "Target Temperature");
-  savePrefFloat("webTargetVPD", KEY_TARGETVPD, targetVPD, true, "Target VPD");
-  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, offsetLeafTemperature, true, "Leaf Temperature Offset");
+  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, settings.grow.targetTemperature, true, "Target Temperature");
+  savePrefFloat("webTargetVPD", KEY_TARGETVPD, settings.grow.targetVPD, true, "Target VPD");
+  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, true, "Leaf Temperature Offset");
 
   preferences.end(); // always close Preferences handle
 

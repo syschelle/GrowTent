@@ -170,7 +170,7 @@ void handleRoot() {
     html.replace("%PHASE2_SEL%", curPhase == 2 ? "selected" : "");
     html.replace("%PHASE3_SEL%", curPhase == 3 ? "selected" : "");
 
-    html.replace("%TARGETVPD%", String(targetVPD, 1));
+    html.replace("%TARGETVPD%", String(settings.grow.targetVPD, 1));
 
     html.replace("%HEATRELAY1_SEL%", settings.heating.Relay == 1 ? "selected" : "");
     html.replace("%HEATRELAY2_SEL%", settings.heating.Relay == 2 ? "selected" : "");
