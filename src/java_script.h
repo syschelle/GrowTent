@@ -176,6 +176,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "settings.title": { de: "Systemeinstellungen", en: "Settings" },
   "settings.debugEnabled": { de: "Debug aktivieren", en: "Enable debug" },
 
+  "settings.relayBoard": { de: "Welches Relay-Board?", en: "Which relay board?" },
+
   "settings.boxName": { de: "Boxname:", en: "Box name:" },
   "settings.boxName.ph": { de: "z. B. Growtent-1", en: "e.g. Growtent-1" },
 

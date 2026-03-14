@@ -348,7 +348,7 @@ const char* htmlPage = R"rawliteral(
 
       <div class="form-group">
         <label for="targetTemp" data-i18n="runsetting.targetTemp">Soll-Temperatur:</label>
-        <input name="webTargetTemp" id="webTargetTemp" style="width: 65px;" type="number" step="0.5" min="18" max="30" value="%TARGETTEMPERATURE%">&nbsp;°C
+        <input name="webTargetTemp" id="webTargetTemp" style="width: 65px;" type="number" step="0.1" min="18" max="30" value="%TARGETTEMPERATURE%">&nbsp;°C
       </div>
 
       <div class="form-group">
@@ -547,9 +547,17 @@ const char* htmlPage = R"rawliteral(
         </div>
 
         <div class="form-group">
+          <label for="webRelayCount" data-i18n="settings.relayBoard">welches Relay-Board?</label>
+          <select name="webRelayCount" id="webRelayCount" class="control-sm shelly-other">
+            <option value="4" %RELAY4_SELECTED%>4x</option>
+            <option value="8" %RELAY8_SELECTED%>8x</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="webBoxName" data-i18n="settings.boxName">Boxname:</label>
           <input name="webBoxName" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
-        </div>
+          </div>
 
         <div class="form-group">
           <label for="webNTPServer" data-i18n="settings.ntpserver">NTP-Server:</label>
