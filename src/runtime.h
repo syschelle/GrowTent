@@ -130,13 +130,13 @@ void handleRoot() {
     }
 
     // Replace placeholders in index_html.h
-    html.replace("%TARGETTEMPERATURE%", String(targetTemperature, 1));
+    html.replace("%TARGETTEMPERATURE%", String(settings.grow.targetTemperature, 1));
     html.replace("%LIGHTONTIME%", lightOnTime);
     html.replace("%LIGHTDAYHOURS%", String(lightDayHours));
     html.replace("%WATERTEMPERATURE%", String(DS18B20STemperature, 1));
-    html.replace("%LEAFTEMPERATURE%", String(offsetLeafTemperature, 1));
+    html.replace("%LEAFTEMPERATURE%", String(settings.grow.offsetLeafTemperature, 1));
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
-    html.replace("%TARGETVPD%",  String(target.targetVpdKpa, 1));
+    html.replace("%TARGETVPD%",  String(settings.grow.targetVPD, 1));
 
     html.replace("%RELAYNAMES1%", String(settings.relay.name[0]));
     html.replace("%ESPRELAY1_ENABLED_CHECKED%", settings.relay.schedule[0]. enabled ? "checked" : "");
@@ -236,9 +236,13 @@ void readPreferences() {
   loadPrefString(KEY_FLOWERDATE, startFlowering, "", true, "startFlowering");
   loadPrefString(KEY_DRYINGDATE, startDrying, "", true, "startDrying");
   loadPrefInt(KEY_CURRENTPHASE, curPhase, 1, true, "curPhase");
-  loadPrefFloat(KEY_TARGETTEMP, targetTemperature, 22.0f, true, "targets.tempC");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
-  loadPrefFloat(KEY_TARGETVPD, target.targetVpdKpa, 1.0f, true, "targetVPD");
+
+  // Load settings.grow targets from same persisted keys (future primary path)
+  loadPrefFloat(KEY_TARGETTEMP, settings.grow.targetTemperature, 22.0f, true, "settings.grow.targetTemperature");
+  loadPrefFloat(KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, -1.5f, true, "settings.grow.offsetLeafTemperature");
+  loadPrefFloat(KEY_TARGETVPD, settings.grow.targetVPD, 1.0f, true, "settings.grow.targetVPD");
+
   loadPrefInt(KEY_HEATING_RELAY, settings.heating.Relay, 0, true, "heatingRelay");
   settings.grow.lightOnTime = lightOnTime;
   settings.grow.lightDayHours = lightDayHours;

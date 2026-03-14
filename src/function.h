@@ -2138,8 +2138,8 @@ static void controlHeaterByTemperature() {
   float predicted = cur.temperatureC + slope * PREDICT_SEC;
 
   // Switching thresholds around target temperature
-  const float tOn = targetTemperature - HYST;
-  const float tOff = targetTemperature + HYST;
+  const float tOn = settings.grow.targetTemperature - HYST;
+  const float tOff = settings.grow.targetTemperature + HYST;
 
   // On first run after boot, allow immediate decision.
   // After that, enforce minimum ON/OFF durations.
@@ -2419,16 +2419,16 @@ static void controlHumidifierByVPD() {
     lastCheckMs = millis();
 
     // Single source of truth for target VPD:
-    // target.targetVpdKpa <-> /api/state: targets.vpdKpa
-    if (isnan(cur.vpdKpa) || isnan(target.targetVpdKpa)) return;
+    // target.targetVpdKpa <-> /api/state: settings.grow.targetVPD
+    if (isnan(cur.vpdKpa) || isnan(settings.grow.targetVPD)) return;
     if (settings.shelly.humidifier.ip.length() == 0) return;
 
     const float HYST = 0.05f;
-    const float threshold = target.targetVpdKpa + HYST;
+    const float threshold = settings.grow.targetVPD + HYST;
 
     logPrint(
         "[HUM] cur=" + String(cur.vpdKpa, 3) +
-        " target=" + String(target.targetVpdKpa, 3) +
+        " target=" + String(settings.grow.targetVPD, 3) +
         " thresh=" + String(threshold, 3)
     );
 
