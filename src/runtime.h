@@ -197,6 +197,10 @@ void handleRoot() {
     html.replace("%SHUSER%", settings.shelly.username);
     html.replace("%SHPASSWORD%", settings.shelly.password);
 
+    html.replace("%RELAYCOUNT4_SEL%", activeRelayCount == 4 ? "selected" : "");
+    html.replace("%RELAYCOUNT8_SEL%", activeRelayCount == 8 ? "selected" : "");
+
+
     html.replace("%NTPSERVER%", ntpServer);
     html.replace("%TZINFO%", tzInfo);
     html.replace("%THEME%", theme);

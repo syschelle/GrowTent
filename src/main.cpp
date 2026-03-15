@@ -775,7 +775,7 @@ void setup() {
   }
 
   // Initialize relay outputs ASAP (prevent random toggles)
-  for (int i = 0; i < NUM_RELAYS; i++) {
+  for (int i = 0; i < activeRelayCount; i++) {
     pinMode(relayPins[i], OUTPUT);
     digitalWrite(relayPins[i], LOW);
   }

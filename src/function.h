@@ -640,6 +640,7 @@ void handleSaveSettings() {
   }
 
   savePrefBool("webDebugEnable", KEY_DEBUG_ENABLED, debugLog, true, "Debug Enable");
+  savePrefInt("webRelayCount", KEY_RELAYCOUNT, activeRelayCount, true, "Relay Count");
   savePrefString("webBoxName", KEY_NAME, boxName, "Boxname");
   savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
   savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);
@@ -655,6 +656,9 @@ void handleSaveSettings() {
   savePrefString("webRelayName2", KEY_RELAY_2, relayNames[1], "Relay 2 Name");
   savePrefString("webRelayName3", KEY_RELAY_3, relayNames[2], "Relay 3 Name");
   savePrefString("webRelayName4", KEY_RELAY_4, relayNames[3], "Relay 4 Name");
+  if (activeRelayCount == 8) {
+    savePrefString("webRelayName5", KEY_RELAY_5, relayNames[4], "Relay 5 Name");
+  }
 
   preferences.end(); // always close Preferences handle
 

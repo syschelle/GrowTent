@@ -34,6 +34,8 @@ const char* KEY_LIGHT_OFF_TIME = "lightOffTime";
 // heating relay key
 const char* KEY_HEATING_RELAY = "heatingRelay";
 
+const char* KEY_RELAYCOUNT = "relayCount";
+
 // Relay schedule keys
 const char* KEY_RELAY_START_1 = "relay_start_1";
 const char* KEY_RELAY_END_1   = "relay_end_1";

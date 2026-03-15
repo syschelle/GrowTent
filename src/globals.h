@@ -236,6 +236,7 @@ extern const char* KEY_NTPSRV;
 extern const char* KEY_TZINFO;
 extern const char* KEY_DS18B20ENABLE;
 extern const char* KEY_DS18NAME;
+extern const char* KEY_RELAYCOUNT;
 extern const char* KEY_RELAY_1;
 extern const char* KEY_RELAY_2;
 extern const char* KEY_RELAY_3;
