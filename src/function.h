@@ -2520,11 +2520,15 @@ String buildSensorJsonFromCache() {
   json += ",";
 
   // ---------------- relays ----------------
+  json += "\"relayCount\":";
+  json += String(activeRelayCount);
+  json += ",";
+
   json += "\"relays\":[";
-  for (int i = 0; i < NUM_RELAYS; i++) {
+  for (int i = 0; i < activeRelayCount; i++) {
     bool on = (digitalRead(relayPins[i]) == HIGH);
     json += on ? "true" : "false";
-    if (i < NUM_RELAYS - 1) json += ",";
+    if (i < activeRelayCount - 1) json += ",";
   }
   json += "],";
 

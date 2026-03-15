@@ -176,6 +176,12 @@ const char* htmlPage = R"rawliteral(
         <div class="spacer"></div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(4)">Toggle</button>
       </div>
+      <div class="relay-card relay-extra" data-relay="5" id="relayCard5" style="display:none;">
+        <div class="relay-title">%RELAYNAMES5%</div>
+        <div class="relay-status" id="relay-Status5"></div>
+        <div class="spacer"></div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(5)">Toggle</button>
+      </div>
     </div>
       
     <div class="spacer"></div>

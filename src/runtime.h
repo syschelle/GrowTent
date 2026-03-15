@@ -229,6 +229,10 @@ void readPreferences() {
   // debug
   loadPrefBool(KEY_DEBUG_ENABLED, debugLog, false, true, "debugLog");
 
+  // active relay count (4 or 8)
+  loadPrefInt(KEY_RELAYCOUNT, activeRelayCount, 4, true, "activeRelayCount");
+  activeRelayCount = (activeRelayCount == 8) ? 8 : 4;
+
   // relays
   settings.relay.name[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
   settings.relay.name[1] = preferences.isKey(KEY_RELAY_2) ? strdup(preferences.getString(KEY_RELAY_2).c_str()) : strdup("relay 2");
