@@ -134,6 +134,11 @@ struct Settings {
   ShellySettings shelly;
   UIGroup ui;
   NotifyGroup notify;
+
+  // Pump labels for relay 6..8
+  String pump1 = "Pump 1";
+  String pump2 = "Pump 2";
+  String pump3 = "Pump 3";
 };
 
 extern Settings settings;

@@ -173,6 +173,26 @@ RELAY_GETTERS(0)
 RELAY_GETTERS(1)
 RELAY_GETTERS(2)
 RELAY_GETTERS(3)
+RELAY_GETTERS(4)
+
+// For relays 5-7 we only have state + name, no schedule (yet)
+static String g_relay_state_5() { return jBool(relayStates[5]); }
+static String g_relay_name_5() { return jStr(settings.pump1); }
+static String g_relay_schen_5() { return jBool(false); }
+static String g_relay_schst_5() { return String("null"); }
+static String g_relay_schen_5_end() { return String("null"); }
+
+static String g_relay_state_6() { return jBool(relayStates[6]); }
+static String g_relay_name_6() { return jStr(settings.pump2); }
+static String g_relay_schen_6() { return jBool(false); }
+static String g_relay_schst_6() { return String("null"); }
+static String g_relay_schen_6_end() { return String("null"); }
+
+static String g_relay_state_7() { return jBool(relayStates[7]); }
+static String g_relay_name_7() { return jStr(settings.pump3); }
+static String g_relay_schen_7() { return jBool(false); }
+static String g_relay_schst_7() { return String("null"); }
+static String g_relay_schen_7_end() { return String("null"); }
 
 const VarItem VARS[] = {
   {"debug.buildTag", g_buildTag, false, "debug"},
@@ -264,6 +284,21 @@ const VarItem VARS[] = {
   {"relays[3].schedule.start", g_relay_schst_3, false, "relays"},
   {"relays[3].schedule.end", g_relay_schen_3_end, false, "relays"},
 
+  {"relays[4].name", g_relay_name_4, false, "relays"},
+  {"relays[4].state", g_relay_state_4, false, "relays"},
+  {"relays[4].schedule.enabled", g_relay_schen_4, false, "relays"},
+  {"relays[4].schedule.start", g_relay_schst_4, false, "relays"},
+  {"relays[4].schedule.end", g_relay_schen_4_end, false, "relays"},
+
+  {"relays[5].name", g_relay_name_5, false, "relays"},
+  {"relays[5].state", g_relay_state_5, false, "relays"},
+
+  {"relays[6].name", g_relay_name_6, false, "relays"},
+  {"relays[6].state", g_relay_state_6, false, "relays"},
+
+  {"relays[7].name", g_relay_name_7, false, "relays"},
+  {"relays[7].state", g_relay_state_7, false, "relays"},
+  
 };
 
 const size_t VARS_COUNT = sizeof(VARS) / sizeof(VARS[0]);

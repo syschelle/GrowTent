@@ -96,6 +96,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "status.toggleRelay": { de: "umschalten", en: "toggle" },
   "status.toggleRelayLabel": { de: "umschalten", en: "toggle" },
 
+  "status.togglePump10s": { de: "einschalten (10s)", en: "turn on (10s)" },
+
   /* Shelly */
   "status.shellyControl": { de: "Shelly Steuerung", en: "Shelly Control" },
   "status.shellyMainSw": { de: "Hauptschalter", en: "Main Switch" },
