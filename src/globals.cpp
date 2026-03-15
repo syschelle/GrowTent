@@ -43,6 +43,8 @@ const char* KEY_RELAY_START_3 = "relay_start_3";
 const char* KEY_RELAY_END_3   = "relay_end_3";
 const char* KEY_RELAY_START_4 = "relay_start_4";
 const char* KEY_RELAY_END_4   = "relay_end_4";
+const char* KEY_RELAY_START_5 = "relay_start_5";
+const char* KEY_RELAY_END_5   = "relay_end_5";
 
 // Shelly device keys
 const char* KEY_SHELLYMAINIP = "shMainIP";
@@ -74,6 +76,10 @@ const char* KEY_RELAY_1 = "relay1";
 const char* KEY_RELAY_2 = "relay2";
 const char* KEY_RELAY_3 = "relay3";
 const char* KEY_RELAY_4 = "relay4";
+const char* KEY_RELAY_5 = "relay5";
+const char* KEY_RELAY_6 = "relay6";
+const char* KEY_RELAY_7 = "relay7";
+const char* KEY_RELAY_8 = "relay8";
 
 // Notification keys
 const char* KEY_PUSHOVER = "pushover";
@@ -109,7 +115,7 @@ bool espMode = false;
 bool relaySchedulesEnabled[NUM_RELAYS] = {false};
 int  relaySchedulesStart[NUM_RELAYS] = {0};
 int  relaySchedulesEnd[NUM_RELAYS] = {0};
-String relayNames[NUM_RELAYS] = {"relay 1","relay 2","relay 3","relay 4"};
+String relayNames[NUM_RELAYS] = {"relay 1","relay 2","relay 3","relay 4,","relay 5","relay 6","relay 7","relay 8"};
 
 // Grow / phase globals (legacy)
 String startDate = "";
@@ -139,7 +145,8 @@ String gotifyToken = "";
 //int heatingRelay = 0;
 
 // Relays
-const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26 };
+int activeRelayCount = 4;
+const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26, 27, 14, 12, 13 };
 bool relayStates[NUM_RELAYS] = { false };
 unsigned long relayOffTime[NUM_RELAYS] = {0};
 bool relayActive[NUM_RELAYS] = {false};

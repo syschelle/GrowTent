@@ -5,7 +5,7 @@
 #include <Adafruit_BME280.h>
 
 // -------------------- Konstanten / Defines --------------------
-#define NUM_RELAYS 4
+#define MAX_RELAYS 8
 #define DS18B20_PIN 4
 #define STATUS_LED_PIN 23
 #define BME_ADDR 0x76
@@ -16,6 +16,13 @@
 #ifndef I2C_SCL
   #define I2C_SCL 22
 #endif
+
+// -------------------- Constants --------------------
+#define MAX_RELAYS 8
+#define NUM_RELAYS MAX_RELAYS // keep compatibility in existing code
+
+extern int activeRelayCount; // runtime: 4 or 8
+extern const char* KEY_RELAY_COUNT;
 
 // -------------------- Structs (erst Typen, dann Settings) --------------------
 struct DailySchedule {
@@ -200,7 +207,8 @@ extern const char* KEY_RELAY_START_3;
 extern const char* KEY_RELAY_END_3;
 extern const char* KEY_RELAY_START_4;
 extern const char* KEY_RELAY_END_4;
-
+extern const char* KEY_RELAY_START_5;
+extern const char* KEY_RELAY_END_5;
 // Shelly device keys
 extern const char* KEY_SHELLYMAINIP;
 extern const char* KEY_SHELLYMAINGEN;
@@ -232,6 +240,10 @@ extern const char* KEY_RELAY_1;
 extern const char* KEY_RELAY_2;
 extern const char* KEY_RELAY_3;
 extern const char* KEY_RELAY_4;
+extern const char* KEY_RELAY_5;
+extern const char* KEY_RELAY_6;
+extern const char* KEY_RELAY_7;
+extern const char* KEY_RELAY_8;
 
 // Notification keys
 extern const char* KEY_PUSHOVER;
