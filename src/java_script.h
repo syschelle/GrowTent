@@ -370,9 +370,9 @@ window.sensorTimer = null;
 // Sensor poll interval (ms). We'll dynamically slow down when Status page is not visible.
 window._sensorPollMs = 10000;
 
-// ---- relay state (NUM_RELAYS = 8 on firmware side) ----
-const RELAY_COUNT = 8;
-let relayStates = Array(RELAY_COUNT).fill(false);
+// ---- relay state (firmware can be 4 or 8) ----
+let RELAY_COUNT = 4;
+let relayStates = Array(8).fill(false);
 
 // Funktion zum Aktualisieren der Sensorwerte
 window._stopSensorPoll = function () {
@@ -400,43 +400,68 @@ window._setSensorPollInterval = function(ms){
   }
 };
 
-// Aktualisiert die Relay-Buttons im UI
-window.updateRelayButtons = function() {
-  // cache relay elements (avoid repeated DOM lookups + layout thrash)
-  if (!window._relayEls || window._relayEls.length !== relayStates.length) {
-    window._relayEls = Array.from({ length: relayStates.length }, (_, i) =>
-      document.getElementById(`relay-Status${i + 1}`)
-    );
+// function to show/hide relay controls based on detected relay count (4 or 8)
+function applyRelayVisibility(relayCount) {
+  const count = (relayCount === 8) ? 8 : 4;
+
+  // Status cards 1..8 (if present)
+  for (let i = 1; i <= 8; i++) {
+    const card = document.querySelector(`.relay-card[data-relay="${i}"]`);
+    if (card) card.style.display = (i <= count) ? '' : 'none';
   }
-  for (let i = 0; i < relayStates.length; i++) {
-    const btn = window._relayEls[i];
-    if (!btn) continue;
-    if (relayStates[i]) {
-      btn.classList.add('on');
-      btn.classList.remove('off');
-    } else {
-      btn.classList.add('off');
-      btn.classList.remove('on');
+
+  // Scheduling rows 1..8 (if present)
+  for (let i = 1; i <= 8; i++) {
+    const row = document.getElementById(`espRelay${i}Row`);
+    if (row) row.style.display = (i <= count) ? '' : 'none';
+  }
+}
+
+// activate correct relay controls on page load
+window.updateRelayButtons = function () {
+    // cache relay elements for max 8
+    if (!window._relayEls || window._relayEls.length !== 8) {
+        window._relayEls = Array.from({ length: 8 }, (_, i) =>
+            document.getElementById(`relay-Status${i + 1}`)
+        );
     }
-  }
+
+    // only apply state to active relays
+    for (let i = 0; i < RELAY_COUNT; i++) {
+        const btn = window._relayEls[i];
+        if (!btn) continue;
+
+        if (relayStates[i]) {
+            btn.classList.add('on');
+            btn.classList.remove('off');
+        } else {
+            btn.classList.add('off');
+            btn.classList.remove('on');
+        }
+    }
 };
 
-// Relay umschalten
-window.toggleRelay = function(nr) {
-  const idx = nr - 1;
-  fetch(`/relay/${nr}/toggle`, { method: 'POST' })
-    .then(r => r.json())
-    .then(data => {
-      if (typeof data.state !== 'undefined') {
-        relayStates[idx] = !!data.state;
-      } else {
-        relayStates[idx] = !relayStates[idx];
-      }
-      updateRelayButtons();
-    })
-    .catch(err => {
-      console.error('toggle relay failed:', err);
-    });
+// toggle relay state on button click, then update buttons based on response
+window.toggleRelay = function (nr) {
+    // guard for 4/8 mode
+    if (nr < 1 || nr > RELAY_COUNT) return;
+
+    const idx = nr - 1;
+
+    fetch(`/relay/${nr}/toggle`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (typeof data.state !== 'undefined') {
+                relayStates[idx] = !!data.state;
+            } else {
+                relayStates[idx] = !relayStates[idx];
+            }
+
+            updateRelayButtons();
+        })
+        .catch(err => {
+            console.error('toggle relay failed:', err);
+        });
 };
 
 // ---------- Shelly status update ----------

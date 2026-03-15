@@ -608,8 +608,8 @@ const char* htmlPage = R"rawliteral(
         <div class="form-group">
           <label for="webRelayCount" data-i18n="settings.relayBoard">welches Relay-Board?</label>
           <select name="webRelayCount" id="webRelayCount" class="control-sm shelly-other">
-            <option value="4" %RELAYCOUNT4_SEL%">4x</option>
-            <option value="8" %RELAYCOUNT8_SEL%">8x</option>
+            <option value="4" %RELAYCOUNT4_SEL%>4x</option>
+            <option value="8" %RELAYCOUNT8_SEL%>8x</option>
           </select>
         </div>
 
