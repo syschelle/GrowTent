@@ -2493,6 +2493,7 @@ void handlePumpPulseIdx(int idx, uint32_t ms = 10000UL) {
     res += "}";
 
     server.send(200, "application/json", res);
+    logPrint("[PUMP] Relay " + String(idx + 1) + " ON for " + String(ms) + "ms");
 }
 
 static void processPumpAutoOff() {

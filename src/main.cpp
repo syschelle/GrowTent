@@ -772,19 +772,21 @@ void setup() {
     logPrint("[LITTLEFS] mount failed");
   } else {
     logPrint("[LITTLEFS] mounted");
-  }
-
-  // Initialize relay outputs ASAP (prevent random toggles)
-  for (int i = 0; i < activeRelayCount; i++) {
-    pinMode(relayPins[i], OUTPUT);
-    digitalWrite(relayPins[i], LOW);
-  }
+  } 
 
   // Load WiFi credentials only (fast)
   preferences.begin(PREF_NS, true);
   loadPrefString(KEY_SSID, ssidName, "", true, "ssidName");
   loadPrefString(KEY_PASS, ssidPassword, "", false, "ssidPassword");
+  loadPrefInt(KEY_RELAYCOUNT, activeRelayCount, 4, true, "activeRelayCount");
+  activeRelayCount = (activeRelayCount == 8) ? 8 : 4;
   preferences.end();
+  
+  // Initialize relay outputs ASAP (prevent random toggles)
+  for (int i = 0; i < activeRelayCount; i++) {
+    pinMode(relayPins[i], OUTPUT);
+    digitalWrite(relayPins[i], LOW);
+  }
 
   // Decide WiFi mode quickly: try STA for 3s, else AP
   wifiReady = false;
