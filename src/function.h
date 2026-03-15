@@ -2456,27 +2456,50 @@ static void controlHumidifierByVPD() {
     }
 }
 
-// Pump control:
-// Trigger pump ON for 10 seconds when VPD is above target + hysteresis.
-static void triggerPump10s(uint8_t relayNo) {
-  if (relayNo < 6 || relayNo > 8) return;
-  if (relayNo > activeRelayCount) return;
+// Handles a pump pulse request for a specific relay index (1-based).
+void handlePumpPulseIdx(int idx, uint32_t ms = 10000UL) {
+    // allow only relay 6..8 (index 5..7)
+    if (idx < 5 || idx > 7) {
+        server.send(
+            400,
+            "application/json",
+            "{\"ok\":false,\"err\":\"invalid_pump_idx\"}"
+        );
+        return;
+    }
 
-  const int idx = relayNo - 1;
+    // physical bounds check
+    if (idx < 0 || idx >= NUM_RELAYS) {
+        server.send(
+            400,
+            "application/json",
+            "{\"ok\":false,\"err\":\"out_of_range\"}"
+        );
+        return;
+    }
 
-  digitalWrite(relayPins[idx], HIGH);
-  relayStates[idx] = true;
+    // turn ON now
+    setRelay(idx, true);
 
-  relayActive[idx] = true;
-  relayOffTime[idx] = millis() + 10000UL; // 10 seconds
+    // arm auto-off timer
+    relayOffTime[idx] = millis() + ms;
+    relayActive[idx] = true;
+
+    String res = "{";
+    res += "\"ok\":true";
+    res += ",\"id\":" + String(idx + 1);
+    res += ",\"state\":true";
+    res += ",\"pulseMs\":" + String(ms);
+    res += "}";
+
+    server.send(200, "application/json", res);
 }
 
-// Checks if any pump relay needs to be turned off based on the scheduled off time.
 static void processPumpAutoOff() {
-uint32_t now = millis();
+  uint32_t now = millis();
 
-for (int relayNo = 6; relayNo <= 8; relayNo++) {
-  if (relayNo > activeRelayCount) continue;
+  for (int relayNo = 6; relayNo <= 8; relayNo++) {
+    if (relayNo > activeRelayCount) continue;
 
     int idx = relayNo - 1;
     if (relayActive[idx] && (int32_t)(now - relayOffTime[idx]) >= 0) {
@@ -2486,7 +2509,6 @@ for (int relayNo = 6; relayNo <= 8; relayNo++) {
     }
   }
 }
-
 
 String buildSensorJsonFromCache() {
   String json;

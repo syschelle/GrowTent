@@ -860,9 +860,10 @@ void setup() {
   server.on("/relay/5/toggle", HTTP_POST, []() { handleRelayToggleIdx(4); });
 
   // pump toggle + auto-off trigger (10s)
-  server.on("/pump/6/triggerPump10s", HTTP_POST, []() { triggerPump10s(6); server.send(200, "application/json", "{\"ok\":true,\"relay\":6}"); });
-  server.on("/pump/7/triggerPump10s", HTTP_POST, []() { triggerPump10s(7); server.send(200, "application/json", "{\"ok\":true,\"relay\":7}"); });
-  server.on("/pump/8/triggerPump10s", HTTP_POST, []() { triggerPump10s(8); server.send(200, "application/json", "{\"ok\":true,\"relay\":8}"); });
+  server.on("/pump/6/triggerPump10s", HTTP_POST, []() { handlePumpPulseIdx(5, 10000UL); });
+  server.on("/pump/7/triggerPump10s", HTTP_POST, []() { handlePumpPulseIdx(6, 10000UL); });
+  server.on("/pump/8/triggerPump10s", HTTP_POST, []() { handlePumpPulseIdx(7, 10000UL); });
+
   
   server.on("/shelly/main/toggle", HTTP_POST, []() {
     bool ok = false;
