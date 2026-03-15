@@ -2456,6 +2456,38 @@ static void controlHumidifierByVPD() {
     }
 }
 
+// Pump control:
+// Trigger pump ON for 10 seconds when VPD is above target + hysteresis.
+static void triggerPump10s(uint8_t relayNo) {
+  if (relayNo < 6 || relayNo > 8) return;
+  if (relayNo > activeRelayCount) return;
+
+  const int idx = relayNo - 1;
+
+  digitalWrite(relayPins[idx], HIGH);
+  relayStates[idx] = true;
+
+  relayActive[idx] = true;
+  relayOffTime[idx] = millis() + 10000UL; // 10 seconds
+}
+
+// Checks if any pump relay needs to be turned off based on the scheduled off time.
+static void processPumpAutoOff() {
+uint32_t now = millis();
+
+for (int relayNo = 6; relayNo <= 8; relayNo++) {
+  if (relayNo > activeRelayCount) continue;
+
+    int idx = relayNo - 1;
+    if (relayActive[idx] && (int32_t)(now - relayOffTime[idx]) >= 0) {
+      digitalWrite(relayPins[idx], LOW);
+      relayStates[idx] = false;
+      relayActive[idx] = false;
+    }
+  }
+}
+
+
 String buildSensorJsonFromCache() {
   String json;
   json.reserve(4096);

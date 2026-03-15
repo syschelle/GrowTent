@@ -61,6 +61,11 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "status.targetTemp": { de: "Soll-Temperatur", en: "Target temperature" },
   "status.last": { de: "akt. ", en: "current " },
 
+  "status.irrigation": { de: "Bewässerung", en: "Irrigation" },
+  "status.irrigationRelay6": { de: "Pumpe1 (Relay6)", en: "Pump1 (Relay6)" },
+  "status.irrigationRelay7": { de: "Pumpe2 (Relay7)", en: "Pump2 (Relay7)" },
+  "status.irrigationRelay8": { de: "Pumpe3 (Relay8)", en: "Pump3 (Relay8)" },
+
   "status.lastWaterTemperature": {
     de: "akt. Wassertemperatur",
     en: "current Water Temperature"
@@ -461,6 +466,19 @@ window.toggleRelay = function (nr) {
         })
         .catch(err => {
             console.error('toggle relay failed:', err);
+        });
+};
+
+window.triggerPump10s = function (relayNo) {
+    fetch(`/pump/${relayNo}/triggerPump10s`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (!data?.ok) {
+                console.warn('triggerPump10s failed', data);
+            }
+        })
+        .catch(err => {
+            console.error('triggerPump10s error', err);
         });
 };
 
@@ -997,6 +1015,12 @@ async function startNewGrow(){
       }
 
       const data = await response.json();
+      // Apply relay board size from backend (4 or 8)
+      if (Number.isInteger(data.relayCount)) {
+        RELAY_COUNT = (data.relayCount === 8) ? 8 : 4;
+        applyRelayVisibility(RELAY_COUNT);
+      }
+
       const statusActive = (getActivePageId() === 'status');
       if (!statusActive) return;
 
@@ -1110,6 +1134,7 @@ async function startNewGrow(){
   }
   window._startSensorPoll();     // intervall start
   window.updateSensorValues();
+  updateRelayButtons();
 
   
   // ---------- Embedded Web Log ----------

@@ -857,7 +857,13 @@ void setup() {
   server.on("/relay/2/toggle", HTTP_POST, []() { handleRelayToggleIdx(1); });
   server.on("/relay/3/toggle", HTTP_POST, []() { handleRelayToggleIdx(2); });
   server.on("/relay/4/toggle", HTTP_POST, []() { handleRelayToggleIdx(3); });
+  server.on("/relay/5/toggle", HTTP_POST, []() { handleRelayToggleIdx(4); });
 
+  // pump toggle + auto-off trigger (10s)
+  server.on("/pump/6/triggerPump10s", HTTP_POST, []() { triggerPump10s(6); server.send(200, "application/json", "{\"ok\":true,\"relay\":6}"); });
+  server.on("/pump/7/triggerPump10s", HTTP_POST, []() { triggerPump10s(7); server.send(200, "application/json", "{\"ok\":true,\"relay\":7}"); });
+  server.on("/pump/8/triggerPump10s", HTTP_POST, []() { triggerPump10s(8); server.send(200, "application/json", "{\"ok\":true,\"relay\":8}"); });
+  
   server.on("/shelly/main/toggle", HTTP_POST, []() {
     bool ok = false;
     bool newState = false;
@@ -941,6 +947,8 @@ void loop() {
       WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
     }
   }
+
+  processPumpAutoOff();
 
   server.handleClient();
   delay(1);

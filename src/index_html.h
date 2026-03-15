@@ -183,7 +183,36 @@ const char* htmlPage = R"rawliteral(
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleRelay(5)">Toggle</button>
       </div>
     </div>
-      
+    <div class="spacer"></div>
+    
+    <div class="tile-row">
+      <div class="tile">
+        <h2 data-i18n="status.irrigation">Irrigation</h2>
+         <div class="relay-row" id="relayRow">
+          <div class="relay-card irrigation" data-relay="6" id="irrigationRelay6">
+            <div class="relay-title" data-i18n="status.irrigationRelay6">Pumpe 1 Relay 6</div>
+            <div class="relay-status" id="relay-Status6"></div>
+            <div class="spacer"></div>
+            <button class="primary" data-i18n="status.toggleRelay" onclick="triggerPump10s(6)">Toggle</button>
+          </div>
+
+          <div class="relay-card irrigation" data-relay="7" id="irrigationRelay7">
+            <div class="relay-title" data-i18n="status.irrigationRelay7">Pumpe 2 Relay 7</div>
+            <div class="relay-status" id="relay-Status7"></div>
+            <div class="spacer"></div>
+            <button class="primary" data-i18n="status.toggleRelay" onclick="triggerPump10s(7)">Toggle</button>
+          </div>
+
+          <div class="relay-card irrigation" data-relay="8" id="irrigationRelay8">
+            <div class="relay-title" data-i18n="status.irrigationRelay8">Pumpe 3 Relay 8</div>
+            <div class="relay-status" id="relay-Status8"></div>
+            <div class="spacer"></div>
+            <button class="primary" data-i18n="status.toggleRelay" onclick="triggerPump10s(8)">Toggle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="spacer"></div>
     <h2 data-i18n="status.shellyControl">Shelly Steuerung</h2>
     <div class="relay-row" id="relayRow">
