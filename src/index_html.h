@@ -185,7 +185,7 @@ const char* htmlPage = R"rawliteral(
     </div>
     <div class="spacer"></div>
     
-    <div class="tile-row">
+    <div class="tile-row" id="irrigationSection" style="display:none;">
       <div class="tile">
         <h2 data-i18n="status.irrigation">Irrigation</h2>
          <div class="relay-row" id="relayRow">
@@ -209,6 +209,31 @@ const char* htmlPage = R"rawliteral(
             <div class="spacer"></div>
             <button type="button" class="primary" data-i18n="status.togglePump10s" onclick="triggerPump10s(8)">Toggle</button>
           </div>
+
+          <!-- watering section -->
+          <div class="relay-card" data-relay="watering">
+            <div class="relay-title" data-i18n="status.watering">Bewässerung</div>
+            <div class="metric-value">
+              <span id="irrigationSpan"  >-</span><span class="unit" data-i18n="status.wateringLeft"> verbleibend</span>
+            </div>
+            <div class="metric-value">
+              <span class="unit" data-i18n="status.endIn" >Ende in </span><span id="irTimeLeftSpan"  ></span>
+            </div> 
+            <div class="spacermini"></div>
+            <button class="primary" onclick="startWatering()">Toggle</button>
+          </div>
+          <div class="relay-card" data-relay="TankFilling">
+            <div class="relay-title" data-i18n="status.tank">Tank Füllung</div>
+            <div class="metric-value">
+              <span id="tankLevelSpan" >–</span><span class="unit" >&nbsp;%</span>
+            </div>
+            <div class="metric-value">
+              <span id="tankCMDistanceSpan" >–</span><span class="unit" >&nbsp;cm</span>
+            </div>
+            <div class="spacermini"></div>
+              <button class="primary" data-i18n="status.pingTank" onclick="pingTank()">Ping</button>
+          </div>
+
         </div>
       </div>
     </div>

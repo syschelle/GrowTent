@@ -126,6 +126,12 @@ struct HeatingGroup {
   int Relay = 0; // 0 = none, 1-4 = relay index + 1
 };
 
+struct Irrigation {
+  int irrigationRuns = 0;
+  int timePerTask = 0;
+  int betweenTasks = 0;
+  String wTimeLeft = "00:00";
+};  
 struct Settings {
   DebugGroup debug;
   RelayGroup relay;
@@ -251,6 +257,14 @@ extern const char* KEY_RELAY_6;
 extern const char* KEY_RELAY_7;
 extern const char* KEY_RELAY_8;
 
+// Irrigation keys
+extern const char* KEY_TIMEPERTASK;
+extern const char* KEY_BETWEENTASKS;
+extern const char* KEY_AMOUNTOFWATER;
+extern const char* KEY_IRRIGATION;
+extern const char* KEY_MINTANK;
+extern const char* KEY_MAXTANK;
+
 // Notification keys
 extern const char* KEY_PUSHOVER;
 extern const char* KEY_PUSHOVERAPP;
@@ -314,6 +328,19 @@ extern volatile float DS18B20STemperature;
 extern bool DS18B20;
 extern String DS18B20Enable;
 extern String DS18B20Name;
+
+//Irrigation
+extern Irrigation irrigation;
+extern const char* KEY_IRRIGATION_TIME_PER_TASK;
+extern const char* KEY_IRRIGATION_BETWEEN_TASKS;
+
+// Tank / HC-SR04
+extern volatile float tankLevel;
+extern float minTank, maxTank, tankLevelCm;
+extern const uint8_t TRIG;
+extern const uint8_t ECHO;
+extern unsigned long lastMeasureTime;
+extern const unsigned long MEASURE_INTERVAL;
 
 // LED
 extern unsigned long previousMillis;

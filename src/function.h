@@ -2511,6 +2511,18 @@ static void processPumpAutoOff() {
   }
 }
 
+String calculateEndtimeWatering() {
+  unsigned long totalIrrigationTimeMs = irrigation.irrigationRuns * ((secondsToMilliseconds(irrigation.timePerTask) * 3) + minutesToMilliseconds(irrigation.betweenTasks));
+  unsigned long totalSeconds = totalIrrigationTimeMs / 1000;
+  unsigned long totalMinutes = totalSeconds / 60;
+  unsigned long hours = totalMinutes / 60;
+  unsigned long minutes = totalMinutes % 60;
+
+  logPrint("[IRRIGATION] Estimated total irrigation time: " + String(hours) + " hours and " + String(minutes) + " minutes.");
+
+  return String(hours) + ":" + String(minutes);
+}
+
 String buildSensorJsonFromCache() {
   String json;
   json.reserve(4096);

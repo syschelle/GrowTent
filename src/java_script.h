@@ -411,6 +411,10 @@ window._setSensorPollInterval = function(ms){
 function applyRelayVisibility(relayCount) {
   const count = (relayCount === 8) ? 8 : 4;
 
+  // Show irrigation section only for 8-relay board
+  const irr = document.getElementById('irrigationSection');
+  if (irr) irr.style.display = (count === 8) ? '' : 'none';
+
   // Status cards 1..8 (if present)
   for (let i = 1; i <= 8; i++) {
     const card = document.querySelector(`.relay-card[data-relay="${i}"]`);
