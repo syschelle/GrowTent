@@ -426,6 +426,10 @@ function applyRelayVisibility(relayCount) {
     const row = document.getElementById(`espRelay${i}Row`);
     if (row) row.style.display = (i <= count) ? '' : 'none';
   }
+  
+  const show5 = (relayCount === 8);
+  const settingsRelay5 = document.getElementById('settingsRelay5Row');
+  if (settingsRelay5) settingsRelay5.style.display = show5 ? '' : 'none';
 }
 
 // activate correct relay controls on page load

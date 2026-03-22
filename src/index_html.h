@@ -586,6 +586,40 @@ const char* htmlPage = R"rawliteral(
               </div>
             </div>
       
+            <!-- ESP Relay 5 -->
+            <div class="relay-sched-row relay-extra" id="espRelay5Row" style="display:none;">
+            <div class="relay-sched-row">
+              <div class="relay-sched-name">
+                <div class="relay-sched-name-label" data-i18n="runsettings.espSchedRelay5">Relay</div>
+                <div class="relay-sched-name-value">%RELAYNAMES5%</div>
+              </div>
+
+              <div class="sched-field chk">
+                <label class="inline-checkbox">
+                  <input id="espRelay5Enabled" name="webEspRel5Enbl" type="checkbox" %ESPRELAY5_ENABLED_CHECKED%>
+                  <span data-i18n="runsetting.relay.enabledShort">Enabled</span>
+                </label>
+              </div>
+
+              <div class="sched-field chk">
+                <label class="inline-checkbox">
+                  <input id="espRelay5IfLightOff" name="webEspRel5ILOff" type="checkbox" %ESPRELAY5_IFLIGHTOFF_CHECKED%>
+                  <span data-i18n="runsetting.relay.ifLightOff">wenn Licht aus</span>
+                </label>
+              </div>
+
+              <div class="sched-field minute">
+                <label for="espRelay5OnMin" data-i18n="runsetting.relay.onMinute">Einschaltminute</label>
+                <input id="espRelay5OnMin" name="webEspRel5On" type="number" min="0" max="59" step="1" value="%ESPRELAY5_ONMIN%">
+              </div>
+
+              <div class="sched-field minute">
+                <label for="espRelay5OffMin" data-i18n="runsetting.relay.offMinute">Ausschaltminute</label>
+                <input id="espRelay5OffMin" name="webEspRel5Off" type="number" min="0" max="59" step="1" value="%ESPRELAY5_OFFMIN%">
+              </div>
+            </div>
+            </div>
+
           <div class="relay-sched-actions">
             <button type="button" class="primary" data-i18n="settings.save" onclick="saveAllRelaySchedules()">speichern</button>
           </div>
@@ -763,11 +797,10 @@ const char* htmlPage = R"rawliteral(
           <input name="webRelayName4" id="webRelayName4" type="text" data-i18n="settings.relay4.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES4%">
         </div>
 
-        <div class="form-group relay-extra" style="display:none;">
+        <div class="form-group relay-extra" id="settingsRelay5Row" style="display:none;">
           <label for="webRelayName5" data-i18n="settings.relay5">Relay 5:</label>
           <input name="webRelayName5" id="webRelayName5" type="text" data-i18n="settings.relay5.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES5%">
         </div>
-
 
         <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>
       </section>
