@@ -2031,4 +2031,15 @@ window.resetShellyEnergy = async function (buttonEl) {
     }
 };
 
+// ---------- start watering ----------
+function startWatering() {
+  fetch('/startWatering', { method: 'POST' })
+    .then(() => {
+      console.log('Irrigation started');
+    })
+    .catch(err => {
+      console.error('start watering failed:', err);
+    });
+}
+
 )rawliteral";

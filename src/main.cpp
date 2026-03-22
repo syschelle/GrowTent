@@ -915,6 +915,9 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  server.on("/startWatering", HTTP_POST, handleStartWatering);
+  server.on("/pingTank", HTTP_POST, readTankLevel);
+
   // hint message
   server.on("/api/hint", HTTP_GET, handleHint);
 

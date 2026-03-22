@@ -131,7 +131,14 @@ struct Irrigation {
   int timePerTask = 0;
   int betweenTasks = 0;
   String wTimeLeft = "00:00";
-};  
+};
+
+struct Tank {
+  float amount = 0.0f;
+  float min = 0.0f;
+  float max = 0.0f;
+};
+
 struct Settings {
   DebugGroup debug;
   RelayGroup relay;
@@ -331,6 +338,9 @@ extern String DS18B20Name;
 
 //Irrigation
 extern Irrigation irrigation;
+extern Irrigation irrigationRuns;
+
+ // to detect changes and update UI accordingly
 extern const char* KEY_IRRIGATION_TIME_PER_TASK;
 extern const char* KEY_IRRIGATION_BETWEEN_TASKS;
 

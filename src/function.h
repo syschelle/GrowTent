@@ -2511,6 +2511,58 @@ static void processPumpAutoOff() {
   }
 }
 
+// Handles the /start-watering endpoint to initiate an irrigation cycle based on configured settings.
+void handleStartWatering() {
+  
+  if (irrigation.irrigationRuns == 0) {
+    // calculate number of irrigation runs
+    float wateringSecond = irrigation.irrigation / 10;
+    float wateringTask = wateringSecond * irrigation.timePerTask;
+    irrigation.irrigationRuns = wateringTask / irrigation.amountOfWater;
+
+    logPrint("[IRRIGATION] Starting watering: " + String(irrigation.irrigation) + " ml in " + String(irrigation.irrigationRuns) + " runs of " + String(irrigation.amountOfWater) + " ml each.");
+
+    if (language == "de") {
+      sendPushover("Bewässerung startet. Dauer: " + calculateEndtimeWatering(), "Bewässerung startet.");
+    } else {
+      sendPushover("Irrigation started. Duration: " + calculateEndtimeWatering(), "Irrigation started.");
+    }
+
+    server.sendHeader("Location", "/");
+    server.send(303);
+  } else {
+    irrigationRuns > 0;
+    logPrint("[IRRIGATION] No irrigation configured. Aborting watering.");
+    server.sendHeader("Location", "/");
+    server.send(303);
+  }
+}
+
+// Calculates the percentage fill level of a tank based on current, minimum, and maximum values.
+float calculateTankPercent(float current, float minTank, float maxTank) {
+  if (maxTank == minTank) return 0;
+  float percent = (current - minTank) / (maxTank - minTank) * 100;
+  percent = fmax(0, fmin(100, percent));
+  return round(percent);
+}
+
+// Reads the tank level using an ultrasonic sensor and updates the internal state and logs the result.
+void readTankLevel() {
+  tankLevelCm = pingTankLevel(TRIG, ECHO);
+  if (!isnan(tankLevelCm)) {
+    logPrint("[TANK LEVEL] Current distance to water: " + String(tankLevelCm, 0) + " cm");
+    server.sendHeader("Location", "/");
+    server.send(303);
+    if (maxTank == 0 || maxTank == minTank) return;
+    tankLevel = calculateTankPercent(tankLevelCm, minTank, maxTank);
+    logPrint("[TANK LEVEL] Current tank level: " + String(tankLevel) + " %");
+  } else {
+    logPrint("[TANK LEVEL] Error reading tank level.");
+    server.sendHeader("Location", "/");
+    server.send(303);
+  }
+}
+
 String calculateEndtimeWatering() {
   unsigned long totalIrrigationTimeMs = irrigation.irrigationRuns * ((secondsToMilliseconds(irrigation.timePerTask) * 3) + minutesToMilliseconds(irrigation.betweenTasks));
   unsigned long totalSeconds = totalIrrigationTimeMs / 1000;
