@@ -2516,11 +2516,11 @@ void handleStartWatering() {
   
   if (irrigation.irrigationRuns == 0) {
     // calculate number of irrigation runs
-    float wateringSecond = irrigation.irrigation / 10;
+    float wateringSecond = irrigation.irrigationAmount / 10;
     float wateringTask = wateringSecond * irrigation.timePerTask;
     irrigation.irrigationRuns = wateringTask / irrigation.amountOfWater;
 
-    logPrint("[IRRIGATION] Starting watering: " + String(irrigation.irrigation) + " ml in " + String(irrigation.irrigationRuns) + " runs of " + String(irrigation.amountOfWater) + " ml each.");
+    logPrint("[IRRIGATION] Starting watering: " + String(irrigation.irrigationAmount) + " ml in " + String(irrigation.irrigationRuns) + " runs of " + String(irrigation.amountOfWater) + " ml each.");
 
     if (language == "de") {
       sendPushover("Bewässerung startet. Dauer: " + calculateEndtimeWatering(), "Bewässerung startet.");
@@ -2531,7 +2531,7 @@ void handleStartWatering() {
     server.sendHeader("Location", "/");
     server.send(303);
   } else {
-    irrigationRuns > 0;
+    irrigation.irrigationRuns > 0;
     logPrint("[IRRIGATION] No irrigation configured. Aborting watering.");
     server.sendHeader("Location", "/");
     server.send(303);

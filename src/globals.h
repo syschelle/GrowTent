@@ -127,9 +127,11 @@ struct HeatingGroup {
 };
 
 struct Irrigation {
+  float irrigationAmount = 0.0f; 
   int irrigationRuns = 0;
   int timePerTask = 0;
   int betweenTasks = 0;
+  float amountOfWater = 0.0f;
   String wTimeLeft = "00:00";
 };
 
@@ -338,7 +340,6 @@ extern String DS18B20Name;
 
 //Irrigation
 extern Irrigation irrigation;
-extern Irrigation irrigationRuns;
 
  // to detect changes and update UI accordingly
 extern const char* KEY_IRRIGATION_TIME_PER_TASK;
