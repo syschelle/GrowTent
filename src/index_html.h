@@ -763,6 +763,12 @@ const char* htmlPage = R"rawliteral(
           <input name="webRelayName4" id="webRelayName4" type="text" data-i18n="settings.relay4.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES4%">
         </div>
 
+        <div class="form-group relay-extra" style="display:none;">
+          <label for="webRelayName5" data-i18n="settings.relay5">Relay 5:</label>
+          <input name="webRelayName5" id="webRelayName5" type="text" data-i18n="settings.relay5.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES5%">
+        </div>
+
+
         <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>
       </section>
     </form>
