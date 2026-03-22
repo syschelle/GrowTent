@@ -158,6 +158,11 @@ void handleRoot() {
     html.replace("%ESPRELAY4_IFLIGHTOFF_CHECKED%", settings.relay.schedule[3].ifLightOff ? "checked" : "");
     html.replace("%ESPRELAY4_ONMIN%", String(settings.relay.schedule[3].onMin));
     html.replace("%ESPRELAY4_OFFMIN%", String(settings.relay.schedule[3].offMin));
+    html.replace("%RELAYNAMES5%", String(settings.relay.name[4]));
+    html.replace("%ESPRELAY5_ENABLED_CHECKED%", settings.relay.schedule[4]. enabled ? "checked" : "");
+    html.replace("%ESPRELAY5_IFLIGHTOFF_CHECKED%", settings.relay.schedule[4].ifLightOff ? "checked" : "");
+    html.replace("%ESPRELAY5_ONMIN%", String(settings.relay.schedule[4].onMin));
+    html.replace("%ESPRELAY5_OFFMIN%", String(settings.relay.schedule[4].offMin));
 
     html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
 
