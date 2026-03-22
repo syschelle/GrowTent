@@ -119,6 +119,20 @@ int  relaySchedulesStart[NUM_RELAYS] = {0};
 int  relaySchedulesEnd[NUM_RELAYS] = {0};
 String relayNames[NUM_RELAYS] = {"relay 1","relay 2","relay 3","relay 4,","relay 5","relay 6","relay 7","relay 8"};
 
+// Irrigation
+Irrigation irrigation;
+const char* KEY_IRRIGATION_TIME_PER_TASK = "irrTimeTask";
+const char* KEY_IRRIGATION_BETWEEN_TASKS = "irrBetween";
+
+// Tank / HC-SR04
+volatile float tankLevel = 0.0f;
+float minTank = 0.0f;
+float maxTank = 0.0f;
+float tankLevelCm = NAN;
+
+const uint8_t TRIG = 18; // adjust pins to your wiring
+const uint8_t ECHO = 19; // adjust pins to your wiring
+
 // Grow / phase globals (legacy)
 String startDate = "";
 String startFlowering = "";
