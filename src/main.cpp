@@ -32,6 +32,7 @@
 // tasks
 #include "task_Check_Sensor.h"
 #include "task_CheckShellyStatus.h"
+#include "task_Watering.h"
 
 extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
   Serial.printf("\n*** STACK OVERFLOW in task: %s ***\n", pcTaskName ? pcTaskName : "(null)");
@@ -759,6 +760,9 @@ static void taskDeferredInit(void* /*pv*/) {
 
   // Shelly status task can run even if WiFi isn't ready yet; it should handle that.
   xTaskCreatePinnedToCore(taskShellyStatus, "Shelly", 4096, nullptr, 1, nullptr, 1);
+
+  // Watering task (relay control) can also run without WiFi, but should check activeRelayCount and handle it gracefully.
+  xTaskCreatePinnedToCore(taskWatering, "Watering", 4096, nullptr, 1, nullptr, 1);
 
   vTaskDelete(nullptr);
 }

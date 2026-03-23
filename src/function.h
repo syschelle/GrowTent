@@ -2573,31 +2573,80 @@ static void processPumpAutoOff() {
   }
 }
 
-// Handles the /start-watering endpoint to initiate an irrigation cycle based on configured settings.
+// Handles the /startWatering endpoint to initiate an irrigation cycle.
 void handleStartWatering() {
-  
-  if (irrigation.irrigationRuns == 0) {
-    // calculate number of irrigation runs
-    float wateringSecond = irrigation.irrigationAmount / 10;
-    float wateringTask = wateringSecond * irrigation.timePerTask;
-    irrigation.irrigationRuns = wateringTask / irrigation.amountOfWater;
+    // Do not start a new cycle while one is already running
+    if (irrigation.irrigationRuns > 0) {
+        logPrint("[IRRIGATION] Already running. Start request ignored.");
+        server.sendHeader("Location", "/");
+        server.send(303);
+        return;
+    }
 
-    logPrint("[IRRIGATION] Starting watering: " + String(irrigation.irrigationAmount) + " ml in " + String(irrigation.irrigationRuns) + " runs of " + String(irrigation.amountOfWater) + " ml each.");
+    // Validate configuration
+    if (
+        irrigation.timePerTask <= 0 ||
+        irrigation.betweenTasks <= 0 ||
+        irrigation.amountOfWater <= 0.0f ||
+        irrigation.irrigationAmount <= 0.0f
+    ) {
+        logPrint(
+            "[IRRIGATION] Invalid configuration. Check timePerTask, "
+            "betweenTasks, amountOfWater, irrigationAmount."
+        );
+        server.sendHeader("Location", "/");
+        server.send(303);
+        return;
+    }
+
+    // Calculate number of runs:
+    // amountOfWater = ml delivered in 10 seconds
+    // timePerTask = seconds pump ON per run
+    // irrigationAmount = total target ml
+    const float mlPerRun =
+        (irrigation.amountOfWater / 10.0f) * (float)irrigation.timePerTask;
+
+    if (mlPerRun <= 0.0f) {
+        logPrint("[IRRIGATION] Computed mlPerRun <= 0. Aborting.");
+        server.sendHeader("Location", "/");
+        server.send(303);
+        return;
+    }
+
+    irrigation.irrigationRuns =
+        (int)ceil(irrigation.irrigationAmount / mlPerRun);
+
+    if (irrigation.irrigationRuns <= 0) {
+        logPrint("[IRRIGATION] Computed runs <= 0. Aborting.");
+        server.sendHeader("Location", "/");
+        server.send(303);
+        return;
+    }
+
+    // Initialize remaining time display
+    irrigation.wTimeLeft = calculateEndtimeWatering();
+
+    logPrint(
+        "[IRRIGATION] Starting watering: target=" +
+        String(irrigation.irrigationAmount, 0) +
+        " ml, mlPerRun=" + String(mlPerRun, 1) +
+        ", runs=" + String(irrigation.irrigationRuns)
+    );
 
     if (language == "de") {
-      sendPushover("Bewässerung startet. Dauer: " + calculateEndtimeWatering(), "Bewässerung startet.");
+        sendPushover(
+            "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
+            "Bewässerung startet."
+        );
     } else {
-      sendPushover("Irrigation started. Duration: " + calculateEndtimeWatering(), "Irrigation started.");
+        sendPushover(
+            "Irrigation started. Duration: " + calculateEndtimeWatering(),
+            "Irrigation started."
+        );
     }
 
     server.sendHeader("Location", "/");
     server.send(303);
-  } else {
-    irrigation.irrigationRuns > 0;
-    logPrint("[IRRIGATION] No irrigation configured. Aborting watering.");
-    server.sendHeader("Location", "/");
-    server.send(303);
-  }
 }
 
 // Calculates the percentage fill level of a tank based on current, minimum, and maximum values.
@@ -2671,9 +2720,14 @@ String buildSensorJsonFromCache() {
   json += isnan(cur.vpdKpa) ? "null" : String(cur.vpdKpa, 1);
   json += ",";
 
+  // ---------------- irrigation / runs-left ----------------
+  json += "\"curIrrigationRunsLeft\":";
+  json += String(irrigation.irrigationRuns);
+  json += ",";
   // ---------------- irrigation / time-left ----------------
-  // Falls du später echte Berechnung hast, hier ersetzen.
-  json += "\"curTimeLeftIrrigation\":\"00:00\",";
+  json += "\"curTimeLeftIrrigation\":\"";
+  json += irrigation.wTimeLeft.length() ? irrigation.wTimeLeft : "00:00";
+  json += "\",";
 
   // ---------------- averages ----------------
   json += "\"avgTemperature\":";
