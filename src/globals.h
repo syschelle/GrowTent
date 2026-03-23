@@ -128,6 +128,12 @@ int sourceType = 0; // 0=disabled, 1=ESP relay, 2=Shelly plug
 int Relay = 0; // used only when sourceType == 1
 };
 
+struct Tank {
+  float amount = 0.0f;
+  float min = 0.0f;
+  float max = 0.0f;
+};
+
 struct Irrigation {
   float irrigationAmount = 0.0f; 
   int irrigationRuns = 0;
@@ -135,12 +141,7 @@ struct Irrigation {
   int betweenTasks = 0;
   float amountOfWater = 0.0f;
   String wTimeLeft = "00:00";
-};
-
-struct Tank {
-  float amount = 0.0f;
-  float min = 0.0f;
-  float max = 0.0f;
+  Tank tank;
 };
 
 struct Settings {

@@ -138,6 +138,14 @@ void handleRoot() {
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
     html.replace("%TARGETVPD%",  String(settings.grow.targetVPD, 1));
 
+    // Irrigation settings
+    html.replace("%TIMEPERTASK%", String(irrigation.timePerTask));
+    html.replace("%BETWEENTASKS%", String(irrigation.betweenTasks));
+    html.replace("%AMOUNTOFWATER%", String(irrigation.amountOfWater));
+    html.replace("%IRRIGATION%", String(irrigation.irrigationAmount));
+    html.replace("%MINTANK%", String(minTank, 0));
+    html.replace("%MAXTANK%", String(maxTank, 0));
+
     html.replace("%RELAYNAMES1%", String(settings.relay.name[0]));
     html.replace("%ESPRELAY1_ENABLED_CHECKED%", settings.relay.schedule[0]. enabled ? "checked" : "");
     html.replace("%ESPRELAY1_IFLIGHTOFF_CHECKED%", settings.relay.schedule[0].ifLightOff ? "checked" : "");
@@ -345,6 +353,15 @@ void readPreferences() {
   loadPrefBool(KEY_DS18B20ENABLE, DS18B20, false, true, "DS18B20Enable");
   DS18B20Enable = DS18B20 ? "checked" : "";
   loadPrefString(KEY_DS18NAME, DS18B20Name, "", true, "DS18B20Name");
+
+  loadPrefInt(KEY_TIMEPERTASK, irrigation.timePerTask, 10, true, "timePerTask");
+  loadPrefInt(KEY_BETWEENTASKS, irrigation.betweenTasks, 5, true, "betweenTasks");
+  loadPrefFloat(KEY_AMOUNTOFWATER, irrigation.amountOfWater, 20, true, "amountOfWater");
+  loadPrefFloat(KEY_IRRIGATION, irrigation.irrigationAmount, 500, true, "irrigationAmount");
+
+  loadPrefFloat(KEY_MINTANK, irrigation.tank.min, 0.0f, true, "minTank");
+  loadPrefFloat(KEY_MAXTANK, irrigation.tank.max, 0.0f, true, "maxTank");
+
 
   // notification settings
   loadPrefString(KEY_PUSHOVER, pushoverEnabled, "", true, "pushoverEnabled");
