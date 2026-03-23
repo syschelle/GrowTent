@@ -12,9 +12,11 @@ void taskShellyStatus(void *parameter){
   static ShellyValues lastGoodMain;
   static ShellyValues lastGoodLight;
   static ShellyValues lastGoodHumidifier;
+  static ShellyValues lastGoodHeater;
   static bool haveMainGood = false;
   static bool haveLightGood = false;
   static bool haveHumidifierGood = false;
+  static bool haveHeaterGood = false;
 
   for (;;) {
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
@@ -69,6 +71,15 @@ void taskShellyStatus(void *parameter){
       haveHumidifierGood = true;
     } else if (haveHumidifierGood) {
       shelly.humidifier.values = lastGoodHumidifier;
+    }
+
+    ShellyValues heaterNow = getShellyValues(settings.shelly.heater, 0);
+    if (heaterNow.ok) {
+      shelly.heater.values = heaterNow;
+      lastGoodHeater = heaterNow;
+      haveHeaterGood = true;
+    } else if (haveHeaterGood) {
+      shelly.heater.values = lastGoodHeater;
     }
 
     // task delay 10 seconds

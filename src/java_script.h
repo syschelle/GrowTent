@@ -1256,7 +1256,8 @@ async function startNewGrow(){
     const map = {
       main:  'shellyMainLine',
       light: 'shellyLightLine',
-      humidifier: 'shellyHumidifierLine'
+      humidifier: 'shellyHumidifierLine',
+      heater: 'shellyHeaterLine'
     };
 
     try {
@@ -1277,6 +1278,7 @@ async function startNewGrow(){
       setLine('settings.shelly.main.line',  map.main);
       setLine('settings.shelly.light.line', map.light);
       setLine('settings.shelly.humidifier.line', map.humidifier);
+      setLine('settings.shelly.heater.line', map.heater);
     } catch (e) {
       console.warn('[SHELLY][JS] loadShellyLines failed:', e);
     }

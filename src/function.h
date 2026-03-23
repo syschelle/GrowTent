@@ -2434,6 +2434,8 @@ static void handleResetShellyEnergy() {
 
     const bool mainResetOk  = resetOne(settings.shelly.main, KEY_SHELLYMAINOFF);
     const bool lightResetOk = resetOne(settings.shelly.light, KEY_SHELLYLIGHTOFF);
+    const bool humidifierResetOk = resetOne(settings.shelly.humidifier, KEY_SHELLYHUMOFF);
+    const bool heaterResetOk = resetOne(settings.shelly.heater, KEY_SHELLYHEATEROFF);
 
     preferences.end();
 
@@ -2442,6 +2444,10 @@ static void handleResetShellyEnergy() {
         (mainResetOk ? "true" : "false") +
         ",\"light\":" +
         (lightResetOk ? "true" : "false") +
+        ",\"humidifier\":" +
+        (humidifierResetOk ? "true" : "false") +
+        ",\"heater\":" +
+        (heaterResetOk ? "true" : "false") +
         "}";
 
     server.send(200, "application/json; charset=utf-8", response);
