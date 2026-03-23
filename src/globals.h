@@ -59,6 +59,7 @@ struct ShellySettings {
   ShellyDevice main;
   ShellyDevice light;
   ShellyDevice humidifier;
+  ShellyDevice heater;
 
   String username;
   String password;
@@ -245,6 +246,10 @@ extern const char* KEY_SHELLYHUMIP;
 extern const char* KEY_SHELLYHUMGEN;
 extern const char* KEY_SHELLYHUMOFF;
 extern const char* KEY_SHELLYFANOFF;
+extern const char* KEY_SHELLYHEATERIP;
+extern const char* KEY_SHELLYHEATERGEN;
+extern const char* KEY_SHELLYHEATEROFF;
+extern const char* KEY_SHELLYUSERNAME;
 extern const char* KEY_SHELLYUSERNAME;
 extern const char* KEY_SHELLYPASSWORD;
 extern const char* KEY_POWER_PRICE_KWH;

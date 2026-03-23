@@ -593,6 +593,17 @@ void handleSaveShellySettings() {
         "Humidifier Gen"
     );
 
+    saveShellyDevice(
+        settings.shelly.heater.ip,
+        settings.shelly.heater.gen,
+        "webShellyHeaterIP",
+        KEY_SHELLYHEATERIP,
+        "Heater IP",
+        "webShellyHeaterGen",
+        KEY_SHELLYHEATERGEN,
+        "Heater Gen"
+    );
+
     // Other settings
     saveGrowLightSettings();
     saveAuthSettings();

@@ -358,6 +358,18 @@ const char* htmlPage = R"rawliteral(
         </div>
       </div>
 
+      <div class="form-group">
+        <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizgerät:</label>
+        <div class="twoinone-label">
+          <input name="webShellyHeaterIP" id="shellyHeaterIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATERIP%">
+          <select name="webShellyHeaterGen" id="shellyHeaterGen" class="control-sm shelly-other">
+            <option value="1" %SHHEATERKIND1%>Gen1</option>
+            <option value="2" %SHHEATERKIND2%>Gen2</option>
+            <option value="3" %SHHEATERKIND3%>Gen3</option>
+          </select>
+        </div>
+      </div>
+
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
       <div class="form-group">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
