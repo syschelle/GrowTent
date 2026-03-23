@@ -164,6 +164,10 @@ void handleRoot() {
     html.replace("%ESPRELAY5_ONMIN%", String(settings.relay.schedule[4].onMin));
     html.replace("%ESPRELAY5_OFFMIN%", String(settings.relay.schedule[4].offMin));
 
+    html.replace("%HEATSRC0_SEL%", settings.heating.sourceType == 0 ? "selected" : "");
+    html.replace("%HEATSRC1_SEL%", settings.heating.sourceType == 1 ? "selected" : "");
+    html.replace("%HEATSRC2_SEL%", settings.heating.sourceType == 2 ? "selected" : "");
+
     html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
 
     html.replace("%CONTROLLERNAME%", boxName);
@@ -262,7 +266,17 @@ void readPreferences() {
   loadPrefFloat(KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, -1.5f, true, "settings.grow.offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, settings.grow.targetVPD, 1.0f, true, "settings.grow.targetVPD");
 
+  //load heating settings
+  loadPrefInt(KEY_HEATING_SOURCE, settings.heating.sourceType, 0, true, "heatingSource");
   loadPrefInt(KEY_HEATING_RELAY, settings.heating.Relay, 0, true, "heatingRelay");
+  // sanitize
+  if (settings.heating.sourceType < 0 || settings.heating.sourceType > 2) {
+    settings.heating.sourceType = 0;
+  }
+  if (settings.heating.sourceType != 1) {
+    settings.heating.Relay = 0;
+  }
+
   settings.grow.lightOnTime = lightOnTime;
   settings.grow.lightDayHours = lightDayHours;
 

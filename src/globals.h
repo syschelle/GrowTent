@@ -123,7 +123,8 @@ struct DebugGroup {
 };
 
 struct HeatingGroup {
-  int Relay = 0; // 0 = none, 1-4 = relay index + 1
+int sourceType = 0; // 0=disabled, 1=ESP relay, 2=Shelly plug
+int Relay = 0; // used only when sourceType == 1
 };
 
 struct Irrigation {
@@ -217,6 +218,9 @@ extern const char* KEY_TARGETVPD;
 extern const char* KEY_LIGHT_ON_TIME;
 extern const char* KEY_LIGHT_DAY_HOURS;
 extern const char* KEY_HEATING_RELAY;
+
+// Relay scheduling keys (enabled as stored in Preferences)
+extern const char* KEY_HEATING_SOURCE;
 
 // Relay schedule keys (start/end as stored in Preferences)
 extern const char* KEY_RELAY_START_1;

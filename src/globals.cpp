@@ -158,7 +158,7 @@ String gotifyServer = "";
 String gotifyToken = "";
 
 // Heating relay
-//int heatingRelay = 0;
+extern const char* KEY_HEATING_SOURCE;
 
 // Relays
 int activeRelayCount = 4;

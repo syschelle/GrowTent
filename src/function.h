@@ -358,6 +358,15 @@ void handleSaveRunsettings() {
   savePrefFloat("webTargetVPD", KEY_TARGETVPD, settings.grow.targetVPD, true, "Target VPD");
   savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, true, "Leaf Temperature Offset");
 
+  savePrefInt("webHeatingSource", KEY_HEATING_SOURCE, settings.heating.sourceType, true, "Heating Source");
+  savePrefInt("webHeatingRelay", KEY_HEATING_RELAY, settings.heating.Relay, true, "Heating Relay");
+
+  // enforce one active source
+  if (settings.heating.sourceType != 1) {
+    settings.heating.Relay = 0;
+  }
+
+
   preferences.end(); // always close Preferences handle
 
   // Send redirect response and restart the ESP
@@ -2101,6 +2110,22 @@ static bool applyGrowLightSchedule() {
 }
 
 static void controlHeaterByTemperature() {
+  // Only control if heating source is set to "temperature" mode
+  if (settings.heating.sourceType == 0) return;
+
+  // ESP relay mode (existing behavior)
+  if (settings.heating.sourceType == 1) {
+    const int heatRelay = settings.heating.Relay;
+    if (heatRelay < 1 || heatRelay > NUM_RELAYS) return;
+    // existing relay logic bleibt hier
+  }
+
+  // Shelly mode
+  if (settings.heating.sourceType == 2) {
+    // same thermostat logic, but switch Shelly instead of GPIO relay
+    // Use your existing shellySwitchOn/off with settings.shelly.heater (or main if you map it)
+  }
+  
   // Abort if there is no valid temperature reading
   if (isnan(cur.temperatureC)) return;
 

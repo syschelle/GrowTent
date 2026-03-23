@@ -432,6 +432,15 @@ const char* htmlPage = R"rawliteral(
         </p>
 
         <div class="relay-heat-select">
+          <label for="heatingSource" data-i18n="runsetting.relay.heatingSource">Heizungsquelle</label>
+          <select name="webHeatingSource" id="heatingSource">
+            <option value="0" %HEATSRC0_SEL%>Disabled</option>
+            <option value="1" %HEATSRC1_SEL%>ESP Relay</option>
+            <option value="2" %HEATSRC2_SEL%>Shelly Plug</option>
+          </select>
+        </div>
+
+        <div class="relay-heat-select">
           <label for="heatingRelay" data-i18n="runsetting.relay.heatingRelay">
             Heizungs-Relay
           </label>

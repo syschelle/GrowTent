@@ -224,6 +224,10 @@ const char jsContent[] PROGMEM = R"rawliteral(
     de: "Wird ein Board Relay für die Heizung verwendet, was für die Temperaturregelung genutzt wird und kann hier definiert werden.",
     en: "If a board relay is used for heating, which is used for temperature control, it can be defined here."
   },
+  "runsetting.relay.heatingSource": {
+    de: "Heizungsquelle",
+    en: "Heating source"
+  },  
   "runsetting.relay.heatingRelay": {
     de: "Heizungs-Relay",
     en: "Heating relay"
@@ -431,6 +435,20 @@ function applyRelayVisibility(relayCount) {
   const settingsRelay5 = document.getElementById('settingsRelay5Row');
   if (settingsRelay5) settingsRelay5.style.display = show5 ? '' : 'none';
 }
+
+function updateHeatingSourceUi() {
+  const src = document.getElementById('heatingSource')?.value || '0';
+  const row = document.getElementById('heatingRelayRow');
+  if (row) row.style.display = (src === '1') ? '' : 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+  const srcSel = document.getElementById('heatingSource');
+  if (srcSel) {
+    srcSel.addEventListener('change', updateHeatingSourceUi);
+    updateHeatingSourceUi();
+  }
+});
 
 // activate correct relay controls on page load
 window.updateRelayButtons = function () {
