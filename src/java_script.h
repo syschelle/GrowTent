@@ -434,6 +434,9 @@ function applyRelayVisibility(relayCount) {
   const show5 = (relayCount === 8);
   const settingsRelay5 = document.getElementById('settingsRelay5Row');
   if (settingsRelay5) settingsRelay5.style.display = show5 ? '' : 'none';
+
+  const irrSettings = document.getElementById('irrigationSettingsSection');
+  if (irrSettings) irrSettings.style.display = (count === 8) ? '' : 'none';
 }
 
 function updateHeatingSourceUi() {
@@ -973,9 +976,9 @@ async function startNewGrow(){
   const shellyMap = {
     mainSwitch: ['shelly-main-switch-state', 'shellyMainInfo', 'settings.shelly.main'],
     light: ['shelly-light-switch-state', 'shellyLightInfo', 'settings.shelly.light'],
-    heater: ['shelly-heater-state', 'shellyHeaterInfo', 'settings.shelly.heater'],
+    heater: ['shelly-heater-switch-state', 'shellyHeaterInfo', 'settings.shelly.heater'],
     humidifier: ['shelly-humidifier-switch-state', 'shellyHumidifierInfo', 'settings.shelly.humidifier'],
-    fan: ['shelly-fan-state', 'shellyFanInfo', 'settings.shelly.fan']
+    fan: ['shelly-fan-switch-state', 'shellyFanInfo', 'settings.shelly.fan']
   };
 
   function fmtNum(value, digits, unit) {

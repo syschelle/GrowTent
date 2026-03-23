@@ -65,28 +65,6 @@ void taskCheckBMESensor(void *parameter) {
       applyRelaySchedules();
     }
 
-    // --- store history every 10 minutes (first point immediately after valid values) ---
-    const bool timeForHistory = firstHistoryPoint || ((nowMs - lastHistoryStoreMs) >= historyStoreIntervalMs);
-
-    if (timeForHistory) {
-      // Store only if values are valid (avoid NaN points after reboot)
-      if (!isnan(cur.temperatureC) &&
-          !isnan(cur.humidityPct) &&
-          !isnan(cur.vpdKpa)) {
-
-
-          addReading(cur.temperatureC, cur.humidityPct, cur.vpdKpa);
-          logPrint("[Task][HISTORY] Stored history point: "
-               "T=" + String(cur.temperatureC, 1) + "C, "
-               "H=" + String(cur.humidityPct, 1) + "%, "
-               "VPD=" + String(cur.vpdKpa, 2) + "kPa");
-
-
-        lastHistoryStoreMs = nowMs;
-        firstHistoryPoint = false;
-      }
-    }
-
     // task delay 10 seconds
     vTaskDelay(pdMS_TO_TICKS(10000));
   }

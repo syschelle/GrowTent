@@ -440,6 +440,40 @@ const char* htmlPage = R"rawliteral(
         <input name="webTargetVPD" id="webTargetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
       </div>
 
+      <div class="tile-row relay-extra" id="irrigationSettingsSection" style="display:none;">
+        <h2 data-i18n="runsetting.wateringSettings">Bewässerungseinstellung</h2>
+
+        <div class="form-group">
+          <label for="timePerTask" data-i18n="runsetting.timePerTask">Bewässerungszeit pro Task:</label>
+          <input name="webTimePerTask" id="webTimePerTask" style="width: 65px;" type="number" step="1" min="1" max="30" value="%TIMEPERTASK%">&nbsp;s&nbsp;(min 1s, max 30s, step 1s)
+        </div>
+
+        <div class="form-group">
+          <label for="betweenTasks" data-i18n="runsetting.betweenTasks">Pause zwischen Bewässerungen:</label>
+          <input name="webBetweenTasks" id="webBetweenTasks" style="width: 65px;" type="number" step="1" min="1" max="10" value="%BETWEENTASKS%">&nbsp;Min&nbsp;(min 1Min, max 10Min, step 1Min)
+        </div>
+
+        <div class="form-group">
+          <label for="amountOfWater" data-i18n="runsetting.amountOfWater">Wassermenge nach 10 Sekunden:</label>
+          <input name="webAmountOfWater" id="webAmountOfWater" style="width: 65px;" type="number" step="5" min="10" max="100" value="%AMOUNTOFWATER%">&nbsp;ml&nbsp;(min 10ml, max 100ml, step 5ml)
+        </div>
+
+        <div class="form-group">
+          <label for="Irrigation" data-i18n="runsetting.irrigation">Gesamte Bewässerungsmenge:</label>
+          <input name="webIrrigation" id="webIrrigation" style="width: 65px;" type="number" step="10" min="100" max="3000" value="%IRRIGATION%">&nbsp;ml&nbsp;(min 100ml, max 3000ml, step 10ml)
+        </div>
+
+        <div class="form-group">
+          <label for="minTank">min. Tank:</label>
+          <input name="webMinTank" id="webMinTank" style="width: 65px;" type="number" value="%MINTANK%">&nbsp;cm
+        </div>
+      
+        <div class="form-group">
+          <label for="maxTank">max. Tank:</label>
+          <input name="webMaxTank" id="webMaxTank" style="width: 65px;" type="number" value="%MAXTANK%">&nbsp;cm
+        </div>
+      </div>
+
       <div class="spacer"></div>
 
       <!-- Heating Relay Selection -->

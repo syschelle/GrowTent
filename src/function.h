@@ -2121,97 +2121,117 @@ static bool applyGrowLightSchedule() {
 }
 
 static void controlHeaterByTemperature() {
-  // Only control if heating source is set to "temperature" mode
-  if (settings.heating.sourceType == 0) return;
+    // 0 = disabled, 1 = ESP relay, 2 = Shelly heater
+    if (settings.heating.sourceType == 0) return;
 
-  // ESP relay mode (existing behavior)
-  if (settings.heating.sourceType == 1) {
-    const int heatRelay = settings.heating.Relay;
-    if (heatRelay < 1 || heatRelay > NUM_RELAYS) return;
-    // existing relay logic bleibt hier
-  }
+    // Abort if there is no valid temperature reading
+    if (isnan(cur.temperatureC)) return;
 
-  // Shelly mode
-  if (settings.heating.sourceType == 2) {
-    // same thermostat logic, but switch Shelly instead of GPIO relay
-    // Use your existing shellySwitchOn/off with settings.shelly.heater (or main if you map it)
-  }
-  
-  // Abort if there is no valid temperature reading
-  if (isnan(cur.temperatureC)) return;
+    // Control tuning
+    const float HYST = 0.25f;
+    const float PREDICT_SEC = 180.0f;
+    const uint32_t MIN_ON_MS = 120000UL;
+    const uint32_t MIN_OFF_MS = 120000UL;
 
-  // Relay selection from settings:
-  // 0 = disabled, 1..NUM_RELAYS = active heater relay
-  const int heatRelay = settings.heating.Relay;
-  if (heatRelay < 1 || heatRelay > NUM_RELAYS) return;
+    // Persistent controller state
+    static float lastTemp = NAN;
+    static uint32_t lastMs = 0;
+    static uint32_t lastSwitchMs = 0;
+    static bool bootHandled = false;
 
-  // Convert relay number (1..4) to array index (0..3)
-  const int idx = heatRelay - 1;
+    const uint32_t now = millis();
 
-  // Control tuning:
-  // HYST defines the deadband around target temperature.
-  // PREDICT_SEC is used for simple overshoot prediction.
-  // MIN_ON_MS / MIN_OFF_MS protect relay from fast toggling.
-  const float HYST = 0.25f;
-  const float PREDICT_SEC = 180.0f;
-  const uint32_t MIN_ON_MS = 120000UL;
-  const uint32_t MIN_OFF_MS = 120000UL;
+    // Determine current heater state depending on selected source
+    bool isOn = false;
 
-  // Persistent controller state across function calls
-  static float lastTemp = NAN;
-  static uint32_t lastMs = 0;
-  static uint32_t lastSwitchMs = 0;
-  static bool bootHandled = false;
+    if (settings.heating.sourceType == 1) {
+        const int heatRelay = settings.heating.Relay;
+        if (heatRelay < 1 || heatRelay > activeRelayCount) return;
 
-  // Current timestamp and relay state (HIGH = ON in this project)
-  const uint32_t now = millis();
-  bool isOn = (digitalRead(relayPins[idx]) == HIGH);
-
-  // Estimate temperature slope in °C/s from previous sample
-  float slope = 0.0f;
-  if (!isnan(lastTemp) && lastMs > 0 && now > lastMs) {
-    float dt = (now - lastMs) / 1000.0f;
-    if (dt > 0.1f) slope = (cur.temperatureC - lastTemp) / dt;
-  }
-
-  // Predict short-term temperature to reduce overshoot
-  float predicted = cur.temperatureC + slope * PREDICT_SEC;
-
-  // Switching thresholds around target temperature
-  const float tOn = settings.grow.targetTemperature - HYST;
-  const float tOff = settings.grow.targetTemperature + HYST;
-
-  // On first run after boot, allow immediate decision.
-  // After that, enforce minimum ON/OFF durations.
-  bool canSwitch = true;
-  if (bootHandled) {
-    uint32_t elapsed = now - lastSwitchMs;
-    if (isOn && elapsed < MIN_ON_MS) canSwitch = false;
-    if (!isOn && elapsed < MIN_OFF_MS) canSwitch = false;
-  }
-
-  if (canSwitch) {
-    // Turn heater ON when below lower threshold
-    if (!isOn && cur.temperatureC <= tOn) {
-      digitalWrite(relayPins[idx], HIGH);
-      relayStates[idx] = true;
-      lastSwitchMs = now;
-      logPrint("[HEAT] ON");
-    } else if (isOn && (cur.temperatureC >= tOff || predicted >= targetTemperature)) {
-      // Turn heater OFF when above upper threshold
-      // OR when prediction indicates likely overshoot
-      digitalWrite(relayPins[idx], LOW);
-      relayStates[idx] = false;
-      lastSwitchMs = now;
-      logPrint("[HEAT] OFF");
+        const int idx = heatRelay - 1;
+        isOn = (digitalRead(relayPins[idx]) == HIGH);
+    } else if (settings.heating.sourceType == 2) {
+        if (!shelly.heater.values.ok) return; // no reliable state yet
+        isOn = shelly.heater.values.isOn;
+    } else {
+        return;
     }
-  }
 
+    // Estimate slope (°C/s)
+    float slope = 0.0f;
 
-  // Update history for next slope calculation
-  bootHandled = true;
-  lastTemp = cur.temperatureC;
-  lastMs = now;
+    if (!isnan(lastTemp) && lastMs > 0 && now > lastMs) {
+        float dt = (now - lastMs) / 1000.0f;
+        if (dt > 0.1f) {
+            slope = (cur.temperatureC - lastTemp) / dt;
+        }
+    }
+
+    // Predict short-term temp
+    float predicted = cur.temperatureC + slope * PREDICT_SEC;
+
+    // Thresholds
+    const float tOn = settings.grow.targetTemperature - HYST;
+    const float tOff = settings.grow.targetTemperature + HYST;
+
+    // Minimum on/off time protection
+    bool canSwitch = true;
+
+    if (bootHandled) {
+        uint32_t elapsed = now - lastSwitchMs;
+        if (isOn && elapsed < MIN_ON_MS) canSwitch = false;
+        if (!isOn && elapsed < MIN_OFF_MS) canSwitch = false;
+    }
+
+    bool wantOn = isOn;
+
+    if (canSwitch) {
+        if (!isOn && cur.temperatureC <= tOn) {
+            wantOn = true;
+        } else if (
+            isOn &&
+            (cur.temperatureC >= tOff || predicted >= settings.grow.targetTemperature)
+        ) {
+            wantOn = false;
+        }
+    }
+
+    // Apply only if state must change
+    if (wantOn != isOn) {
+        bool switched = false;
+
+        if (settings.heating.sourceType == 1) {
+            const int idx = settings.heating.Relay - 1;
+            digitalWrite(relayPins[idx], wantOn ? HIGH : LOW);
+            relayStates[idx] = wantOn;
+            switched = true;
+        } else if (settings.heating.sourceType == 2) {
+            if (settings.shelly.heater.ip.length() > 0) {
+                switched = shellySwitchSet(
+                    settings.shelly.heater.ip,
+                    settings.shelly.heater.gen,
+                    wantOn,
+                    0,
+                    80
+                );
+
+                if (switched) {
+                    shelly.heater.values.isOn = wantOn;
+                    shelly.heater.values.ok = true;
+                }
+            }
+        }
+
+        if (switched) {
+            lastSwitchMs = now;
+            logPrint(String("[HEAT] ") + (wantOn ? "ON" : "OFF"));
+        }
+    }
+
+    // Update slope history
+    bootHandled = true;
+    lastTemp = cur.temperatureC;
+    lastMs = now;
 }
 
 // Returns true if current minute-of-hour is inside the schedule window (0..59).
