@@ -143,8 +143,11 @@ void handleRoot() {
     html.replace("%BETWEENTASKS%", String(irrigation.betweenTasks));
     html.replace("%AMOUNTOFWATER%", String(irrigation.amountOfWater));
     html.replace("%IRRIGATION%", String(irrigation.irrigationAmount));
-    html.replace("%MINTANK%", String(minTank, 0));
-    html.replace("%MAXTANK%", String(maxTank, 0));
+    
+    String minTankStr = String(irrigation.tank.min, 1); minTankStr.trim();
+    String maxTankStr = String(irrigation.tank.max, 1); maxTankStr.trim();
+    html.replace("%MINTANK%", minTankStr);
+    html.replace("%MAXTANK%", maxTankStr);
 
     html.replace("%RELAYNAMES1%", String(settings.relay.name[0]));
     html.replace("%ESPRELAY1_ENABLED_CHECKED%", settings.relay.schedule[0]. enabled ? "checked" : "");
