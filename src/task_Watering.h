@@ -45,6 +45,7 @@ void taskWatering(void *parameter){
         delay(secondsToMilliseconds(irrigation.timePerTask)); // Pump on for 10 seconds
         setRelay(7, false);
         irrigation.irrigationRuns = irrigation.irrigationRuns - 1;
+        logPrint("[IRRIGATION] Remaining irrigation runs: " + String(irrigation.irrigationRuns));
         if (irrigation.irrigationRuns == 0) {
           if (language == "de") {
             sendPushover("Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
@@ -55,7 +56,7 @@ void taskWatering(void *parameter){
     }
 
     // delay between checks
-    if (irrigation.irrigationRuns > 0) {
+     if (irrigation.irrigationRuns > 0) {
       tankLevelCm = pingTankLevel(TRIG, ECHO);
       // Log remaining irrigation runs
       logPrint("[IRRIGATION] Remaining irrigation runs: " + String(irrigation.irrigationRuns));

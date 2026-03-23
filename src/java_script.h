@@ -1068,6 +1068,7 @@ async function startNewGrow(){
       else setText('vpdSpan', 'n/a');
 
       const isText = x => typeof x === 'string' && x.trim() !== '';
+      setText('irrigationSpan', Number.isFinite(Number(data.curIrrigationRunsLeft)) ? String(data.curIrrigationRunsLeft) : '0');
       setText('irTimeLeftSpan', isText(data.curTimeLeftIrrigation) ? data.curTimeLeftIrrigation : '00:00');
 
       if (isNum(data.avgTemperature)) setText('avgTempSpan', data.avgTemperature.toFixed(1));
