@@ -973,7 +973,7 @@ async function startNewGrow(){
   const shellyMap = {
     mainSwitch: ['shelly-main-switch-state', 'shellyMainInfo', 'settings.shelly.main'],
     light: ['shelly-light-switch-state', 'shellyLightInfo', 'settings.shelly.light'],
-    heater: ['shelly-heater-state', 'shellyHeaterInfo', 'settings.shelly.heat'],
+    heater: ['shelly-heater-state', 'shellyHeaterInfo', 'settings.shelly.heater'],
     humidifier: ['shelly-humidifier-switch-state', 'shellyHumidifierInfo', 'settings.shelly.humidifier'],
     fan: ['shelly-fan-state', 'shellyFanInfo', 'settings.shelly.fan']
   };
@@ -1781,7 +1781,8 @@ function updateShellyInfoLinesFromState(s){
     const map = [
       { ids: ['shellyMainInfo'],                         key: 'main'  },
       { ids: ['shellyLightInfo'],                        key: 'light' },
-      { ids: ['shellyHumidifierInfo'],                 key: 'humidifier' }
+      { ids: ['shellyHumidifierInfo'],                   key: 'humidifier' },
+      { ids: ['shellyHeaterInfo'],                       key: 'heater' }
     ];
 
     for (const it of map) {
