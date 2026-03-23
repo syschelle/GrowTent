@@ -1130,6 +1130,13 @@ async function startNewGrow(){
         data.shellyLightCostEur
       );
 
+      setSwitchWithMetrics('heater',
+        data.shellyHeaterStatus,
+        data.shellyHeaterPower,
+        data.shellyHeaterTotalWh,
+        data.shellyHeaterCostEur
+      );
+
       if (Array.isArray(data.relays)) {
         updateRelayStates(data.relays);
      }

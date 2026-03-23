@@ -201,6 +201,11 @@ void handleRoot() {
     html.replace("%SHHUMIDIFIERKIND2%", settings.shelly.humidifier.gen == 2 ? "selected" : "");
     html.replace("%SHHUMIDIFIERKIND3%", settings.shelly.humidifier.gen == 3 ? "selected" : "");
 
+    html.replace("%SHELLYHEATERIP%", settings.shelly.heater.ip);
+    html.replace("%SHHEATERKIND1%", settings.shelly.heater.gen == 1 ? "selected" : "");
+    html.replace("%SHHEATERKIND2%", settings.shelly.heater.gen == 2 ? "selected" : "");
+    html.replace("%SHHEATERKIND3%", settings.shelly.heater.gen == 3 ? "selected" : "");
+
     html.replace("%POWERPRICEKWH%", String(powerPriceKwhEur, 2));
 
     html.replace("%SHUSER%", settings.shelly.username);
@@ -318,6 +323,9 @@ void readPreferences() {
   loadPrefString(KEY_SHELLYHUMIP, settings.shelly.humidifier.ip, "", true, "Shelly Humidifier IP");
   loadPrefInt(KEY_SHELLYHUMGEN, settings.shelly.humidifier.gen, 0, true, "Shelly Humidifier Generation");
   loadPrefFloat(KEY_SHELLYHUMOFF, settings.shelly.humidifier.energyOffsetWh, 0.0f, true, "Shelly Humidifier Energy Offset");
+  loadPrefString(KEY_SHELLYHEATERIP, settings.shelly.heater.ip, "", true, "Shelly Heater IP");
+  loadPrefInt(KEY_SHELLYHEATERGEN, settings.shelly.heater.gen, 0, true, "Shelly Heater Generation");
+  loadPrefFloat(KEY_SHELLYHEATEROFF, settings.shelly.heater.energyOffsetWh, 0.0f, true, "Shelly Heater Energy Offset");
 
   // Shelly credentials (optional Basic Auth)
   loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");

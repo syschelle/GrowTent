@@ -149,12 +149,18 @@ static String g_sh_light_gen() { return jInt(settings.shelly.light.gen); }
 static String g_sh_light_on()  { return jTimeOrNull(settings.shelly.light.schedules.days[0].onHour, settings.shelly.light.schedules.days[0].onMinute); }
 static String g_sh_light_off() { return jTimeOrNull(settings.shelly.light.schedules.days[0].offHour, settings.shelly.light.schedules.days[0].offMinute); }
 static String g_sh_light_line(){ return jShellyLine(settings.shelly.light); }
-
+// For the humidifier we don't have schedule info, so we show generation + IP in one line
 static String g_sh_hum_ip() { return jStr(settings.shelly.humidifier.ip); }
 static String g_sh_hum_gen() { return jInt(settings.shelly.humidifier.gen); }
 static String g_sh_hum_on()  { return String("null"); }
 static String g_sh_hum_off() { return String("null"); }
 static String g_sh_hum_line(){ return jShellyLine(settings.shelly.humidifier); }
+// For the heater we also don't have schedule info, so we show generation + IP in one line
+static String g_sh_heater_ip() { return jStr(settings.shelly.heater.ip); }
+static String g_sh_heater_gen() { return jInt(settings.shelly.heater.gen); }
+static String g_sh_heater_on()  { return String("null"); } 
+static String g_sh_heater_off() { return String("null"); }
+static String g_sh_heater_line(){ return jShellyLine(settings.shelly.heater); }
 // For username/password we always return masked value
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
@@ -253,6 +259,11 @@ const VarItem VARS[] = {
   {"settings.shelly.humidifier.on",  g_sh_hum_on,  false, "settings.shelly"},
   {"settings.shelly.humidifier.off", g_sh_hum_off, false, "settings.shelly"},
   {"settings.shelly.humidifier.line", g_sh_hum_line, false, "settings.shelly"},
+  {"settings.shelly.heater.ip", g_sh_heater_ip, false, "settings.shelly"},
+  {"settings.shelly.heater.gen", g_sh_heater_gen, false, "settings.shelly"},
+  {"settings.shelly.heater.on",  g_sh_heater_on,  false, "settings.shelly"},
+  {"settings.shelly.heater.off", g_sh_heater_off, false, "settings.shelly"},
+  {"settings.shelly.heater.line", g_sh_heater_line, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 

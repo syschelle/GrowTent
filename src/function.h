@@ -2759,6 +2759,28 @@ String buildSensorJsonFromCache() {
   }
   json += ",";
 
+  // ---------------- Shelly Heater ----------------
+  json += "\"shellyHeaterStatus\":";
+  json += shelly.heater.values.ok ? (shelly.heater.values.isOn ? "true" : "false") : "false";
+  json += ",";
+  json += "\"shellyHeaterPower\":";
+  json += (shelly.heater.values.ok && !isnan(shelly.heater.values.powerW) && !isinf(shelly.heater.values.powerW))
+            ? String(shelly.heater.values.powerW, 2)
+            : "null";
+  json += ",";
+  json += "\"shellyHeaterTotalWh\":";
+  json += (shelly.heater.values.ok && !isnan(shelly.heater.values.energyWh) && !isinf(shelly.heater.values.energyWh))
+            ? String(shelly.heater.values.energyWh, 2)
+            : "null";
+  json += ",";
+  json += "\"shellyHeaterCostEur\":";
+  if (shelly.heater.values.ok && !isnan(shelly.heater.values.energyWh) && !isinf(shelly.heater.values.energyWh)) {
+    json += String((shelly.heater.values.energyWh / 1000.0f) * powerPriceKwhEur, 2);
+  } else {
+    json += "null";
+  }
+  json += ",";
+
   // Optional nested fallback for older/newer JS paths
   json += "\"shelly\":{";
   json += "\"light\":{";

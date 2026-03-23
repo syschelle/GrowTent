@@ -55,11 +55,12 @@ const char* KEY_SHELLYMAINOFF = "shMainOff";
 const char* KEY_SHELLYLIGHTOFF = "shLightOff";
 const char* KEY_SHELLYLIGHTIP = "shLightIP";
 const char* KEY_SHELLYLIGHTGEN = "shLightGen";
-const char* KEY_SHELLYHEATOFF = "shHeatOff";
 const char* KEY_SHELLYHUMIP = "shHumIP";
 const char* KEY_SHELLYHUMGEN = "shHumGen";
 const char* KEY_SHELLYHUMOFF = "shHumOff";
-
+const char* KEY_SHELLYHEATERIP = "shHeaterIP";
+const char* KEY_SHELLYHEATERGEN = "shHeaterGen";
+const char* KEY_SHELLYHEATEROFF = "shHeaterOff";
 
 const char* KEY_SHELLYUSERNAME = "shUser";
 const char* KEY_SHELLYPASSWORD = "shPass";
