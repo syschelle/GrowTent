@@ -65,6 +65,14 @@ const char* KEY_SHELLYHEATEROFF = "shHeaterOff";
 const char* KEY_SHELLYUSERNAME = "shUser";
 const char* KEY_SHELLYPASSWORD = "shPass";
 
+// Irrigation keys
+const char* KEY_TIMEPERTASK = "timePerTask";
+const char* KEY_BETWEENTASKS = "betweenTasks";
+const char* KEY_AMOUNTOFWATER = "amountOfWater";
+const char* KEY_IRRIGATION = "irrigationAmount";
+const char* KEY_MINTANK = "minTank";
+const char* KEY_MAXTANK = "maxTank";
+
 // UI/settings keys
 const char* KEY_NAME   = "boxName";
 const char* KEY_LANG   = "lang";
