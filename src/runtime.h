@@ -73,7 +73,7 @@ void handleRoot() {
     html = FPSTR(apPage);
     // Replace placeholders in index_html.h
     //html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
-    html.replace("%CONTROLLERNAME%",  boxName);
+    html.replace("%CONTROLLERNAME%",  settings.ui.boxName);
     } else {
     html = FPSTR(htmlPage);
 
@@ -346,7 +346,7 @@ void readPreferences() {
   loadPrefFloat(KEY_POWER_PRICE_KWH, powerPriceKwhEur, 0.30f, true, "powerPriceKwhEur", 3);
 
   // settings
-  loadPrefString(KEY_NAME, boxName, "newGrowTent", true, "boxName");
+  loadPrefString(KEY_NAME, settings.ui.boxName, "newGrowTent", true, "boxName");
   loadPrefString(KEY_NTPSRV, ntpServer, DEFAULT_NTP_SERVER, true, "ntpServer");
   loadPrefString(KEY_TZINFO, tzInfo, DEFAULT_TZ_INFO, true, "tzInfo");
   loadPrefString(KEY_LANG, language, "de", true, "language");

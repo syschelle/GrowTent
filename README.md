@@ -185,6 +185,43 @@ Example (Arduino CLI):
 
 ---
 
+## API Endpoints (Connectors)
+
+### Core
+- `GET /api/state`
+Unified state payload for frontend and external integrations (recommended primary endpoint).
+
+### Control
+- `POST /relay/{1..5}/toggle`
+- `POST /pump/6/triggerPump10s`
+- `POST /pump/7/triggerPump10s`
+- `POST /pump/8/triggerPump10s`
+- `POST /startWatering`
+- `POST /pingTank`
+
+### Shelly
+- `POST /shelly/main/toggle`
+- `POST /shelly/light/toggle`
+- `POST /shelly/humidifier/toggle`
+- `POST /shelly/heater/toggle`
+- `POST /api/shelly/reset-energy`
+
+### Scheduling / Settings
+- `POST /api/relay/schedule/save-all`
+- `POST /savesettings`
+- `POST /saverunsettings`
+- `POST /saveshellysettings`
+- `POST /savemessagesettings`
+
+### Logs
+- `GET /api/logbuffer`
+- `POST /api/logbuffer/clear`
+- `GET /log`
+
+### OTA
+- `POST /api/ota/update`
+Triggers OTA update from the configured firmware URL.
+
 ## Project Structure (high level)
 
 - src/
@@ -204,7 +241,7 @@ All web UI assets are embedded as string literals (PROGMEM) and served by the de
 
 - BME280 not detected: check wiring, I2C address (0x76 by default), and power.
 - Relays not switching: verify wiring, correct GPIO pins, and that your relay board is compatible with ESP32 logic levels.
-- UI not reachable: if device in AP mode, connect to SSID `new growtent` (password `12345678`) or configure WiFi via serial/console or pre-populated preferences.
+- UI not reachable: if device in AP mode, connect to SSID `new growtent` (password `GT-12$34`) or configure WiFi via serial/console or pre-populated preferences.
 
 ---
 

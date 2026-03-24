@@ -661,7 +661,7 @@ void handleSaveSettings() {
 
   savePrefBool("webDebugEnable", KEY_DEBUG_ENABLED, debugLog, true, "Debug Enable");
   savePrefInt("webRelayCount", KEY_RELAYCOUNT, activeRelayCount, true, "Relay Count");
-  savePrefString("webBoxName", KEY_NAME, boxName, "Boxname");
+  savePrefString("webBoxName", KEY_NAME, settings.ui.boxName, "Boxname");
   savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
   savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);
   savePrefString("webLanguage", KEY_LANG, language);
