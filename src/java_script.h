@@ -1024,126 +1024,153 @@ async function startNewGrow(){
     if (!Array.isArray(relays)) return;
 
     for (let i = 0; i < RELAY_COUNT; i++) {
-      relayStates[i] = !!(i < relays.length ? relays[i] : false);
+      if (i < relays.length && typeof relays[i] === 'object') {
+        relayStates[i] = !!relays[i].state;
+
+        // optional: name update if provided by API (and element exists) 
+        const nameEl = document.getElementById(`relay${i}Name`);
+        if (nameEl) nameEl.textContent = relays[i].name || `Relay ${i+1}`;
+      } else {
+        relayStates[i] = false;
+      }
     }
 
     window.updateRelayButtons();
   }
 
-  // ---------- Sensor fetch (/sensordata) ----------
+  // ---------- Sensor fetch (/api/state) ----------
   let sensorFetchInFlight = false;
 
   async function updateSensorValues() {
     if (sensorFetchInFlight) return;
     sensorFetchInFlight = true;
 
+    function isNum(v) {
+      return typeof v === 'number' && Number.isFinite(v);
+    }
+
+    function formatNum(v, digits = 1, fallback = 'n/a') {
+      return isNum(v) ? v.toFixed(digits) : fallback;
+    }
+
+    function safeText(v, fallback = 'n/a') {
+      return (v === null || v === undefined || v === '') ? fallback : String(v);
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    function buildRelayArrayFromApiState(data, maxRelays = 8) {
+      const relays = [];
+
+      for (let i = 0; i < maxRelays; i++) {
+        const stateKey = `relays[${i}].state`;
+        const nameKey = `relays[${i}].name`;
+
+        if (!(stateKey in data) && !(nameKey in data)) continue;
+
+        relays.push({
+          index: i,
+          name: data[nameKey] ?? `Relay ${i + 1}`,
+          state: Boolean(data[stateKey]),
+          scheduleEnabled: data[`relays[${i}].schedule.enabled`] ?? false,
+          scheduleStart: data[`relays[${i}].schedule.start`] ?? 0,
+          scheduleEnd: data[`relays[${i}].schedule.end`] ?? 0
+        });
+      }
+
+      return relays;
+    }
+
     try {
-      const response = await fetch('/sensordata', { cache: 'no-store' });
+      const response = await fetch('/api/state', { cache: 'no-store' });
+
       if (!response.ok) {
-        console.error('Error retrieving sensor data:', response.status);
+        console.error('Error retrieving /api/state:', response.status);
         setNA();
         return;
       }
 
       const data = await response.json();
-      // Apply relay board size from backend (4 or 8)
-      if (Number.isInteger(data.relayCount)) {
-        RELAY_COUNT = (data.relayCount === 8) ? 8 : 4;
-        applyRelayVisibility(RELAY_COUNT);
+
+      if (getActivePageId() !== 'status') return;
+
+      // current sensor values
+      setText('tempSpan', formatNum(data['sensors.cur.temperatureC'], 1));
+      setText('ext1TempSpan', formatNum(data['sensors.cur.extTempC'], 1));
+      setText('humSpan', formatNum(data['sensors.cur.humidityPct'], 1));
+      setText('vpdSpan', formatNum(data['sensors.cur.vpdKpa'], 2));
+
+      // Irrigation
+      setText('irrigationSpan', safeText(data['irrigation.runsLeft'], '0'));
+      setText('irTimeLeftSpan', safeText(data['irrigation.timeLeft'], '00:00'));
+
+      // Average values
+      // These keys are not present in your current example.
+      // If you add them later in /api/state, it will work directly.
+      setText('avgTempSpan', formatNum(data['sensors.avg.temperatureC'], 1));
+      setText('avgWaterTempSpan', formatNum(data['sensors.avg.waterTempC'], 1));
+      setText('avgHumSpan', formatNum(data['sensors.avg.humidityPct'], 1));
+      setText('avgVpdSpan', formatNum(data['sensors.avg.vpdKpa'], 2));
+
+      // System
+      setText('espFreeHeapSpan', safeText(data['sys.freeHeap']));
+      setText('espMinFreeHeapSpan', safeText(data['sys.minFreeHeap']));
+      setText('espCpuMhzSpan', safeText(data['sys.cpuMhz']));
+      setText('espUptimeSpan', safeText(data['sys.uptimeS']));
+
+      // Shelly / Relays with metrics
+      setSwitchWithMetrics(
+        'main',
+        data['cur.shelly.main.isOn'],
+        data['cur.shelly.main.Watt'],
+        data['cur.shelly.main.Wh'],
+        data['cur.shelly.main.Cost']
+      );
+
+      setSwitchWithMetrics(
+        'light',
+        data['cur.shelly.light.isOn'],
+        data['cur.shelly.light.Watt'],
+        data['cur.shelly.light.Wh'],
+        data['cur.shelly.light.Cost']
+      );
+
+      setSwitchWithMetrics(
+        'humidifier',
+        data['cur.shelly.humidifier.isOn'],
+        data['cur.shelly.humidifier.Watt'],
+        data['cur.shelly.humidifier.Wh'],
+        data['cur.shelly.humidifier.Cost']
+      );
+
+      setSwitchWithMetrics(
+        'heater',
+        data['cur.shelly.heater.isOn'],
+        data['cur.shelly.heater.Watt'],
+        data['cur.shelly.heater.Wh'],
+        data['cur.shelly.heater.Cost']
+      );
+
+      // If you have a fan or other device, you can add it similarly by following the pattern above and ensuring the keys in /api/state match what you use here.
+      // Just make sure to also add the corresponding HTML elements with the correct IDs for the state and info display.
+      /*
+      setSwitchWithMetrics(
+        'fan',
+        data['cur.shelly.main.isOn'],
+        data['cur.shelly.main.Watt'],
+        data['cur.shelly.main.Wh'],
+        data['cur.shelly.main.Cost']
+      );
+      */
+
+      // Relays
+      const relays = buildRelayArrayFromApiState(data, 8);
+      if (relays.length && typeof updateRelayStates === 'function') {
+        updateRelayStates(relays);
       }
-
-      const statusActive = (getActivePageId() === 'status');
-      if (!statusActive) return;
-
-      if (isNum(data.curTemperature)) setText('tempSpan', data.curTemperature.toFixed(1));
-      else setText('tempSpan', 'n/a');
-
-      if (isNum(data.curDS18B20Se1)) setText('ext1TempSpan', data.curDS18B20Se1.toFixed(1));
-      else setText('ext1TempSpan', 'n/a');
-
-      if (isNum(data.curHumidity)) setText('humSpan', data.curHumidity.toFixed(0));
-      else setText('humSpan', 'n/a');
-
-      if (isNum(data.curVpd)) setText('vpdSpan', data.curVpd.toFixed(1));
-      else setText('vpdSpan', 'n/a');
-
-      const isText = x => typeof x === 'string' && x.trim() !== '';
-      setText('irrigationSpan', Number.isFinite(Number(data.curIrrigationRunsLeft)) ? String(data.curIrrigationRunsLeft) : '0');
-      setText('irTimeLeftSpan', isText(data.curTimeLeftIrrigation) ? data.curTimeLeftIrrigation : '00:00');
-
-      if (isNum(data.avgTemperature)) setText('avgTempSpan', data.avgTemperature.toFixed(1));
-      else if (isNum(data.avgTemp)) setText('avgTempSpan', data.avgTemp.toFixed(1));
-      else setText('avgTempSpan', 'n/a');
-
-      if (isNum(data.avgWaterTemperature)) setText('avgWaterTempSpan', data.avgWaterTemperature.toFixed(1));
-      else if (isNum(data.avgWaterTemp)) setText('avgWaterTempSpan', data.avgWaterTemp.toFixed(1));
-      else setText('avgWaterTempSpan', 'n/a');
-
-      if (isNum(data.avgHumidity)) setText('avgHumSpan', data.avgHumidity.toFixed(1));
-      else setText('avgHumSpan', 'n/a');
-
-      if (isNum(data.avgVpd)) setText('avgVpdSpan', data.avgVpd.toFixed(2));
-      else setText('avgVpdSpan', 'n/a');
-
-      setText('capturedSpan', isText(data.captured) ? data.captured : '--:--:--');
-
-      if (isNum(data.espFreeHeap)) setText('espFreeHeapSpan', String(data.espFreeHeap));
-      else setText('espFreeHeapSpan', 'n/a');
-
-      if (isNum(data.espMinFreeHeap)) setText('espMinFreeHeapSpan', String(data.espMinFreeHeap));
-      else setText('espMinFreeHeapSpan', 'n/a');
-
-      if (isNum(data.espCpuMhz)) setText('espCpuMhzSpan', String(data.espCpuMhz));
-      else setText('espCpuMhzSpan', 'n/a');
-
-      if (isNum(data.espUptimeS)) setText('espUptimeSpan', String(data.espUptimeS));
-      else setText('espUptimeSpan', 'n/a');
-
-      setSwitchWithMetrics('mainSwitch',
-        data.shellyMainSwitchStatus,
-        data.shellyMainSwitchPower,
-        data.shellyMainSwitchTotalWh,
-        data.shellyMainSwitchCostEur
-      );
-
-      setSwitchWithMetrics('heater',
-        data.shellyHeaterStatus,
-        data.shellyHeaterPower,
-        data.shellyHeaterTotalWh,
-        data.shellyHeaterCostEur
-      );
-
-      setSwitchWithMetrics('humidifier',
-        data.shellyHumidifierStatus,
-        data.shellyHumidifierPower,
-        data.shellyHumidifierTotalWh,
-        data.shellyHumidifierCostEur
-      );
-
-      setSwitchWithMetrics('fan',
-        data.shellyFanStatus,
-        data.shellyFanPower,
-        data.shellyFanTotalWh,
-        data.shellyFanCostEur
-      );
-
-      setSwitchWithMetrics('light',
-        data.shellyLightStatus,
-        data.shellyLightPower,
-        data.shellyLightTotalWh,
-        data.shellyLightCostEur
-      );
-
-      setSwitchWithMetrics('heater',
-        data.shellyHeaterStatus,
-        data.shellyHeaterPower,
-        data.shellyHeaterTotalWh,
-        data.shellyHeaterCostEur
-      );
-
-      if (Array.isArray(data.relays)) {
-        updateRelayStates(data.relays);
-     }
 
     } catch (error) {
       console.error('Exception in updateSensorValues():', error?.message || error, error);
