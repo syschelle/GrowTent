@@ -842,11 +842,6 @@ void setup() {
   // Static assets (from PROGMEM)
   server.on("/style.css", []() { server.send_P(200, "text/css", cssContent); });
   server.on("/script.js", []() { server.send_P(200, "application/javascript", jsContent); });
-  // Sensor data API (from cache, not live, to keep it snappy and avoid blocking)
-  server.on("/sensordata", HTTP_GET, []() {
-  String jsonSensorData = buildSensorJsonFromCache();
-  server.send(200, "application/json; charset=utf-8", jsonSensorData);
-  });
 
   // grow diary (LittleFS CSV)
   server.on("/api/diary/add", HTTP_POST, handleDiaryAdd);

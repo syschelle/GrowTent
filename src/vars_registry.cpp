@@ -94,6 +94,10 @@ static String jShellyLine(const ShellyDevice& d) {
 
 // -------------- getters --------------
 
+String g_apiVersion() {
+  return "1";
+}
+
 static String g_uptime() { return jUInt((uint32_t)(millis() / 1000UL)); }
 static String g_heap() { return jUInt((uint32_t)ESP.getFreeHeap()); }
 static String g_minheap() { return jUInt((uint32_t)ESP.getMinFreeHeap()); }
@@ -190,6 +194,9 @@ static String g_sh_pass() { return jMasked(); }
 
 static String g_heating_relay() { return jInt(settings.heating.Relay); }
 
+// Active relay count (4 or 8 depending on config)
+static String g_active_relay_count() { return jInt(activeRelayCount); }
+
 // Relay getters (state + name)
 #define RELAY_GETTERS(i) \
   static String g_relay_state_##i() { return jBool(relayStates[i]); } \
@@ -224,6 +231,7 @@ static String g_relay_schst_7() { return String("null"); }
 static String g_relay_schen_7_end() { return String("null"); }
 
 const VarItem VARS[] = {
+  {"api.version", g_apiVersion, false, "api"},
   {"debug.buildTag", g_buildTag, false, "debug"},
   // --- system ---
   {"sys.uptimeS", g_uptime, false, "system"},
@@ -308,6 +316,8 @@ const VarItem VARS[] = {
 
   // --- heating relay ---
   {"settings.heatingrelay", g_heating_relay, false, "settingsheating"},
+
+  {"settings.active_relay_count", g_active_relay_count, false, "settingsheating"},
 
   // --- relays (names + states + schedule) ---
   {"relays[0].name", g_relay_name_0, false, "relays"},

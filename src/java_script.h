@@ -974,7 +974,7 @@ async function startNewGrow(){
   }
 
   const shellyMap = {
-    mainSwitch: ['shelly-main-switch-state', 'shellyMainInfo', 'settings.shelly.main'],
+    main: ['shelly-main-switch-state', 'shellyMainInfo', 'settings.shelly.main'],
     light: ['shelly-light-switch-state', 'shellyLightInfo', 'settings.shelly.light'],
     heater: ['shelly-heater-switch-state', 'shellyHeaterInfo', 'settings.shelly.heater'],
     humidifier: ['shelly-humidifier-switch-state', 'shellyHumidifierInfo', 'settings.shelly.humidifier'],
@@ -1026,10 +1026,6 @@ async function startNewGrow(){
     for (let i = 0; i < RELAY_COUNT; i++) {
       if (i < relays.length && typeof relays[i] === 'object') {
         relayStates[i] = !!relays[i].state;
-
-        // optional: name update if provided by API (and element exists) 
-        const nameEl = document.getElementById(`relay${i}Name`);
-        if (nameEl) nameEl.textContent = relays[i].name || `Relay ${i+1}`;
       } else {
         relayStates[i] = false;
       }
@@ -1062,14 +1058,12 @@ async function startNewGrow(){
       if (el) el.textContent = value;
     }
 
-    function buildRelayArrayFromApiState(data, maxRelays = 8) {
+    function buildRelayArrayFromApiState(data, maxRelays) {
       const relays = [];
 
       for (let i = 0; i < maxRelays; i++) {
         const stateKey = `relays[${i}].state`;
         const nameKey = `relays[${i}].name`;
-
-        if (!(stateKey in data) && !(nameKey in data)) continue;
 
         relays.push({
           index: i,
@@ -1095,25 +1089,21 @@ async function startNewGrow(){
 
       const data = await response.json();
 
+      const relayCount = Number(data['settings.active_relay_count']) || 4;
+      RELAY_COUNT = relayCount;
+      applyRelayVisibility(relayCount);
+
       if (getActivePageId() !== 'status') return;
 
-      // current sensor values
+      // Sensoren aktuell
       setText('tempSpan', formatNum(data['sensors.cur.temperatureC'], 1));
       setText('ext1TempSpan', formatNum(data['sensors.cur.extTempC'], 1));
       setText('humSpan', formatNum(data['sensors.cur.humidityPct'], 1));
       setText('vpdSpan', formatNum(data['sensors.cur.vpdKpa'], 2));
 
-      // Irrigation
+      // Bewässerung
       setText('irrigationSpan', safeText(data['irrigation.runsLeft'], '0'));
       setText('irTimeLeftSpan', safeText(data['irrigation.timeLeft'], '00:00'));
-
-      // Average values
-      // These keys are not present in your current example.
-      // If you add them later in /api/state, it will work directly.
-      setText('avgTempSpan', formatNum(data['sensors.avg.temperatureC'], 1));
-      setText('avgWaterTempSpan', formatNum(data['sensors.avg.waterTempC'], 1));
-      setText('avgHumSpan', formatNum(data['sensors.avg.humidityPct'], 1));
-      setText('avgVpdSpan', formatNum(data['sensors.avg.vpdKpa'], 2));
 
       // System
       setText('espFreeHeapSpan', safeText(data['sys.freeHeap']));
@@ -1121,7 +1111,7 @@ async function startNewGrow(){
       setText('espCpuMhzSpan', safeText(data['sys.cpuMhz']));
       setText('espUptimeSpan', safeText(data['sys.uptimeS']));
 
-      // Shelly / Relays with metrics
+      // Shelly / Verbraucher
       setSwitchWithMetrics(
         'main',
         data['cur.shelly.main.isOn'],
@@ -1154,21 +1144,9 @@ async function startNewGrow(){
         data['cur.shelly.heater.Cost']
       );
 
-      // If you have a fan or other device, you can add it similarly by following the pattern above and ensuring the keys in /api/state match what you use here.
-      // Just make sure to also add the corresponding HTML elements with the correct IDs for the state and info display.
-      /*
-      setSwitchWithMetrics(
-        'fan',
-        data['cur.shelly.main.isOn'],
-        data['cur.shelly.main.Watt'],
-        data['cur.shelly.main.Wh'],
-        data['cur.shelly.main.Cost']
-      );
-      */
-
       // Relays
-      const relays = buildRelayArrayFromApiState(data, 8);
-      if (relays.length && typeof updateRelayStates === 'function') {
+      const relays = buildRelayArrayFromApiState(data, relayCount);
+      if (typeof updateRelayStates === 'function') {
         updateRelayStates(relays);
       }
 
