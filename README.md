@@ -6,15 +6,24 @@ GrowTent is a compact ESP32-based grow-tent controller that reads temperature, h
 
 ## Features
 
-- Reads temperature, humidity from Adafruit BME280
-- Computes VPD and exposes last measured values to the UI
-- Controls 4 relays (default: left fan, right fan, pod fan, humidifier fan)
-- Web UI with gauges (temperature, humidity, VPD), settings, and factory reset
-- Offline-friendly: supports Access Point (AP) mode for initial setup
-- Internationalized UI (German and English)
-- Stores configuration in Preferences (NVS)
-- NTP support and timezone configuration
-- Automatic periodic sensor sampling (default every 30s)
+- **ESP32 web interface** for live status and configuration
+- **4x or 8x relay board support** (selectable in UI)
+- **Relay scheduling** (minute-based within each hour)
+- **Conditional relay logic** (e.g. run only when light state matches)
+- **Shelly integration** for:
+- Main power
+- Grow light
+- Humidifier
+- Heater
+- **Heater control by temperature**
+- Can use either:
+- ESP relay output
+- Shelly Plug / Shelly heater device
+- **Irrigation support** (pump relays 6/7/8 on 8x boards)
+- **Tank level support** (HC-SR04 style distance sensor)
+- **Built-in log buffer** in web UI
+- **History and averages**
+- **OTA update from GitHub Release binary**
 
 ---
 
@@ -25,17 +34,23 @@ GrowTent is a compact ESP32-based grow-tent controller that reads temperature, h
 - 4x relay channels (driven by ESP32 GPIOs)
 - Power supply appropriate for ESP32 and relays
 
-Default sensor and relay configuration in code:
+### Default sensor and relay configuration in code:
 - BME I2C address: `0x76` (BME_ADDR)
 - DS18B20 sensor pin 4
 - Relay count: `4` (NUM_RELAYS)
-- Relay pins (in order): `{ 32, 33, 25, 26 }`
-- Relay names (default): `"left fan"`, `"right fan"`, `"pod fan"`, `"humidifier fan"`
+- 4x Relay pins (in order): `{ 32, 33, 25, 26 }` 
+- 8x Relay pins (in order): `{32, 33, 25, 26, 27, 14, 12, 13 }`
+- only for 8x Relay board connect Relay 6, 7, 8 to a peristaltic pump for watering the pods
+- Shelly devices (Gen1/Gen2/Gen3 depending on endpoint support)
 
-Wiring notes:
+### Wiring notes:
 - Connect BME280 SDA / SCL to ESP32 SDA / SCL (Wire library pins)
 - Make sure common ground between relays and ESP32
 - Relays are initialized as OUTPUT and driven LOW = OFF by default
+
+### Relay Boards
+- 4-channel relay board
+- 8-channel relay board
 
 ---
 
@@ -52,7 +67,7 @@ Wiring notes:
 - Default units: `metric`
 - Default time format: `24h`
 - Default VPD targets (per phase): `{ 0.0, 0.8, 1.2, 1.4, 1.0 }`
-  - Phase names: `["", "Seedling/Clone", "Vegetative", "Flowering", "Drying"]`
+- Phase names: `["", "Vegetative", "Flowering", "Drying"]`
 
 Preferences keys stored in NVS:
 - `ssid` / `password` (WiFi)
@@ -114,6 +129,29 @@ Values are updated by a background task and stored in:
 - Adafruit Sensor (sensor abstraction)
 
 Make sure to install the Adafruit_BME280 and Adafruit_Sensor libraries before building.
+
+---
+
+## Project Structure
+
+- `src/main.cpp`
+Web routes, setup, loop, task startup
+- `src/function.h`
+Core logic (control, API builders, handlers)
+- `src/runtime.h`
+Preferences load and HTML placeholder rendering
+- `src/java_script.h`
+Frontend behavior (status polling, UI updates)
+- `src/index_html.h`
+Embedded web page template
+- `src/style_css.h`
+Embedded styles
+- `src/task_Check_Sensor.h`
+Sensor/control task
+- `src/task_CheckShellyStatus.h`
+Shelly poll task
+- `src/task_Watering.h`
+Irrigation task
 
 ---
 
