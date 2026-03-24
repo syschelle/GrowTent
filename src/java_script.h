@@ -92,6 +92,11 @@ const char jsContent[] PROGMEM = R"rawliteral(
   },
 
   /* Relay / Irrigation */
+  "status.watering": { de: "Bewässerung", en: "Watering" },
+  "status.wateringLeft": { de: " verbleibend", en: " remaining" },
+  "status.endIn": { de: "Ende in ", en: "End in " },
+  "status.tank": { de: "Tank Füllung", en: "Tank Level" },
+  "status.pingTank": { de: "Ping", en: "Ping" },
   "status.relayControl": { de: "Relais Steuerung", en: "Relay Control" },
   "status.toggleRelay": { de: "umschalten", en: "toggle" },
   "status.toggleRelayLabel": { de: "umschalten", en: "toggle" },
