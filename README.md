@@ -181,7 +181,45 @@ Example (Arduino CLI):
 - WiFi: You can set the device to Station mode or keep it in AP mode for direct connection.
 - NTP and timezone: Set the NTP server and timezone string via the web UI.
 - Relay behavior: By default relays are set LOW at startup. Update logic in code to change behavior.
-- VPD targets per growth phase are defined in `config.h` and can be tuned to your needs.
+
+---
+
+## API Endpoints (Connectors)
+
+### Core
+- `GET /api/state`
+Unified state payload for frontend and external integrations (recommended primary endpoint).
+
+### Control
+- `POST /relay/{1..5}/toggle`
+- `POST /pump/6/triggerPump10s`
+- `POST /pump/7/triggerPump10s`
+- `POST /pump/8/triggerPump10s`
+- `POST /startWatering`
+- `POST /pingTank`
+
+### Shelly
+- `POST /shelly/main/toggle`
+- `POST /shelly/light/toggle`
+- `POST /shelly/humidifier/toggle`
+- `POST /shelly/heater/toggle`
+- `POST /api/shelly/reset-energy`
+
+### Scheduling / Settings
+- `POST /api/relay/schedule/save-all`
+- `POST /savesettings`
+- `POST /saverunsettings`
+- `POST /saveshellysettings`
+- `POST /savemessagesettings`
+
+### Logs
+- `GET /api/logbuffer`
+- `POST /api/logbuffer/clear`
+- `GET /log`
+
+### OTA
+- `POST /api/ota/update`
+Triggers OTA update from the configured firmware URL.
 
 ---
 
