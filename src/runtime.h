@@ -73,7 +73,7 @@ void handleRoot() {
     html = FPSTR(apPage);
     // Replace placeholders in index_html.h
     //html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
-    html.replace("%CONTROLLERNAME%",  settings.ui.boxName);
+    html.replace("%CONTROLLERNAME%", settings.ui.boxName);
     } else {
     html = FPSTR(htmlPage);
 
@@ -129,6 +129,8 @@ void handleRoot() {
       html.replace("%CURRENTPHASE%", "");
     }
 
+    html.replace("%CONTROLLERNAME%", settings.ui.boxName);
+
     // Replace placeholders in index_html.h
     html.replace("%TARGETTEMPERATURE%", String(settings.grow.targetTemperature, 1));
     html.replace("%LIGHTONTIME%", lightOnTime);
@@ -181,7 +183,6 @@ void handleRoot() {
 
     html.replace("%DBG_CHECKED%", debugLog ? "checked" : "");
 
-    html.replace("%CONTROLLERNAME%", boxName);
     html.replace("%GROWSTARTDATE%", String(startDate));
     html.replace("%GROWFLOWERDATE%", String(startFlowering));
     html.replace("%GROWDRAYINGDATE%", String(startDrying));
