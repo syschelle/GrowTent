@@ -83,6 +83,10 @@ struct GrowGroup {
   String startDate;
   String startFlowering;
   String startDrying;
+  int currentGrowDay = 0;
+  int currentGrowWeek = 0;
+  int currentPhaseDay = 0;
+  int currentPhaseWeek = 0;
 
   int currentPhase = 1;
 
@@ -98,7 +102,6 @@ struct UIGroup {
   String boxName = "newGrowTent";
   String ntpServer = "pool.ntp.org";
   String tzInfo = "Europe/Berlin";
-
   String language = "de";
   String theme = "light";
   String unit = "metric";

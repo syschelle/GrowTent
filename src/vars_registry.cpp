@@ -127,6 +127,10 @@ static String g_ui_ntp() { return jStr(settings.ui.ntpServer); }
 static String g_ui_tz() { return jStr(settings.ui.tzInfo); }
 
 static String g_grow_phase() { return jInt(settings.grow.currentPhase); }
+static String g_grow_currentGrowDay() { return jInt(settings.grow.currentGrowDay); }
+static String g_grow_currentGrowWeek() { return jInt(settings.grow.currentGrowWeek); }
+static String g_grow_currentPhaseDay() { return jInt(settings.grow.currentPhaseDay); }
+static String g_grow_currentPhaseWeek() { return jInt(settings.grow.currentPhaseWeek); }
 static String g_grow_tTemp() { return jNumOrNull(settings.grow.targetTemperature, 1); }
 static String g_grow_leafOff() { return jNumOrNull(settings.grow.offsetLeafTemperature, 1); }
 static String g_grow_tVpd() { return jNumOrNull(settings.grow.targetVPD, 2); }
@@ -261,6 +265,10 @@ const VarItem VARS[] = {
 
   // --- settings.grow ---
   {"settings.grow.currentPhase", g_grow_phase, false, "settings.grow"},
+  {"settings.grow.currentGrowDay", g_grow_currentGrowDay, false, "settings.grow"},
+  {"settings.grow.currentGrowWeek", g_grow_currentGrowWeek, false, "settings.grow"},
+  {"settings.grow.currentPhaseDay", g_grow_currentPhaseDay, false, "settings.grow"},
+  {"settings.grow.currentPhaseWeek", g_grow_currentPhaseWeek, false, "settings.grow"},
   {"settings.grow.targetTemperature", g_grow_tTemp, false, "settings.grow"},
   {"settings.grow.offsetLeafTemperature", g_grow_leafOff, false, "settings.grow"},
   {"settings.grow.targetVPD", g_grow_tVpd, false, "settings.grow"},

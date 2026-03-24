@@ -80,9 +80,9 @@ void handleRoot() {
     if (startDate != "") {
       int daysSinceStartInt = 0;
       int weeksSinceStartInt = 0;
-      calculateTimeSince(startDate, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
+      calculateTimeSince(startDate, settings.grow.currentGrowDay, settings.grow.currentGrowWeek);
+      String days = String(settings.grow.currentGrowDay);
+      String weeks = String(settings.grow.currentGrowWeek);
       if (language == "de") {
         html.replace("%CURRENTGROW%", "Grow seit: Tag " + days + " / Woche " + weeks);
       } else {
@@ -95,9 +95,9 @@ void handleRoot() {
     if (curPhase == 1) {
       int daysSinceStartInt = 0;
       int weeksSinceStartInt = 0;
-      calculateTimeSince(startDate, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
+      calculateTimeSince(startDate, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
+      String days = String(settings.grow.currentPhaseDay);
+      String weeks = String(settings.grow.currentPhaseWeek);
       if (language == "de") {
         html.replace("%CURRENTPHASE%", "<font color=\"lightgreen\">Wachstum: Tag " + days + " / Woche " + weeks + "</font>");
       } else {
@@ -106,9 +106,9 @@ void handleRoot() {
     } else if (curPhase == 2) {
       int daysSinceStartInt = 0;
       int weeksSinceStartInt = 0;
-      calculateTimeSince(startFlowering, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
+      calculateTimeSince(startFlowering, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
+      String days = String(settings.grow.currentPhaseDay);
+      String weeks = String(settings.grow.currentPhaseWeek);
       if (language == "de") {
         html.replace("%CURRENTPHASE%", "<font color=\"#ff9900\">Blüte: Tag " + days + " / Woche " + weeks + "</font>");
       } else {
@@ -117,9 +117,9 @@ void handleRoot() {
     } else if (curPhase == 3) {
       int daysSinceStartInt = 0;
       int weeksSinceStartInt = 0;
-      calculateTimeSince(startDrying, daysSinceStartInt, weeksSinceStartInt);
-      String days = String(daysSinceStartInt);
-      String weeks = String(weeksSinceStartInt);
+      calculateTimeSince(startDrying, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
+      String days = String(settings.grow.currentPhaseDay);
+      String weeks = String(settings.grow.currentPhaseWeek);
       if (language == "de") {
         html.replace("%CURRENTPHASE%", "<font color=\"lightblue\">Trocknung: Tage " + days + " / Woche " + weeks + "</font>");
       } else {

@@ -229,4 +229,3 @@ int daysSinceStart = 0, weeksSinceStart = 0;
 int daysSinceFlowering = 0, weeksSinceFlowering = 0;
 int daysSinceDrying = 0, weeksSinceDrying = 0;
 const char* phaseNames[3] = { "Vegetative", "Flowering", "Drying" };
-
