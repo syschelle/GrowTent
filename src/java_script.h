@@ -533,7 +533,9 @@ window.toggleShellyRelay = async function(device) {
       ? '/shelly/humidifier/toggle'
       : (device === 'light')
         ? '/shelly/light/toggle'
-        : null;
+          : (device === 'fan')
+            ? '/shelly/fan/toggle'
+            : null;
 
   if (!url) {
     console.error('[SHELLY][JS] Unknown device:', device);
@@ -1149,6 +1151,14 @@ async function startNewGrow(){
         data['cur.shelly.heater.Cost']
       );
 
+      setSwitchWithMetrics(
+        'fan',
+        data['cur.shelly.fan.isOn'],
+        data['cur.shelly.fan.Watt'],
+        data['cur.shelly.fan.Wh'],
+        data['cur.shelly.fan.Cost']
+      );
+
       // Relays
       const relays = buildRelayArrayFromApiState(data, relayCount);
       if (typeof updateRelayStates === 'function') {
@@ -1298,7 +1308,7 @@ async function startNewGrow(){
     }
   }
 
-  // SPA-Seitenwechsel-Callback
+  // SPA navigation handler: called when switching pages via sidebar links
   function onPageChanged(activeId) {
     // Status page has lots of grid cards; keep sensor polling fast there,
     // slow down elsewhere to reduce layout work.
@@ -1798,7 +1808,8 @@ function updateShellyInfoLinesFromState(s){
       { ids: ['shellyMainInfo'],                         key: 'main'  },
       { ids: ['shellyLightInfo'],                        key: 'light' },
       { ids: ['shellyHumidifierInfo'],                   key: 'humidifier' },
-      { ids: ['shellyHeaterInfo'],                       key: 'heater' }
+      { ids: ['shellyHeaterInfo'],                       key: 'heater' },
+      { ids: ['shellyFanInfo'],                          key: 'fan' }
     ];
 
     for (const it of map) {
