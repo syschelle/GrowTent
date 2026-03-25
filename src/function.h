@@ -604,6 +604,17 @@ void handleSaveShellySettings() {
         "Heater Gen"
     );
 
+    saveShellyDevice(
+        settings.shelly.fan.ip,
+        settings.shelly.fan.gen,
+        "webShellyFanIP",
+        KEY_SHELLYFANIP,
+        "Fan IP",
+        "webShellyFanGen",
+        KEY_SHELLYFANGEN,
+        "Fan Gen"
+    );
+
     // Other settings
     saveGrowLightSettings();
     saveAuthSettings();

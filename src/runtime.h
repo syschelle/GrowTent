@@ -338,6 +338,9 @@ void readPreferences() {
   loadPrefString(KEY_SHELLYHEATERIP, settings.shelly.heater.ip, "", true, "Shelly Heater IP");
   loadPrefInt(KEY_SHELLYHEATERGEN, settings.shelly.heater.gen, 0, true, "Shelly Heater Generation");
   loadPrefFloat(KEY_SHELLYHEATEROFF, settings.shelly.heater.energyOffsetWh, 0.0f, true, "Shelly Heater Energy Offset");
+  loadPrefString(KEY_SHELLYFANIP, settings.shelly.fan.ip, "", true, "Shelly Fan IP");
+  loadPrefInt(KEY_SHELLYFANGEN, settings.shelly.fan.gen, 0, true, "Shelly Fan Generation");
+  loadPrefFloat(KEY_SHELLYFANOFF, settings.shelly.fan.energyOffsetWh, 0.0f, true, "Shelly Fan Energy Offset");
 
   // Shelly credentials (optional Basic Auth)
   loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");

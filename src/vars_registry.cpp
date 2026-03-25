@@ -192,6 +192,16 @@ static String g_sh_heater_isOn() { return jBool(shelly.heater.values.isOn); }
 static String g_sh_heater_Watt() { return jNumOrNull(shelly.heater.values.powerW, 1); }
 static String g_sh_heater_Wh() { return jNumOrNull(shelly.heater.values.energyWh, 1); }
 static String g_sh_heater_Cost() { return jNumOrNull((shelly.heater.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+// For the fan we also don't have schedule info, so we show generation + IP in one line
+static String g_sh_fan_ip() { return jStr(settings.shelly.fan.ip); }
+static String g_sh_fan_gen() { return jInt(settings.shelly.fan.gen); }
+static String g_sh_fan_on()  { return String("null"); }
+static String g_sh_fan_off() { return String("null"); }
+static String g_sh_fan_line(){ return jShellyLine(settings.shelly.fan); }
+static String g_sh_fan_isOn() { return jBool(shelly.fan.values.isOn); }
+static String g_sh_fan_Watt() { return jNumOrNull(shelly.fan.values.powerW, 1); }
+static String g_sh_fan_Wh() { return jNumOrNull(shelly.fan.values.energyWh, 1); }
+static String g_sh_fan_Cost() { return jNumOrNull((shelly.fan.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
 // For username/password we always return masked value
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
@@ -319,6 +329,15 @@ const VarItem VARS[] = {
   {"cur.shelly.heater.Watt", g_sh_heater_Watt, false, "settings.shelly"},
   {"cur.shelly.heater.Wh", g_sh_heater_Wh, false, "settings.shelly"},
   {"cur.shelly.heater.Cost", g_sh_heater_Cost, false, "settings.shelly"},
+  {"settings.shelly.fan.ip", g_sh_fan_ip, false, "settings.shelly"},
+  {"settings.shelly.fan.gen", g_sh_fan_gen, false, "settings.shelly"},
+  {"settings.shelly.fan.on",  g_sh_fan_on,  false, "settings.shelly"},
+  {"settings.shelly.fan.off", g_sh_fan_off, false, "settings.shelly"},
+  {"settings.shelly.fan.line", g_sh_fan_line, false, "settings.shelly"},
+  {"cur.shelly.fan.isOn", g_sh_fan_isOn, false, "settings.shelly"},
+  {"cur.shelly.fan.Watt", g_sh_fan_Watt, false, "settings.shelly"},
+  {"cur.shelly.fan.Wh", g_sh_fan_Wh, false, "settings.shelly"},
+  {"cur.shelly.fan.Cost", g_sh_fan_Cost, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 
