@@ -111,6 +111,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "shelly.shellyIPLight": { de: "Shelly IP Adresse für Pflanzlicht:", en: "Shelly IP address for grow light:" },
   "status.shellyHumidifier": { de: "Luftbefeuchter", en: "Humidifier" },
   "shelly.shellyIPHumidifier": { de: "Shelly IP Adresse für Luftbefeuchter:", en: "Shelly IP address for humidifier:" },
+  "status.shellyHeater": { de: "Heizung", en: "Heater" },
+  "shelly.shellyIPHeater": { de: "Shelly IP Adresse für Heizgerät:", en: "Shelly IP address for heater:" },
   "status.shellyFan": { de: "Ventilator", en: "Fan" },
   "shelly.shellyIPFan": { de: "Shelly IP Adresse für Ventilator:", en: "Shelly IP address for fan:" },
   "status.shellyLight": { de: "Pflanzlicht", en: "Grow Light" },

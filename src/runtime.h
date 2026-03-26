@@ -218,6 +218,11 @@ void handleRoot() {
     html.replace("%SHHEATERKIND2%", settings.shelly.heater.gen == 2 ? "selected" : "");
     html.replace("%SHHEATERKIND3%", settings.shelly.heater.gen == 3 ? "selected" : "");
 
+    html.replace("%SHELLYFANIP%", settings.shelly.fan.ip);
+    html.replace("%SHFANKIND1%", settings.shelly.fan.gen == 1 ? "selected" : "");
+    html.replace("%SHFANKIND2%", settings.shelly.fan.gen == 2 ? "selected" : "");
+    html.replace("%SHFANKIND3%", settings.shelly.fan.gen == 3 ? "selected" : "");
+
     html.replace("%POWERPRICEKWH%", String(powerPriceKwhEur, 2));
 
     html.replace("%SHUSER%", settings.shelly.username);

@@ -109,6 +109,7 @@ static String g_ssid() { return jStr(ssidName); }
 
 static String g_temp() { return jNumOrNull(cur.temperatureC, 1); }
 static String g_hum() { return jNumOrNull(cur.humidityPct, 1); }
+static String g_extName() { return jStr(DS18B20Name); }
 static String g_extTemp() { return jNumOrNull(cur.extTempC, 1); }
 static String g_vpd() { return jNumOrNull(cur.vpdKpa, 2); }
 
@@ -261,6 +262,7 @@ const VarItem VARS[] = {
   // --- sensors ---
   {"sensors.cur.temperatureC", g_temp, false, "sensors"},
   {"sensors.cur.humidityPct", g_hum, false, "sensors"},
+  {"sensors.cur.ds18b20Name", g_extName, false, "sensors"},
   {"sensors.cur.extTempC", g_extTemp, false, "sensors"},
   {"sensors.cur.vpdKpa", g_vpd, false, "sensors"},
 
