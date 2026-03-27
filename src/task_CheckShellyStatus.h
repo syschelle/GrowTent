@@ -13,10 +13,14 @@ void taskShellyStatus(void *parameter){
   static ShellyValues lastGoodLight;
   static ShellyValues lastGoodHumidifier;
   static ShellyValues lastGoodHeater;
+  static ShellyValues lastGoodFan;
+  static ShellyValues lastGoodExhaust;
   static bool haveMainGood = false;
   static bool haveLightGood = false;
   static bool haveHumidifierGood = false;
   static bool haveHeaterGood = false;
+  static bool haveFanGood = false;
+  static bool haveExhaustGood = false;
 
   for (;;) {
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
@@ -81,6 +85,25 @@ void taskShellyStatus(void *parameter){
     } else if (haveHeaterGood) {
       shelly.heater.values = lastGoodHeater;
     }
+
+    ShellyValues fanNow = getShellyValues(settings.shelly.fan, 0);
+    if (fanNow.ok) {
+      shelly.fan.values = fanNow;
+      lastGoodFan = fanNow;
+      haveFanGood = true;
+    } else if (haveFanGood) {
+      shelly.fan.values = lastGoodFan;
+    }
+
+    ShellyValues exhaustNow = getShellyValues(settings.shelly.exhaust, 0);
+    if (exhaustNow.ok) {
+      shelly.exhaust.values = exhaustNow;
+      lastGoodExhaust = exhaustNow;
+      haveExhaustGood = true;
+    } else if (haveExhaustGood) {
+      shelly.exhaust.values = lastGoodExhaust;
+    }
+
 
     // task delay 10 seconds
     vTaskDelay(pdMS_TO_TICKS(10000)); 

@@ -2478,6 +2478,8 @@ static void handleResetShellyEnergy() {
     const bool lightResetOk = resetOne(settings.shelly.light, KEY_SHELLYLIGHTOFF);
     const bool humidifierResetOk = resetOne(settings.shelly.humidifier, KEY_SHELLYHUMOFF);
     const bool heaterResetOk = resetOne(settings.shelly.heater, KEY_SHELLYHEATEROFF);
+    const bool fanResetOk = resetOne(settings.shelly.fan, KEY_SHELLYFANOFF);
+    const bool exhaustResetOk = resetOne(settings.shelly.exhaust, KEY_SHELLYEXHAUSTOFF);
 
     preferences.end();
 

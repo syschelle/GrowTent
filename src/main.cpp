@@ -946,6 +946,22 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  server.on("/shelly/exhaust/toggle", HTTP_POST, []() {
+    bool ok = false;
+    bool newState = false;
+
+    ShellyValues v = getShellyValues(settings.shelly.exhaust, 0);
+    if (v.ok) {
+      newState = !v.isOn;
+      ok = shellySwitchSet(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen, newState, 0, 80);
+    }
+
+    String resp = String("{\"ok\":") + (ok ? "true" : "false") +
+                  String(",\"isOn\":") + (newState ? "true" : "false") + "}";
+
+    server.send(ok ? 200 : 500, "application/json", resp);
+  });
+
   server.on("/startWatering", HTTP_POST, handleStartWatering);
   server.on("/pingTank", HTTP_POST, readTankLevel);
 

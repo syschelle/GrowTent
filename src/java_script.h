@@ -2091,7 +2091,7 @@ window.resetShellyEnergy = async function (buttonEl) {
     }
 
     try {
-        const res = await fetch('/reset-shelly-energy', { method: 'POST' });
+        const res = await fetch('/api/shelly/reset-energy', { method: 'POST' });
 
         if (!res.ok) {
             window.showToast("Failed to reset Shelly energy.", "error");

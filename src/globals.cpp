@@ -64,6 +64,10 @@ const char* KEY_SHELLYHEATEROFF = "shHeaterOff";
 const char* KEY_SHELLYFANIP = "shFanIP";
 const char* KEY_SHELLYFANGEN = "shFanGen";
 const char* KEY_SHELLYFANOFF = "shFanOff";
+const char* KEY_SHELLYEXHAUSTIP = "shExhaustIP";
+const char* KEY_SHELLYEXHAUSTGEN = "shExhaustGen";
+const char* KEY_SHELLYEXHAUSTOFF = "shExhaustOff";
+
 
 const char* KEY_SHELLYUSERNAME = "shUser";
 const char* KEY_SHELLYPASSWORD = "shPass";
