@@ -199,6 +199,10 @@ struct AvgAccumulator {
 extern const char* KEY_DEBUG_ENABLED;
 extern bool debugLog;
 
+// request restart (handled in loop)
+extern volatile bool g_restartRequested;
+extern volatile uint32_t g_restartAtMs;
+
 // Logging
 extern const size_t LOG_MAX_LINES;
 

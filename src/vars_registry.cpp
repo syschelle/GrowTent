@@ -151,6 +151,8 @@ static String g_irrigation_amount() { return jNumOrNull(irrigation.amountOfWater
 static String g_irrigation_time_per_task() { return jInt(irrigation.timePerTask); }
 static String g_irrigation_between_tasks() { return jInt(irrigation.betweenTasks); }
 static String g_irrigation_amount_total() { return jNumOrNull(irrigation.irrigationAmount, 1); }
+static String g_irrigation_tankLevelCM() { return isfinite(tankLevelCm) ? jNumOrNull(tankLevelCm, 1) : "null"; }
+static String g_irrigation_tankLevelPercent() { return isfinite(tankLevel) ? jNumOrNull(tankLevel, 1) : "null"; }
 
 // Shelly settings
 // For the main device we also show schedule & generation in one line
@@ -414,6 +416,8 @@ const VarItem VARS[] = {
   {"irrigation.timePerTask", g_irrigation_time_per_task, false, "irrigation"},
   {"irrigation.betweenTasks", g_irrigation_between_tasks, false, "irrigation"},
   {"irrigation.amountTotal", g_irrigation_amount_total, false, "irrigation"},
+  {"irrigation.tankLevelCm", g_irrigation_tankLevelCM, false, "irrigation"},
+  {"irrigation.tankLevelPercent", g_irrigation_tankLevelPercent, false, "irrigation"},
 };
 
 const size_t VARS_COUNT = sizeof(VARS) / sizeof(VARS[0]);

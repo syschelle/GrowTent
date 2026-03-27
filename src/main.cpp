@@ -1008,4 +1008,10 @@ void loop() {
 
   dailyNtpTrigger();
   ntpSyncTick();
+
+  if (g_restartRequested && (int32_t)(millis() - g_restartAtMs) >= 0) {
+    g_restartRequested = false;
+    ESP.restart();
+  }
+
 }

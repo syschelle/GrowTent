@@ -86,6 +86,12 @@ void logPrint(const String& msg) {
   }
 }
 
+static void requestSafeRestart(uint32_t delayMs = 1500) {
+  g_restartRequested = true;
+  g_restartAtMs = millis() + delayMs;
+}
+
+
 bool checkFS() {
   // Info abfragen (geht nur wenn gemountet)
   size_t total = LittleFS.totalBytes();
@@ -357,6 +363,9 @@ void handleSaveRunsettings() {
   savePrefFloat("webTargetTemp", KEY_TARGETTEMP, settings.grow.targetTemperature, true, "Target Temperature");
   savePrefFloat("webTargetVPD", KEY_TARGETVPD, settings.grow.targetVPD, true, "Target VPD");
   savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, true, "Leaf Temperature Offset");
+  savePrefFloat("webMinTank", KEY_MINTANK, irrigation.tank.min, true, "Tank Min Level (cm)");
+  savePrefFloat("webMaxTank", KEY_MAXTANK, irrigation.tank.max, true, "Tank Max Level (cm)");
+
 
   savePrefInt("webHeatingSource", KEY_HEATING_SOURCE, settings.heating.sourceType, true, "Heating Source");
   savePrefInt("webHeatingRelay", KEY_HEATING_RELAY, settings.heating.Relay, true, "Heating Relay");
@@ -706,9 +715,8 @@ void handleSaveSettings() {
 
   // 11) Send redirect response and restart the ESP
   server.sendHeader("Location", "/");
-  server.send(303);  // HTTP redirect to status page
-  delay(250);
-  ESP.restart();
+  server.send(303);
+  requestSafeRestart(1500);
 }
 
 void handleSaveMessageSettings() {
@@ -777,8 +785,7 @@ void handleSaveWiFi() {
     preferences.end();
 
     server.send(200, "text/html", "<h1>Saved! Restarting...</h1>");
-    delay(2000);
-    ESP.restart();
+    requestSafeRestart(2000);
   } else {
     server.send(400, "text/plain", "Missing data");
   }
@@ -811,9 +818,8 @@ void handleFactoryReset() {
   preferences.clear();  // Deletes all keys in the namespace"
   preferences.end();
 
-  server.send(200, "text/html", "<h1>Factory reset performed. Restarting...</h1>");
-  delay(2000);
-  ESP.restart();
+  server.send(200, "text/html", "<h1>Saved! Restarting...</h1>");
+  requestSafeRestart(2000);
 }
 
 // initial NTP sync (called at boot)
@@ -2688,8 +2694,8 @@ void readTankLevel() {
     logPrint("[TANK LEVEL] Current distance to water: " + String(tankLevelCm, 0) + " cm");
     server.sendHeader("Location", "/");
     server.send(303);
-    if (maxTank == 0 || maxTank == minTank) return;
-    tankLevel = calculateTankPercent(tankLevelCm, minTank, maxTank);
+    if (irrigation.tank.max == 0 || irrigation.tank.max == irrigation.tank.min) return;
+    tankLevel = calculateTankPercent(tankLevelCm, irrigation.tank.min, irrigation.tank.max);
     logPrint("[TANK LEVEL] Current tank level: " + String(tankLevel) + " %");
   } else {
     logPrint("[TANK LEVEL] Error reading tank level.");

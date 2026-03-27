@@ -6,6 +6,10 @@ Settings settings;
 // Logging
 const size_t LOG_MAX_LINES = 50;
 
+// rquest restart (handled in loop)
+volatile bool g_restartRequested = false;
+volatile uint32_t g_restartAtMs = 0;
+
 // WiFi/AP
 const char* KEY_APSSID = "new growtent";
 const char* KEY_APPASSWORD = "GT-12$34";
@@ -146,8 +150,8 @@ float minTank = 0.0f;
 float maxTank = 0.0f;
 float tankLevelCm = NAN;
 
-const uint8_t TRIG = 18; // adjust pins to your wiring
-const uint8_t ECHO = 19; // adjust pins to your wiring
+const uint8_t TRIG = 16; // adjust pins to your wiring
+const uint8_t ECHO = 17; // adjust pins to your wiring
 
 // Grow / phase globals (legacy)
 String startDate = "";

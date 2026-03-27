@@ -1120,6 +1120,10 @@ async function startNewGrow(){
       setText('irrigationSpan', safeText(data['irrigation.runsLeft'], '0'));
       setText('irTimeLeftSpan', safeText(data['irrigation.timeLeft'], '00:00'));
 
+      const tankCm = data['irrigation.tankLevelCm'] ?? data['tankLevelCm'];
+      setText('tankCMDistanceSpan', formatNum(tankCm, 1, '–'));
+      setText('tankLevelSpan', formatNum(data['irrigation.tankLevelPercent'], 0, '–'));
+
       // System
       setText('espFreeHeapSpan', safeText(data['sys.freeHeap']));
       setText('espMinFreeHeapSpan', safeText(data['sys.minFreeHeap']));
@@ -2113,6 +2117,17 @@ function startWatering() {
     })
     .catch(err => {
       console.error('start watering failed:', err);
+    });
+}
+
+// ---------- ping tank level ----------
+function pingTank() {
+  fetch('/pingTank', { method: 'POST' })
+    .then(() => {
+      console.log('Tank level pinged');
+    })
+    .catch(err => {
+      console.error('ping tank failed:', err);
     });
 }
 
