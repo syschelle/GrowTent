@@ -615,6 +615,17 @@ void handleSaveShellySettings() {
         "Fan Gen"
     );
 
+    saveShellyDevice(
+        settings.shelly.exhaust.ip,
+        settings.shelly.exhaust.gen,
+        "webShellyExhaustIP",
+        KEY_SHELLYEXHAUSTIP,
+        "Exhaust IP",
+        "webShellyExhaustGen",
+        KEY_SHELLYEXHAUSTGEN,
+        "Exhaust Gen"
+    );
+
     // Other settings
     saveGrowLightSettings();
     saveAuthSettings();

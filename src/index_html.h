@@ -271,6 +271,12 @@ const char* htmlPage = R"rawliteral(
         <div class="info" id="shellyFanInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('fan')">Toggle</button>
       </div>
+      <div class="relay-card" data-relay="shellyExhaust">
+        <div class="relay-title" data-i18n="status.shellyExhaust">Abluft</div>
+        <div id="shelly-exhaust-switch-state" class="shelly-status shelly-off"></div>
+        <div class="info" id="shellyExhaustInfo">—</div>
+        <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('exhaust')">Toggle</button>
+      </div>
     </div>
     
     </section>
@@ -390,6 +396,18 @@ const char* htmlPage = R"rawliteral(
             <option value="1" %SHFANKIND1%>Gen1</option>
             <option value="2" %SHFANKIND2%>Gen2</option>
             <option value="3" %SHFANKIND3%>Gen3</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="shellyIP" data-i18n="shelly.shellyExhaust">Shelly IP Adresse für Abluft:</label>
+        <div class="twoinone-label">
+          <input name="webShellyExhaustIP" id="shellyExhaustIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYEXHAUSTIP%">
+          <select name="webShellyExhaustGen" id="shellyExhaustGen" class="control-sm shelly-other">
+            <option value="1" %SHEXHAUSTKIND1%>Gen1</option>
+            <option value="2" %SHEXHAUSTKIND2%>Gen2</option>
+            <option value="3" %SHEXHAUSTKIND3%>Gen3</option>
           </select>
         </div>
       </div>

@@ -116,6 +116,9 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "status.shellyFan": { de: "Ventilator", en: "Fan" },
   "shelly.shellyIPFan": { de: "Shelly IP Adresse für Ventilator:", en: "Shelly IP address for fan:" },
   "status.shellyLight": { de: "Pflanzlicht", en: "Grow Light" },
+  "shelly.shellyIPExhaust": { de: "Shelly IP Adresse für Abluft:", en: "Shelly IP address for exhaust:" },
+  "status.shellyExhaust": { de: "Abluft", en: "Exhaust" },
+  
   "status.shellyAuth": { de: "Authentifizierung", en: "Authentication" },
   "status.shellyDevices": { de: "Shelly Geräte", en: "Shelly Devices" },
 
@@ -535,8 +538,10 @@ window.toggleShellyRelay = async function(device) {
       ? '/shelly/humidifier/toggle'
       : (device === 'light')
         ? '/shelly/light/toggle'
-          : (device === 'fan')
-            ? '/shelly/fan/toggle'
+        : (device === 'fan')
+          ? '/shelly/fan/toggle'
+          : (device === 'exhaust')
+            ? '/shelly/exhaust/toggle'
             : null;
 
   if (!url) {
@@ -987,7 +992,8 @@ async function startNewGrow(){
     light: ['shelly-light-switch-state', 'shellyLightInfo', 'settings.shelly.light'],
     heater: ['shelly-heater-switch-state', 'shellyHeaterInfo', 'settings.shelly.heater'],
     humidifier: ['shelly-humidifier-switch-state', 'shellyHumidifierInfo', 'settings.shelly.humidifier'],
-    fan: ['shelly-fan-switch-state', 'shellyFanInfo', 'settings.shelly.fan']
+    fan: ['shelly-fan-switch-state', 'shellyFanInfo', 'settings.shelly.fan'],
+    exhaust: ['shelly-exhaust-switch-state', 'shellyExhaustInfo', 'settings.shelly.exhaust']
   };
 
   function fmtNum(value, digits, unit) {
@@ -1159,6 +1165,14 @@ async function startNewGrow(){
         data['cur.shelly.fan.Watt'],
         data['cur.shelly.fan.Wh'],
         data['cur.shelly.fan.Cost']
+      );
+
+      setSwitchWithMetrics(
+        'exhaust',
+        data['cur.shelly.exhaust.isOn'],
+        data['cur.shelly.exhaust.Watt'],
+        data['cur.shelly.exhaust.Wh'],
+        data['cur.shelly.exhaust.Cost']
       );
 
       // Relays
@@ -1811,7 +1825,8 @@ function updateShellyInfoLinesFromState(s){
       { ids: ['shellyLightInfo'],                        key: 'light' },
       { ids: ['shellyHumidifierInfo'],                   key: 'humidifier' },
       { ids: ['shellyHeaterInfo'],                       key: 'heater' },
-      { ids: ['shellyFanInfo'],                          key: 'fan' }
+      { ids: ['shellyFanInfo'],                          key: 'fan' },
+      { ids: ['shellyExhaustInfo'],                      key: 'exhaust' }
     ];
 
     for (const it of map) {

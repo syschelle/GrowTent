@@ -203,6 +203,16 @@ static String g_sh_fan_isOn() { return jBool(shelly.fan.values.isOn); }
 static String g_sh_fan_Watt() { return jNumOrNull(shelly.fan.values.powerW, 1); }
 static String g_sh_fan_Wh() { return jNumOrNull(shelly.fan.values.energyWh, 1); }
 static String g_sh_fan_Cost() { return jNumOrNull((shelly.fan.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+// For the exhaust we also don't have schedule info, so we show generation + IP in one line
+static String g_sh_exhaust_ip() { return jStr(settings.shelly.exhaust.ip); }
+static String g_sh_exhaust_gen() { return jInt(settings.shelly.exhaust.gen); }
+static String g_sh_exhaust_on()  { return String("null"); }
+static String g_sh_exhaust_off() { return String("null"); }
+static String g_sh_exhaust_line(){ return jShellyLine(settings.shelly.exhaust); }
+static String g_sh_exhaust_isOn() { return jBool(shelly.exhaust.values.isOn); }
+static String g_sh_exhaust_Watt() { return jNumOrNull(shelly.exhaust.values.powerW, 1); }
+static String g_sh_exhaust_Wh() { return jNumOrNull(shelly.exhaust.values.energyWh, 1); }
+static String g_sh_exhaust_Cost() { return jNumOrNull((shelly.exhaust.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
 // For username/password we always return masked value
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
@@ -340,6 +350,15 @@ const VarItem VARS[] = {
   {"cur.shelly.fan.Watt", g_sh_fan_Watt, false, "settings.shelly"},
   {"cur.shelly.fan.Wh", g_sh_fan_Wh, false, "settings.shelly"},
   {"cur.shelly.fan.Cost", g_sh_fan_Cost, false, "settings.shelly"},
+  {"settings.shelly.exhaust.ip", g_sh_exhaust_ip, false, "settings.shelly"},
+  {"settings.shelly.exhaust.gen", g_sh_exhaust_gen, false, "settings.shelly"},
+  {"settings.shelly.exhaust.on",  g_sh_exhaust_on,  false, "settings.shelly"},
+  {"settings.shelly.exhaust.off", g_sh_exhaust_off, false, "settings.shelly"},
+  {"settings.shelly.exhaust.line", g_sh_exhaust_line, false, "settings.shelly"},
+  {"cur.shelly.exhaust.isOn", g_sh_exhaust_isOn, false, "settings.shelly"},
+  {"cur.shelly.exhaust.Watt", g_sh_exhaust_Watt, false, "settings.shelly"},
+  {"cur.shelly.exhaust.Wh", g_sh_exhaust_Wh, false, "settings.shelly"},
+  {"cur.shelly.exhaust.Cost", g_sh_exhaust_Cost, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 
