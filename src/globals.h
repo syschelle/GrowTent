@@ -145,6 +145,7 @@ struct Irrigation {
   int timePerTask = 0;
   int betweenTasks = 0;
   float amountOfWater = 0.0f;
+  float tankLevelPercent = 0.0f;
   String wTimeLeft = "00:00";
   Tank tank;
 };

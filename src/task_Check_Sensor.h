@@ -24,6 +24,8 @@ void taskCheckBMESensor(void *parameter) {
   static uint32_t lastHistoryStoreMs = 0;
   static bool firstHistoryPoint = true;
   static uint32_t lastLogMs = 0;
+  static uint32_t lastTankPingMs = 0;
+  const uint32_t tankPingIntervalMs = 2UL * 60UL * 60UL * 1000UL; // 2h
 
   for (;;) {
     // --- stack watermark logging (debug) ---
@@ -63,6 +65,19 @@ void taskCheckBMESensor(void *parameter) {
       controlHeaterByTemperature();
       controlHumidifierByVPD();
       applyRelaySchedules();
+
+      // Tank auto-ping (8x only):
+      // - immediate ping after boot / missing initial value
+      // - then every 2 hours
+      if (activeRelayCount == 8) {
+        float cm = pingTankLevel(TRIG, ECHO);
+        if (cm >= 0.0f) {
+          tankLevelCm = cm;
+          if (maxTank != 0 && maxTank != minTank) {
+            irrigation.tankLevelPercent = calculateTankPercent(tankLevelCm, minTank, maxTank);
+          }
+        }
+      }
     }
 
     // task delay 10 seconds
