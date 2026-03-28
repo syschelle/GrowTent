@@ -1104,6 +1104,15 @@ async function startNewGrow(){
 
       const data = await response.json();
 
+      // Last update: prefer backend timestamp, fallback to local time
+      const capturedIso = data['capturedAt'] || data['sys.capturedAt'] || null;
+      if (capturedIso) {
+        const dt = new Date(capturedIso);
+        setText('capturedSpan', Number.isNaN(dt.getTime()) ? 'N/A' : dt.toLocaleString());
+      } else {
+        setText('capturedSpan', new Date().toLocaleString());
+      }
+
       const relayCount = Number(data['settings.active_relay_count']) || 4;
       RELAY_COUNT = relayCount;
       applyRelayVisibility(relayCount);

@@ -75,6 +75,7 @@ void taskCheckBMESensor(void *parameter) {
           tankLevelCm = cm;
           if (irrigation.tank.max != 0 && irrigation.tank.max != irrigation.tank.min) {
             tankLevel = calculateTankPercent(tankLevelCm, irrigation.tank.min, irrigation.tank.max);
+            logPrint("[task][Check_Sensor][tank_level] Current tank level: " + String(tankLevel) + " %");
           }
         }
       }
