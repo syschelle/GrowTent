@@ -1001,7 +1001,9 @@ void loop() {
     }
   }
 
-  processPumpAutoOff();
+  if (irrigation.irrigationRuns == 0) {
+    processPumpAutoOff();
+  }
 
   server.handleClient();
   delay(1);
