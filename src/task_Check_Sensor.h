@@ -73,8 +73,8 @@ void taskCheckBMESensor(void *parameter) {
         float cm = pingTankLevel(TRIG, ECHO);
         if (cm >= 0.0f) {
           tankLevelCm = cm;
-          if (maxTank != 0 && maxTank != minTank) {
-            irrigation.tankLevelPercent = calculateTankPercent(tankLevelCm, minTank, maxTank);
+          if (irrigation.tank.max != 0 && irrigation.tank.max != irrigation.tank.min) {
+            tankLevel = calculateTankPercent(tankLevelCm, irrigation.tank.min, irrigation.tank.max);
           }
         }
       }
