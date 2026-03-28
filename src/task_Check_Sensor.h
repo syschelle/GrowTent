@@ -68,16 +68,53 @@ void taskCheckBMESensor(void *parameter) {
 
       // Tank auto-ping (8x only):
       // - immediate ping after boot / missing initial value
-      // - then every 2 hours
+      // - every 2 hours when OK
+      // - retry every 30s when failed
       if (activeRelayCount == 8) {
-        float cm = pingTankLevel(TRIG, ECHO);
-        if (cm >= 0.0f) {
-          tankLevelCm = cm;
-          if (irrigation.tank.max != 0 && irrigation.tank.max != irrigation.tank.min) {
-            tankLevel = calculateTankPercent(tankLevelCm, irrigation.tank.min, irrigation.tank.max);
-            logPrint("[task][Check_Sensor][tank_level] Current tank level: " + String(tankLevel) + " %");
+          const uint32_t RETRY_MS = 30000UL; // 30 seconds on failure
+
+          const bool noInitialValue =
+              (!isfinite(tankLevelCm) || tankLevelCm < 0.0f);
+
+          const bool intervalDue =
+              (lastTankPingMs == 0) ||
+              ((uint32_t)(nowMs - lastTankPingMs) >= tankPingIntervalMs);
+
+          const bool retryDue =
+              (lastTankPingMs != 0) &&
+              ((uint32_t)(nowMs - lastTankPingMs) >= RETRY_MS);
+
+          // Decide if we should ping now
+          const bool shouldPing =
+              noInitialValue || intervalDue || retryDue;
+
+          if (shouldPing) {
+              float cm = pingTankLevel(TRIG, ECHO);
+
+              if (cm >= 0.0f) {
+                  tankLevelCm = cm;
+                  lastTankPingMs = nowMs; // success → long interval
+
+                  if (
+                      irrigation.tank.max != 0 &&
+                      irrigation.tank.max != irrigation.tank.min
+                  ) {
+                      tankLevel = calculateTankPercent(
+                          tankLevelCm,
+                          irrigation.tank.min,
+                          irrigation.tank.max
+                      );
+
+                      logPrint(
+                          "[task][Check_Sensor][tank_level] Current tank level: " +
+                          String(tankLevel) + " %"
+                      );
+                  }
+              } else {
+                  // failure → do NOT reset long timer, but allow retry
+                  logPrint("[task][Check_Sensor][tank_level] ping failed");
+              }
           }
-        }
       }
     }
 
