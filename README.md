@@ -1,38 +1,82 @@
 # GrowTent
 
-GrowTent is a compact ESP32-based grow-tent controller that reads temperature, humidity and computes VPD (Vapor Pressure Deficit) using a BME280 sensor. It provides a small web frontend (German/English) with gauges, basic operating settings and the ability to control up to 4 relays (fans / humidifier). The project is designed to run on an ESP32 and serves static HTML/CSS/JS from program memory.
+> ⚡ Smart, adaptive grow tent controller with real-time climate stabilization and OTA updates
+
+GrowTent is a compact ESP32-based grow-tent controller that reads temperature, humidity and computes VPD (Vapor Pressure Deficit) using a BME280 sensor.
+
+It provides a web interface (German/English), relay control, automation logic and integrates with Shelly devices. The system is designed for **stable long-term operation** and **minimal manual intervention**.
 
 ---
 
-## Features
+## 🚀 Features
 
 - **ESP32 web interface** for live status and configuration
+- **Adaptive sensor smoothing (EMA)**
+  - dynamic smoothing based on real-time changes
+  - fast response to environmental shifts (e.g. opening tent/window)
+  - stable readings in steady conditions
+- **Raw vs smoothed sensor values**
+  - full transparency for debugging and tuning
+- **Stable VPD calculation**
+  - based on smoothed values
+  - reduces oscillation in control loops
 - **4x or 8x relay board support** (selectable in UI)
 - **Relay scheduling** (minute-based within each hour)
-- **Conditional relay logic** (e.g. run only when light state matches)
-- **Shelly integration** for:
-- Main power
-- Grow light
-- Humidifier
-- Heater
+- **Conditional relay logic** (e.g. based on light state)
+- **Shelly integration**
+  - Main power
+  - Grow light
+  - Humidifier
+  - Heater
+  - Fan (only on 8x boards)
+  - Exthaust (only on 8x boards)
 - **Heater control by temperature**
-- Can use either:
-- ESP relay output
-- Shelly Plug / Shelly heater device
-- **Irrigation support** (pump relays 6/7/8 on 8x boards)
-- **Tank level support** (HC-SR04 style distance sensor)
-- **Built-in log buffer** in web UI
+  - ESP relay or Shelly device
+- **Irrigation support**
+  - peristaltic pumps (relay 6–8) (only on 8x boards)
+- **Tank level monitoring (HC-SR04)**
+  - distance-based water level detection
+  - usable for irrigation safety (empty tank protection)
+- **Built-in log buffer**
 - **History and averages**
 - **OTA update from GitHub Release binary**
+- **Designed for stability**
+  - optimized for unattended operation
 
 ---
+
+## 🌡️ Adaptive Climate Smoothing
+
+The system uses an **adaptive exponential moving average (EMA)** to balance
+stability and responsiveness of sensor readings.
+
+### How it works
+
+- Raw sensor values are read from the BME280
+- The system calculates the difference between consecutive readings
+- Based on this delta, a dynamic smoothing factor (`alpha`) is applied:
+  - small changes → strong smoothing
+  - large changes → fast reaction
+
+### Example
+
+- Stable environment → smooth values  
+- Opening a window → immediate response  
+
+### Benefits
+
+- Reduced sensor noise  
+- Stable VPD calculation  
+- Faster reaction to real changes  
+- Improved control behavior  
 
 ## Hardware
 
-- ESP32 (any compatible dev board)
+- ESP32 4x or 8x relay board (any compatible dev board)
 - Adafruit BME280 (I2C at default address 0x76)
 - 4x relay channels (driven by ESP32 GPIOs)
 - Power supply appropriate for ESP32 and relays
+- HC-SR04 sensor 
 
 ### Default sensor and relay configuration in code:
 - BME I2C address: `0x76` (BME_ADDR)
@@ -260,6 +304,14 @@ Unified state payload for frontend and external integrations (recommended primar
 - `POST /api/ota/update`
 Triggers OTA update from the configured firmware URL.
 
+## ⚙️ Configuration
+
+- WiFi: AP or Station mode
+- NTP + timezone configurable via UI
+- Relay logic configurable via UI
+
+---
+
 ## Project Structure (high level)
 
 - src/
@@ -275,11 +327,13 @@ All web UI assets are embedded as string literals (PROGMEM) and served by the de
 
 ---
 
-## Troubleshooting
+## 🧪 Troubleshooting
 
-- BME280 not detected: check wiring, I2C address (0x76 by default), and power.
-- Relays not switching: verify wiring, correct GPIO pins, and that your relay board is compatible with ESP32 logic levels.
-- UI not reachable: if device in AP mode, connect to SSID `new growtent` (password `GT-12$34`) or configure WiFi via serial/console or pre-populated preferences.
+- BME280 not found → check wiring & I2C address  
+- Relays not switching → check GPIO + logic level  
+- No UI → connect to AP:  
+  - SSID: `new growtent`  
+  - Password: `GT-12$34`
 
 ---
 
