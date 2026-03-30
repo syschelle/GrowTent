@@ -25,7 +25,9 @@ void taskCheckBMESensor(void *parameter) {
   static bool firstHistoryPoint = true;
   static uint32_t lastLogMs = 0;
   static uint32_t lastTankPingMs = 0;
+  static bool lastTankPingOk = false;
   const uint32_t tankPingIntervalMs = 2UL * 60UL * 60UL * 1000UL; // 2h
+
 
   for (;;) {
     // --- stack watermark logging (debug) ---
@@ -67,33 +69,37 @@ void taskCheckBMESensor(void *parameter) {
       applyRelaySchedules();
 
       // Tank auto-ping (8x only):
-      // - immediate ping after boot / missing initial value
-      // - every 2 hours when OK
-      // - retry every 30s when failed
+      // - one immediate ping at startup when no initial value exists
+      // - every 2 hours after successful pings
+      // - retry every 30 seconds only while ping keeps failing
       if (activeRelayCount == 8) {
           const uint32_t RETRY_MS = 30000UL; // 30 seconds on failure
 
           const bool noInitialValue =
               (!isfinite(tankLevelCm) || tankLevelCm < 0.0f);
 
-          const bool intervalDue =
-              (lastTankPingMs == 0) ||
-              ((uint32_t)(nowMs - lastTankPingMs) >= tankPingIntervalMs);
+          const uint32_t elapsed = (uint32_t)(nowMs - lastTankPingMs);
 
-          const bool retryDue =
-              (lastTankPingMs != 0) &&
-              ((uint32_t)(nowMs - lastTankPingMs) >= RETRY_MS);
+          const bool needInitialPing =
+              (lastTankPingMs == 0) && noInitialValue;
 
-          // Decide if we should ping now
+          const bool dueSuccessInterval =
+              lastTankPingOk && (elapsed >= tankPingIntervalMs);
+
+          const bool dueFailureRetry =
+              (!lastTankPingOk) &&
+              ((lastTankPingMs == 0) || (elapsed >= RETRY_MS));
+
           const bool shouldPing =
-              noInitialValue || intervalDue || retryDue;
+              needInitialPing || dueSuccessInterval || dueFailureRetry;
 
           if (shouldPing) {
               float cm = pingTankLevel(TRIG, ECHO);
+              lastTankPingMs = nowMs;
 
               if (cm >= 0.0f) {
+                  lastTankPingOk = true;
                   tankLevelCm = cm;
-                  lastTankPingMs = nowMs; // success → long interval
 
                   if (
                       irrigation.tank.max != 0 &&
@@ -111,7 +117,7 @@ void taskCheckBMESensor(void *parameter) {
                       );
                   }
               } else {
-                  // failure → do NOT reset long timer, but allow retry
+                  lastTankPingOk = false;
                   logPrint("[task][Check_Sensor][tank_level] ping failed");
               }
           }

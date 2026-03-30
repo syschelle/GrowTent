@@ -169,10 +169,22 @@ extern Settings settings;
 
 // Runtime structs (ok im Header)
 struct SensorReadings {
-  float temperatureC = NAN;
-  float humidityPct  = NAN;
-  float extTempC     = NAN;
-  float vpdKpa       = NAN;
+  float temperatureC         = NAN;
+  float humidityPct          = NAN;
+  float extTempC             = NAN;
+  float vpdKpa               = NAN;
+
+  float temperatureRawC      = NAN;
+  float humidityRawPct       = NAN;
+  float vpdRawKpa            = NAN;
+
+  float temperatureSmoothedC = NAN;
+  float humiditySmoothedPct  = NAN;
+  float vpdSmoothedKpa       = NAN;
+
+  float alphaTemp            = 0.10f;
+  float alphaHumidity        = 0.08f;
+
   uint32_t lastUpdateMs = 0;
 
   bool ok() const { 

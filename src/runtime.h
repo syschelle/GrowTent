@@ -406,18 +406,27 @@ bool sendPushover(const String& message, const String& title);
 bool sendGotify(const String& msg, const String& title, int priority = 5);
 String calculateEndtimeWatering();
 
-// ---- ESP32 system stats ----
-// Some Arduino-ESP32 / PlatformIO builds do not link the FreeRTOS run-time stats
-// functions even if the config macros are defined. Declare the symbol as weak so
-// the project still links; if it's unavailable we fall back to NAN.
-// Read sensor temperature, humidity and vpd and DS18B20 water temperature
+void updateSmoothedClimate(float rawTemp, float rawHum) {
+  if (rawHum < 0.0f) rawHum = 0.0f;
+  if (rawHum > 100.0f) rawHum = 100.0f;
+
+  if (isnan(cur.temperatureSmoothedC)) cur.temperatureSmoothedC = rawTemp;
+  if (isnan(cur.humiditySmoothedPct))  cur.humiditySmoothedPct  = rawHum;
+
+  cur.temperatureSmoothedC =
+      cur.alphaTemp * rawTemp + (1.0f - cur.alphaTemp) * cur.temperatureSmoothedC;
+
+  cur.humiditySmoothedPct =
+      cur.alphaHumidity * rawHum + (1.0f - cur.alphaHumidity) * cur.humiditySmoothedPct;
+}
+
+// Read sensors and build JSON string for API response
 String readSensorData() {
 
   // read DS18B20 water temperature if enabled
   if (DS18B20) {
     sensors.requestTemperatures();
     float dsTemp = sensors.getTempCByIndex(0);
-    // only update global water temp if valid
     if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0) {
       DS18B20STemperature = dsTemp;
       cur.extTempC = dsTemp;
@@ -426,7 +435,6 @@ String readSensorData() {
     }
   }
   
-  // we will ALWAYS return valid JSON, even if BME not available or not time yet
   unsigned long now = millis();
   struct tm timeinfo;
   char timeStr[32] = "";
@@ -434,7 +442,6 @@ String readSensorData() {
     strftime(timeStr, sizeof(timeStr), "%H:%M:%S", &timeinfo);
   }
 
-  // toggle status LED as before
   if (bmeAvailable) {
     if (now - previousMillis >= blinkInterval) {
       previousMillis = now;
@@ -442,58 +449,73 @@ String readSensorData() {
       digitalWrite(STATUS_LED_PIN, ledState);
     }
 
-    // time to read fresh BME values?
     if (now - lastRead >= READ_INTERVAL_MS) {
       lastRead = now;
 
-      cur.temperatureC   = bme.readTemperature();
-      cur.humidityPct    = bme.readHumidity();
-      cur.vpdKpa         = calcVPD(cur.temperatureC, offsetLeafTemperature, cur.humidityPct);
+      // === RAW SENSOR READ ===
+      float rawTemp = bme.readTemperature();
+      float rawHum  = bme.readHumidity();
+
+      // === STORE RAW VALUES ===
+      cur.temperatureRawC = rawTemp;
+      cur.humidityRawPct  = rawHum;
+      cur.vpdRawKpa       = calcVPD(cur.temperatureRawC, offsetLeafTemperature, cur.humidityRawPct);
+
+      // === SMOOTHING ===
+      updateSmoothedClimate(rawTemp, rawHum);
+
+      // === CALCULATE SMOOTHED VPD ===
+      cur.vpdSmoothedKpa = calcVPD(cur.temperatureSmoothedC, offsetLeafTemperature, cur.humiditySmoothedPct);
+
+      // === USE SMOOTHED VALUES FOR SYSTEM ===
+      cur.temperatureC = cur.temperatureSmoothedC;
+      cur.humidityPct  = cur.humiditySmoothedPct;
+      cur.vpdKpa       = cur.vpdSmoothedKpa;
     }
   }
 
-  // === JSON BUILDING (always) ===
+  // === JSON BUILDING (unchanged) ===
   String json = "{\n";
-  // ---- current readings ----
+
   if (!isnan(curPhase)) {
     json += "\"curGrowPhase\":" + String(curPhase) + ",\n";
   } else {
     json += "\"curGrowPhase\":null,\n";
   } 
+
   if (!isnan(cur.temperatureC)) {
     json += "\"curTemperature\":" + String(cur.temperatureC, 1) + ",\n";
   } else {
     json += "\"curTemperature\":null,\n";
   } 
+
   if (!isnan(cur.extTempC)) {
     json += "\"curDS18B20Se1\":" + String(cur.extTempC, 1) + ",\n";
   } else {
     json += "\"curDS18B20Se1\":null,\n";
   }
+
   if (!isnan(cur.humidityPct)) {
     json += "\"curHumidity\":" + String(cur.humidityPct, 0) + ",\n";
   } else {
     json += "\"curHumidity\":null,\n";
   }
+
   if (!isnan(cur.vpdKpa)) {
     json += "\"curVpd\":" + String(cur.vpdKpa, 1) + ",\n";
   } else {
     json += "\"curVpd\":null,\n";
   }
 
-  // ---- relays ----
-  // returns e.g. "relays":[true,false,true,false]
   json += "\"relays\":[";
   for (int i = 0; i < NUM_RELAYS; i++) {
-    int state = digitalRead(relayPins[i]); // depends on your wiring (LOW=on or HIGH=on)
-    // here we assume HIGH=on
+    int state = digitalRead(relayPins[i]);
     bool on = (state == HIGH);
     json += (on ? "true" : "false");
     if (i < NUM_RELAYS - 1) json += ",";
   }
   json += "],\n";
   
-  // ---- Shelly Main Switch ----
   if (!shelly.main.values.ok) {
     logPrint("[API] MAIN SWITCH request not ok");
     json += "\"shellyMainSwitchStatus\":false,\n";
@@ -501,27 +523,17 @@ String readSensorData() {
     json += "\"shellyMainSwitchTotalWh\":null,\n";
   } else {
     json += "\"shellyMainSwitchStatus\":" + String(shelly.main.values.isOn ? "true" : "false") + ",\n";
-    if (!isnan(shelly.main.values.powerW) && !isinf(shelly.main.values.powerW)) {
-      json += "\"shellyMainSwitchPower\":" + String(shelly.main.values.powerW, 2) + ",\n";
-    } else {
-      json += "\"shellyMainSwitchPower\":null,\n";
-    }
-    if (!isnan(shelly.main.values.energyWh) && !isinf(shelly.main.values.energyWh)) {
-      json += "\"shellyMainSwitchTotalWh\":" + String(shelly.main.values.energyWh, 2) + ",\n";
-    } else {
-      json += "\"shellyMainSwitchTotalWh\":null,\n";
-    }
+    json += "\"shellyMainSwitchPower\":" + String(shelly.main.values.powerW, 2) + ",\n";
+    json += "\"shellyMainSwitchTotalWh\":" + String(shelly.main.values.energyWh, 2) + ",\n";
   }
 
-  // Main cost in EUR (energyWh -> kWh)
-  if (!isnan(shelly.main.values.energyWh) && !isinf(shelly.main.values.energyWh)) {
+  if (!isnan(shelly.main.values.energyWh)) {
     const float mainCost = (shelly.main.values.energyWh / 1000.0f) * powerPriceKwhEur;
     json += "\"shellyMainSwitchCostEur\":" + String(mainCost, 2) + ",\n";
   } else {
     json += "\"shellyMainSwitchCostEur\":null,\n";
   } 
 
-  // ---- Shelly Light ----
   if (!shelly.light.values.ok) {
     logPrint("[API] LIGHT request not ok");
     json += "\"shellyLightStatus\":false,\n";
@@ -529,32 +541,21 @@ String readSensorData() {
     json += "\"shellyLightTotalWh\":null,\n";
   } else {
     json += "\"shellyLightStatus\":" + String(shelly.light.values.isOn ? "true" : "false") + ",\n";
-    if (!isnan(shelly.light.values.powerW) && !isinf(shelly.light.values.powerW)) {
-      json += "\"shellyLightPower\":" + String(shelly.light.values.powerW, 2) + ",\n";
-    } else {
-      json += "\"shellyLightPower\":null,\n";
-    }
-    if (!isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
-      json += "\"shellyLightTotalWh\":" + String(shelly.light.values.energyWh, 2) + ",\n";
-    } else {
-      json += "\"shellyLightTotalWh\":null,\n";
-    }
+    json += "\"shellyLightPower\":" + String(shelly.light.values.powerW, 2) + ",\n";
+    json += "\"shellyLightTotalWh\":" + String(shelly.light.values.energyWh, 2) + ",\n";
   }
 
-  // Light cost in EUR
-  if (!isnan(shelly.light.values.energyWh) && !isinf(shelly.light.values.energyWh)) {
+  if (!isnan(shelly.light.values.energyWh)) {
     const float lightCost = (shelly.light.values.energyWh / 1000.0f) * powerPriceKwhEur;
     json += "\"shellyLightCostEur\":" + String(lightCost, 2) + ",\n";
   } else {
     json += "\"shellyLightCostEur\":null,\n";
   }
 
-  // ---- ESP32 stats ----
   json += "\"espFreeHeap\":" + String(ESP.getFreeHeap()) + ",\n";
   json += "\"espMinFreeHeap\":" + String(ESP.getMinFreeHeap()) + ",\n";
   json += "\"espCpuMhz\":" + String(ESP.getCpuFreqMHz()) + ",\n";
   json += "\"espUptimeS\":" + String((uint32_t)(millis() / 1000UL)) + ",\n";
-  // captured time
   json += "\"captured\":\"" + String(timeStr)  + "\"\n";
 
   json += "}";

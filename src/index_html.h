@@ -481,7 +481,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group">
           <label for="timePerTask" data-i18n="runsetting.timePerTask">Bewässerungszeit pro Task:</label>
-          <input name="webTimePerTask" id="webTimePerTask" style="width: 65px;" type="number" step="1" min="1" max="30" value="%TIMEPERTASK%">&nbsp;s&nbsp;(min 1s, max 30s, step 1s)
+          <input name="webTimePerTask" id="webTimePerTask" style="width: 65px;" type="number" step="1" min="1" max="10" value="%TIMEPERTASK%">&nbsp;s&nbsp;(min 1s, max 10s, step 1s)
         </div>
 
         <div class="form-group">

@@ -960,16 +960,42 @@ inline float avgValue(float sum, uint32_t count) {
   return (count == 0) ? 0.0f : (sum / count);
 }
 
-// calculate elapsed days and weeks from defined unix timestamp
-float calcVPD(float valLastTemperature,float valOffsetLeafTemperature , float valLastHumidity) {
-      float FT = valLastTemperature;
-      float FARH = valLastHumidity;
+// Calculate VPD with smoothing for temperature and humidity
+float calcVPD(float valLastTemperature, float valOffsetLeafTemperature, float valLastHumidity) {
+      static float smoothTemp = NAN;
+      static float smoothHum  = NAN;
+
+      const float alpha = 0.10f;
+
+      // Rohwerte
+      float FT_raw   = valLastTemperature;
+      float FARH_raw = valLastHumidity;
+
+      // clamp RH
+      if (FARH_raw < 0.0f)   FARH_raw = 0.0f;
+      if (FARH_raw > 100.0f) FARH_raw = 100.0f;
+
+      // init
+      if (isnan(smoothTemp)) smoothTemp = FT_raw;
+      if (isnan(smoothHum))  smoothHum  = FARH_raw;
+
+      // smoothing
+      smoothTemp = alpha * FT_raw   + (1.0f - alpha) * smoothTemp;
+      smoothHum  = alpha * FARH_raw + (1.0f - alpha) * smoothHum;
+
+      // ab hier dein original code
+      float FT = smoothTemp;
+      float FARH = smoothHum;
       float FLTO = valOffsetLeafTemperature;
       float FLT = FT + FLTO;
-      float VPLEAF = (610.7 * pow(10, (7.5 * FLT) / (237.3 + FLT)) / 1000);
-      float ASVPF = (610.7 * pow(10, (7.5 * FT) / (237.3 + FT)) / 1000);
-      float VPAIR = (FARH / 100) * ASVPF;
-      float VPD = VPLEAF - VPAIR;
+
+      float VPLEAF = (610.7f * pow(10.0f, (7.5f * FLT) / (237.3f + FLT)) / 1000.0f);
+      float ASVPF  = (610.7f * pow(10.0f, (7.5f * FT)  / (237.3f + FT))  / 1000.0f);
+      float VPAIR  = (FARH / 100.0f) * ASVPF;
+      float VPD    = VPLEAF - VPAIR;
+
+      if (VPD < 0.0f) VPD = 0.0f;
+
       return VPD;
 }
 
