@@ -406,19 +406,43 @@ bool sendPushover(const String& message, const String& title);
 bool sendGotify(const String& msg, const String& title, int priority = 5);
 String calculateEndtimeWatering();
 
+
+float getAdaptiveAlpha(float diff, float slowAlpha, float fastAlpha, float threshold) {
+  return (diff > threshold) ? fastAlpha : slowAlpha;
+}
+
 void updateSmoothedClimate(float rawTemp, float rawHum) {
+  if (isnan(rawTemp) || isnan(rawHum)) return;
+
   if (rawHum < 0.0f) rawHum = 0.0f;
   if (rawHum > 100.0f) rawHum = 100.0f;
 
-  if (isnan(cur.temperatureSmoothedC)) cur.temperatureSmoothedC = rawTemp;
-  if (isnan(cur.humiditySmoothedPct))  cur.humiditySmoothedPct  = rawHum;
+  if (isnan(cur.temperatureSmoothedC)) {
+    cur.temperatureSmoothedC = rawTemp;
+  }
+
+  if (isnan(cur.humiditySmoothedPct)) {
+    cur.humiditySmoothedPct = rawHum;
+  }
+
+  float tempDiff = fabs(rawTemp - cur.temperatureSmoothedC);
+  float humDiff  = fabs(rawHum - cur.humiditySmoothedPct);
+
+  float alphaTemp = getAdaptiveAlpha(tempDiff, 0.15f, 0.40f, 0.8f);
+  float alphaHum  = getAdaptiveAlpha(humDiff, 0.15f, 0.35f, 3.0f);
+
+  // Store effective alphas for debugging/monitoring
+  cur.alphaTempEffective     = alphaTemp;
+  cur.alphaHumidityEffective = alphaHum;
 
   cur.temperatureSmoothedC =
-      cur.alphaTemp * rawTemp + (1.0f - cur.alphaTemp) * cur.temperatureSmoothedC;
+      alphaTemp * rawTemp + (1.0f - alphaTemp) * cur.temperatureSmoothedC;
 
   cur.humiditySmoothedPct =
-      cur.alphaHumidity * rawHum + (1.0f - cur.alphaHumidity) * cur.humiditySmoothedPct;
+      alphaHum * rawHum + (1.0f - alphaHum) * cur.humiditySmoothedPct;
 }
+
+
 
 // Read sensors and build JSON string for API response
 String readSensorData() {

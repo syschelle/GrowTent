@@ -109,16 +109,15 @@ static String g_ssid() { return jStr(ssidName); }
 
 static String g_temp() { return jNumOrNull(cur.temperatureC, 1); }
 static String g_temp_raw() { return jNumOrNull(cur.temperatureRawC, 2); }
-static String g_temp_smoothed() { return jNumOrNull(cur.temperatureSmoothedC, 2); }
 static String g_hum() { return jNumOrNull(cur.humidityPct, 1); }
 static String g_hum_raw() { return jNumOrNull(cur.humidityRawPct, 1); }
-static String g_hum_smoothed() { return jNumOrNull(cur.humiditySmoothedPct, 1); }
 static String g_extName() { return jStr(DS18B20Name); }
 static String g_extTemp() { return jNumOrNull(cur.extTempC, 1); }
 static String g_vpd() { return jNumOrNull(cur.vpdKpa, 2); }
 static String g_vpd_raw() { return jNumOrNull(cur.vpdRawKpa, 2); }
-static String g_vpd_smoothed() { return jNumOrNull(cur.vpdSmoothedKpa, 2); }
 
+static String g_reffetiveAlfaTemp() { return jNumOrNull(cur.alphaTempEffective, 2); }
+static String g_reffetiveAlfaHum() { return jNumOrNull(cur.alphaHumidityEffective, 2); }
 
 static String g_avgTemp() { return jNumOrNull(avgTemp(), 1); }
 static String g_avgHum() { return jNumOrNull(avgHum(), 1); }
@@ -283,16 +282,16 @@ const VarItem VARS[] = {
   // --- sensors ---
   {"sensors.cur.temperatureC", g_temp, false, "sensors"},
   {"sensors.cur.temperatureRawC", g_temp_raw, false, "sensors"},
-  {"sensors.cur.temperatureSmoothedC", g_temp_smoothed, false, "sensors"},
   {"sensors.cur.humidityPct", g_hum, false, "sensors"},
   {"sensors.cur.humidityRawPct", g_hum_raw, false, "sensors"},
-  {"sensors.cur.humiditySmoothedPct", g_hum_smoothed, false, "sensors"},
   {"sensors.cur.vpdKpa", g_vpd, false, "sensors"},
   {"sensors.cur.vpdRawKpa", g_vpd_raw, false, "sensors"},
-  {"sensors.cur.vpdSmoothedKpa", g_vpd_smoothed, false, "sensors"},
   {"sensors.cur.ds18b20Name", g_extName, false, "sensors"},
   {"sensors.cur.extTempC", g_extTemp, false, "sensors"},
   {"sensors.cur.vpdKpa", g_vpd, false, "sensors"},
+  
+  {"sensors.cur.effectiveAlfaTempC", g_reffetiveAlfaTemp, false, "sensors"},
+  {"sensors.cur.effectiveAlfaHumPct", g_reffetiveAlfaHum, false, "sensors"},
 
   // --- settings.ui ---
   {"settings.ui.boxName", g_ui_box, false, "settings.ui"},
