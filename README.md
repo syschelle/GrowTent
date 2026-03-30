@@ -32,9 +32,9 @@ It provides a web interface (German/English), relay control, automation logic an
   - Exthaust (only on 8x boards)
 - **Heater control by temperature**
   - ESP relay or Shelly device
-- **Irrigation support**
-  - peristaltic pumps (relay 6–8) (only on 8x boards)
-- **Tank level monitoring (HC-SR04)**
+- **Irrigation support (only on 8x boards)** 
+  - peristaltic pumps (relay 6–8)
+- **Tank level monitoring (HC-SR04) (only on 8x boards)**
   - distance-based water level detection
   - usable for irrigation safety (empty tank protection)
 - **Built-in log buffer**
