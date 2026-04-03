@@ -476,7 +476,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group checkbox">
           <label class="inline-checkbox">
-            <input type="checkbox" name="webPushoverEnabled" id="webPushoverEnabled" %PUSHOVERENABLED%>
+            <input type="checkbox" name="webMinVPDMonitoring" id="webMinVPDMonitoring" %MINVPDMONITORING%>
             <span data-i18n="runsetting.lowVPD.enabled">aktivieren</span>
           </label>
         </div>
@@ -487,8 +487,8 @@ const char* htmlPage = R"rawliteral(
         </div>
 
         <div class="form-group">
-          <label for="minVPD" data-i18n="runsetting.minVPD">Min-VPD:</label>
-          <input name="webMinVPD" id="webMinVPD" style="width: 65px;" type="number" step="0.01" min="0.00" max="1.00" value="%MINVPD%">&nbsp;kPa
+          <label for="minVPD" data-i18n="runsetting.minVPD">Offset Min-VPD:</label>
+          <input name="webMinVPD" id="webMinVPD" style="width: 65px;" type="number" step="0.01" min="0.00" max="0.10" value="%MINVPD%">&nbsp;kPa
         </div>
 
         <div class="form-group">

@@ -32,6 +32,7 @@ const char* KEY_TARGETTEMP = "targetTemp";
 const char* KEY_LEAFTEMP = "offsetLeaf";
 const char* KEY_TARGETVPD = "targetVPD";
 const char* KEY_MINVPD = "minVPD";
+const char* KEY_MINVPD_MON = "minVPDMon";
 const char* KEY_HYSTERESIS = "vpdHysteresis";
 const char* KEY_LIGHT_ON_TIME = "lightOnTime";
 const char* KEY_LIGHT_DAY_HOURS = "lightDayHours";

@@ -667,7 +667,23 @@ const char cssContent[] PROGMEM = R"rawliteral(
   }
 
   .relay-sched-row .sched-field.chk{
-    min-width: 150px;
+    min-width: 0;
+  }
+
+  .sched-field.chk{
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .sched-field.chk .inline-checkbox{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .sched-field.chk .inline-checkbox span{
+    white-space: nowrap;
   }
 
   .relay-sched-name{
@@ -687,11 +703,6 @@ const char cssContent[] PROGMEM = R"rawliteral(
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-  }
-
-  .sched-field.chk{
-    flex:0 0 auto;
-    min-width:150px;
   }
 
   .sched-field.minute{

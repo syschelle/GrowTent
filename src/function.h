@@ -362,6 +362,7 @@ void handleSaveRunsettings() {
   savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, true, "Current Phase");
   savePrefFloat("webTargetTemp", KEY_TARGETTEMP, settings.grow.targetTemperature, true, "Target Temperature");
   savePrefFloat("webTargetVPD", KEY_TARGETVPD, settings.grow.targetVPD, true, "Target VPD");
+  savePrefBool("webMinVPDMonitoring", KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, true, "Min VPD Monitoring Enabled");
   savePrefFloat("webMinVPD", KEY_MINVPD, settings.grow.minVPD, true, "Min VPD");
   savePrefFloat("webHysteresis", KEY_HYSTERESIS, settings.grow.vpdHysteresis, true, "VPD Hysteresis");
   savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, true, "Leaf Temperature Offset");
@@ -2291,6 +2292,58 @@ static void controlHeaterByTemperature() {
     bootHandled = true;
     lastTemp = cur.temperatureC;
     lastMs = now;
+}
+
+void controlMinVPD() {
+  // Monitoring must be enabled and configured with a valid target VPD
+  if (!settings.grow.minVpdMonEnabled) return;
+
+  String ip = String(settings.shelly.exhaust.ip);
+  ip.trim();
+  // Basic sanity check for IP format (we'll do a more thorough check in getShellyValues)
+  if (ip.length() < 7 || ip.length() > 15) return;
+
+
+  // Read and validate settings with fallbacks
+  float currentVpd = cur.vpdKpa;
+  float targetVpd  = settings.grow.targetVPD;
+  float minOffset  = settings.grow.minVPD;
+  float hysteresis = settings.grow.vpdHysteresis;
+
+  if (!isfinite(targetVpd)) return;
+  if (!isfinite(minOffset)) minOffset = 0.0f;
+  if (!isfinite(hysteresis)) hysteresis = 0.0f;
+
+  // Clamp offset and hysteresis to reasonable ranges to prevent misconfiguration issues
+  if (!isfinite(minOffset) || minOffset < 0.0f) minOffset = 0.0f;
+  if (minOffset > 0.10f) minOffset = 0.10f;
+
+  if (minOffset < 0.0f) minOffset = 0.0f;
+  if (hysteresis < 0.0f) hysteresis = 0.0f;
+
+  // Effective minimum VPD threshold (target minus offset)
+  float minVpdEffective = targetVpd - minOffset;
+  if (minVpdEffective < 0.1f) minVpdEffective = 0.1f; // Safety limit
+
+  // Check if current sensor value is valid
+  if (!isfinite(currentVpd)) return;
+
+  // Read actual exhaust status
+  bool isOn = getShellyValues(shelly.exhaust, 0, 80).isOn;
+
+  // ON when VPD < min
+  // OFF when VPD >= min + hysteresis
+  bool shouldBeOn = isOn
+  ? (currentVpd < (minVpdEffective + hysteresis))
+  : (currentVpd < minVpdEffective);
+
+  if (shouldBeOn != isOn) {
+    if (shouldBeOn) {
+      shellySwitchOn(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen);
+    } else {
+      shellySwitchOff(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen);
+    }
+  }
 }
 
 // Returns true if current minute-of-hour is inside the schedule window (0..59).

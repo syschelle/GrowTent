@@ -66,6 +66,7 @@ void taskCheckBMESensor(void *parameter) {
       readSensorData();
       controlHeaterByTemperature();
       controlHumidifierByVPD();
+      controlMinVPD();
       applyRelaySchedules();
 
       // Tank auto-ping (8x only):

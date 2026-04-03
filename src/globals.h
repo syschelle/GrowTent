@@ -95,7 +95,9 @@ struct GrowGroup {
   float targetTemperature = 22.0f;
   float offsetLeafTemperature = -1.5f;
   float targetVPD = 1.0f;
-  float minVPD = 0.75f;
+
+  bool minVpdMonEnabled = false;
+  float minVPD = 0.06f;
   float vpdHysteresis = 0.05f;
 
   String lightOnTime = "06:00";   // HH:MM
@@ -243,6 +245,7 @@ extern const char* KEY_CURRENTPHASE;
 extern const char* KEY_TARGETTEMP;
 extern const char* KEY_LEAFTEMP;
 extern const char* KEY_TARGETVPD;
+extern const char* KEY_MINVPD_MON;
 extern const char* KEY_MINVPD;
 extern const char* KEY_HYSTERESIS;
 extern const char* KEY_LIGHT_ON_TIME;
@@ -352,6 +355,7 @@ extern int curPhase;
 extern float targetTemperature;
 extern float offsetLeafTemperature;
 extern float targetVPD;
+extern bool minVpdMonEnabled;
 extern float minVPD;
 extern float vpdHysteresis;
 extern String lightOnTime;

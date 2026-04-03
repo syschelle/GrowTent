@@ -139,6 +139,7 @@ void handleRoot() {
     html.replace("%LEAFTEMPERATURE%", String(settings.grow.offsetLeafTemperature, 1));
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
     html.replace("%TARGETVPD%",  String(settings.grow.targetVPD, 1));
+    html.replace("%MINVPDMONITORING%", settings.grow.minVpdMonEnabled ? "checked" : "");
     html.replace("%MINVPD%",  String(settings.grow.minVPD, 2));
     html.replace("%VPDHYSTERESIS%",  String(settings.grow.vpdHysteresis, 2));
 
@@ -294,6 +295,8 @@ void readPreferences() {
   loadPrefFloat(KEY_TARGETTEMP, settings.grow.targetTemperature, 22.0f, true, "settings.grow.targetTemperature");
   loadPrefFloat(KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, -1.5f, true, "settings.grow.offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, settings.grow.targetVPD, 1.0f, true, "settings.grow.targetVPD");
+  loadPrefBool(KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, false, true, "settings.grow.minVpdMonEnabled");
+
   loadPrefFloat(KEY_MINVPD, settings.grow.minVPD, 0.75f, true, "settings.grow.minVPD");
   loadPrefFloat(KEY_HYSTERESIS, settings.grow.vpdHysteresis, 0.05f, true, "settings.grow.vpdHysteresis");
 
@@ -389,12 +392,12 @@ void readPreferences() {
 
   // notification settings
   loadPrefString(KEY_PUSHOVER, pushoverEnabled, "", true, "pushoverEnabled");
-  if (pushoverEnabled ) pushoverSent = true;
+  if (pushoverEnabled == "checked") pushoverSent = true;
   loadPrefString(KEY_PUSHOVERAPP, pushoverAppKey, "", true, "pushoverAppKey");
   loadPrefString(KEY_PUSHOVERUSER, pushoverUserKey, "", true, "pushoverUserKey");
   loadPrefString(KEY_PUSHOVERDEVICE, pushoverDevice, "", true, "pushoverDevice");
   loadPrefString(KEY_GOTIFY, gotifyEnabled, "", true, "gotifyEnabled");
-  if (gotifyEnabled ) gotifySent = true;
+  if (gotifyEnabled == "checked") gotifySent = true;
   loadPrefString(KEY_GOTIFYSERVER, gotifyServer, "", true, "gotifyServer");
   loadPrefString(KEY_GOTIFYTOKEN, gotifyToken, "", true, "gotifyToken");
 
