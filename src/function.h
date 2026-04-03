@@ -2295,54 +2295,61 @@ static void controlHeaterByTemperature() {
 }
 
 void controlMinVPD() {
-  // Monitoring must be enabled and configured with a valid target VPD
+  // --- static runtime state to avoid request spam ---
+  static bool exhaustStateKnown = false;
+  static bool exhaustStateCache = false; // last known ON/OFF
+  static uint32_t lastSwitchMs = 0;
+  const uint32_t minSwitchIntervalMs = 10000; // 10s Sperre zwischen Schaltvorgängen
+
   if (!settings.grow.minVpdMonEnabled) return;
 
   String ip = String(settings.shelly.exhaust.ip);
   ip.trim();
-  // Basic sanity check for IP format (we'll do a more thorough check in getShellyValues)
   if (ip.length() < 7 || ip.length() > 15) return;
 
-
-  // Read and validate settings with fallbacks
   float currentVpd = cur.vpdKpa;
-  float targetVpd  = settings.grow.targetVPD;
-  float minOffset  = settings.grow.minVPD;
+  float targetVpd = settings.grow.targetVPD;
+  float minOffset = settings.grow.minVPD; // target - offset
   float hysteresis = settings.grow.vpdHysteresis;
 
-  if (!isfinite(targetVpd)) return;
-  if (!isfinite(minOffset)) minOffset = 0.0f;
-  if (!isfinite(hysteresis)) hysteresis = 0.0f;
-
-  // Clamp offset and hysteresis to reasonable ranges to prevent misconfiguration issues
+  if (!isfinite(currentVpd) || !isfinite(targetVpd)) return;
   if (!isfinite(minOffset) || minOffset < 0.0f) minOffset = 0.0f;
-  if (minOffset > 0.10f) minOffset = 0.10f;
+  if (minOffset > 0.30f) minOffset = 0.30f;
+  if (!isfinite(hysteresis) || hysteresis < 0.0f) hysteresis = 0.0f;
 
-  if (minOffset < 0.0f) minOffset = 0.0f;
-  if (hysteresis < 0.0f) hysteresis = 0.0f;
+  float minEff = targetVpd - minOffset;
+  if (minEff < 0.1f) minEff = 0.1f;
 
-  // Effective minimum VPD threshold (target minus offset)
-  float minVpdEffective = targetVpd - minOffset;
-  if (minVpdEffective < 0.1f) minVpdEffective = 0.1f; // Safety limit
+  // inital request to fill cache (and check connectivity) 
+    if (!exhaustStateKnown) {
+    exhaustStateCache = getShellyValues(shelly.exhaust, 0, 80).isOn;
+    exhaustStateKnown = true;
+  }
 
-  // Check if current sensor value is valid
-  if (!isfinite(currentVpd)) return;
+  // Backend-gleiche Hysterese-Logik
+  bool shouldBeOn = exhaustStateCache
+  ? (currentVpd < (minEff + hysteresis))
+  : (currentVpd < minEff);
 
-  // Read actual exhaust status
-  bool isOn = getShellyValues(shelly.exhaust, 0, 80).isOn;
+  // Apply only if state must change (and avoid request spam with timing check)
+  if (shouldBeOn == exhaustStateCache) return;
 
-  // ON when VPD < min
-  // OFF when VPD >= min + hysteresis
-  bool shouldBeOn = isOn
-  ? (currentVpd < (minVpdEffective + hysteresis))
-  : (currentVpd < minVpdEffective);
+  // Minimum interval check to avoid rapid toggling (e.g. due to sensor noise around threshold)
+  uint32_t now = millis();
+  if ((now - lastSwitchMs) < minSwitchIntervalMs) return;
 
-  if (shouldBeOn != isOn) {
-    if (shouldBeOn) {
-      shellySwitchOn(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen);
-    } else {
-      shellySwitchOff(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen);
-    }
+  bool ok = false;
+  if (shouldBeOn) {
+    ok = shellySwitchOn(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen, 0, 80);
+    if (ok) logPrint("[minVPD] Exhaust ON minEff=" + String(minEff, 2) + " current=" + String(currentVpd, 2));
+  } else {
+    ok = shellySwitchOff(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen, 0, 80);
+    if (ok) logPrint("[minVPD] Exhaust OFF minEff=" + String(minEff, 2) + " current=" + String(currentVpd, 2));
+  }
+
+  if (ok) {
+    exhaustStateCache = shouldBeOn; // local cache update only on successful request
+    lastSwitchMs = now;
   }
 }
 

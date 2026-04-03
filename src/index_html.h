@@ -488,7 +488,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group">
           <label for="minVPD" data-i18n="runsetting.minVPD">Offset Min-VPD:</label>
-          <input name="webMinVPD" id="webMinVPD" style="width: 65px;" type="number" step="0.01" min="0.00" max="0.10" value="%MINVPD%">&nbsp;kPa
+          <input name="webMinVPD" id="webMinVPD" style="width: 65px;" type="number" step="0.01" min="0.00" max="0.30" value="%MINVPD%">&nbsp;kPa
         </div>
 
         <div class="form-group">
