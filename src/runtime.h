@@ -139,6 +139,8 @@ void handleRoot() {
     html.replace("%LEAFTEMPERATURE%", String(settings.grow.offsetLeafTemperature, 1));
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
     html.replace("%TARGETVPD%",  String(settings.grow.targetVPD, 1));
+    html.replace("%MINVPD%",  String(settings.grow.minVPD, 2));
+    html.replace("%VPDHYSTERESIS%",  String(settings.grow.vpdHysteresis, 2));
 
     // Irrigation settings
     html.replace("%TIMEPERTASK%", String(irrigation.timePerTask));
@@ -292,6 +294,8 @@ void readPreferences() {
   loadPrefFloat(KEY_TARGETTEMP, settings.grow.targetTemperature, 22.0f, true, "settings.grow.targetTemperature");
   loadPrefFloat(KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, -1.5f, true, "settings.grow.offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, settings.grow.targetVPD, 1.0f, true, "settings.grow.targetVPD");
+  loadPrefFloat(KEY_MINVPD, settings.grow.minVPD, 0.75f, true, "settings.grow.minVPD");
+  loadPrefFloat(KEY_HYSTERESIS, settings.grow.vpdHysteresis, 0.05f, true, "settings.grow.vpdHysteresis");
 
   //load heating settings
   loadPrefInt(KEY_HEATING_SOURCE, settings.heating.sourceType, 0, true, "heatingSource");

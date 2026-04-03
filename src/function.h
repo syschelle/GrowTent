@@ -362,6 +362,8 @@ void handleSaveRunsettings() {
   savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, true, "Current Phase");
   savePrefFloat("webTargetTemp", KEY_TARGETTEMP, settings.grow.targetTemperature, true, "Target Temperature");
   savePrefFloat("webTargetVPD", KEY_TARGETVPD, settings.grow.targetVPD, true, "Target VPD");
+  savePrefFloat("webMinVPD", KEY_MINVPD, settings.grow.minVPD, true, "Min VPD");
+  savePrefFloat("webHysteresis", KEY_HYSTERESIS, settings.grow.vpdHysteresis, true, "VPD Hysteresis");
   savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, true, "Leaf Temperature Offset");
   savePrefFloat("webAmountOfWater", KEY_AMOUNTOFWATER, irrigation.amountOfWater, true, "Amount of Water");
   savePrefInt("webTimePerTask", KEY_TIMEPERTASK, irrigation.timePerTask, true, "Time Per Task");

@@ -471,9 +471,30 @@ const char* htmlPage = R"rawliteral(
         <input name="webOffsetLeafTemp" id="webOffsetLeafTemp" style="width: 65px;" type="number" step="0.1" min="-3.0" max="0.0" value="%LEAFTEMPERATURE%">&nbsp;°C
       </div>
 
-      <div class="form-group">
-        <label for="targetVPD" data-i18n="runsetting.targetVPD">Soll-VPD:</label>
-        <input name="webTargetVPD" id="webTargetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
+      <div class="tile-row relay-extra" id="vpdSettingsSection">
+        <h2 data-i18n="runsetting.vpdSettings">VPD-Einstellungen</h2>
+
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webPushoverEnabled" id="webPushoverEnabled" %PUSHOVERENABLED%>
+            <span data-i18n="runsetting.lowVPD.enabled">aktivieren</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="targetVPD" data-i18n="runsetting.targetVPD">Soll-VPD:</label>
+          <input name="webTargetVPD" id="webTargetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
+        </div>
+
+        <div class="form-group">
+          <label for="minVPD" data-i18n="runsetting.minVPD">Min-VPD:</label>
+          <input name="webMinVPD" id="webMinVPD" style="width: 65px;" type="number" step="0.01" min="0.00" max="1.00" value="%MINVPD%">&nbsp;kPa
+        </div>
+
+        <div class="form-group">
+          <label for="hysteresis" data-i18n="runsetting.hysteresis">Hysterese:</label>
+          <input name="webHysteresis" id="webHysteresis" style="width: 65px;" type="number" step="0.01" min="0.00" max="0.1" value="%VPDHYSTERESIS%">&nbsp;kPa
+        </div>
       </div>
 
       <div class="tile-row relay-extra" id="irrigationSettingsSection" style="display:none;">

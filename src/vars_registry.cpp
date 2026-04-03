@@ -141,6 +141,8 @@ static String g_grow_currentPhaseWeek() { return jInt(settings.grow.currentPhase
 static String g_grow_tTemp() { return jNumOrNull(settings.grow.targetTemperature, 1); }
 static String g_grow_leafOff() { return jNumOrNull(settings.grow.offsetLeafTemperature, 1); }
 static String g_grow_tVpd() { return jNumOrNull(settings.grow.targetVPD, 2); }
+static String g_grow_minVPD() { return jNumOrNull(settings.grow.minVPD, 2); }
+static String g_grow_vpdHysteresis() { return jNumOrNull(settings.grow.vpdHysteresis, 2); }
 
 // Notifications (masked tokens)
 static String g_notify_pushoverEnabled() { return jBool(settings.notify.pushoverEnabled); }
@@ -311,6 +313,8 @@ const VarItem VARS[] = {
   {"settings.grow.targetTemperature", g_grow_tTemp, false, "settings.grow"},
   {"settings.grow.offsetLeafTemperature", g_grow_leafOff, false, "settings.grow"},
   {"settings.grow.targetVPD", g_grow_tVpd, false, "settings.grow"},
+  {"settings.grow.minVPD", g_grow_minVPD, false, "settings.grow"},
+  {"settings.grow.vpdHysteresis", g_grow_vpdHysteresis, false, "settings.grow"},
 
   // --- notifications ---
   {"settings.notify.pushoverEnabled", g_notify_pushoverEnabled, false, "settings.notify"},

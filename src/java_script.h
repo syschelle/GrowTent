@@ -150,7 +150,11 @@ const char jsContent[] PROGMEM = R"rawliteral(
     de: "Offset Blatttemperatur:",
     en: "Offset leaf temperature"
   },
+  "runsetting.vpdSettings": { de: "VPD-Einstellungen", en: "VPD Settings" },
+  "runsetting.lowVPD.enabled": { de: "Min-VPD Überwachung aktivieren", en: "Enable min VPD monitoring" },
   "runsetting.targetVPD": { de: "Soll-VPD", en: "Target VPD" },
+  "runsetting.minVPD": { de: "Min-VPD", en: "Min VPD" },
+  "runsetting.hysteresis": { de: "Hysterese", en: "Hysteresis" },
 
   "runsetting.relayScheduling": {
     de: "Relais Zeitsteuerung",
