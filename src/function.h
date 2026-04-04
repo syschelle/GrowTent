@@ -359,7 +359,7 @@ void handleSaveRunsettings() {
   savePrefString("webGrowStart", KEY_STARTDATE, startDate, true, "Grow Start Date");
   savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, true, "Flowering Start Date");
   savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, true, "Drying Start Date");
-  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, curPhase, true, "Current Phase");
+  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, settings.grow.currentPhase, true, "Current Phase");
   savePrefFloat("webTargetTemp", KEY_TARGETTEMP, settings.grow.targetTemperature, true, "Target Temperature");
   savePrefFloat("webTargetVPD", KEY_TARGETVPD, settings.grow.targetVPD, true, "Target VPD");
   savePrefBool("webMinVPDMonitoring", KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, true, "Min VPD Monitoring Enabled");
@@ -412,7 +412,7 @@ void handleNewGrow() {
   startDate = today;
   startFlowering = "";
   startDrying = "";
-  curPhase = 1; // Vegetativ
+  settings.grow.currentPhase = 1; // Vegetativ
 
   preferences.putString(KEY_STARTDATE, startDate);
   preferences.putString(KEY_FLOWERDATE, startFlowering);

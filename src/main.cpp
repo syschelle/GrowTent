@@ -440,8 +440,8 @@ static void handleDiaryAdd() {
   note.trim();
   if (note.length() > 400) note = note.substring(0, 400);
 
-  // Determine current phase (fallback to global curPhase if not provided)
-  int phase = curPhase;
+  // Determine current phase (fallback to global settings.grow.currentPhase if not provided)
+  int phase = settings.grow.currentPhase;
   if (phaseStr == "grow") phase = 1;
   else if (phaseStr == "flower") phase = 2;
   else if (phaseStr == "dry") phase = 3;

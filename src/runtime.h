@@ -92,7 +92,7 @@ void handleRoot() {
       html.replace("%CURRENTGROW%", "");
     }
 
-    if (curPhase == 1) {
+    if (settings.grow.currentPhase == 1) {
       int daysSinceStartInt = 0;
       int weeksSinceStartInt = 0;
       calculateTimeSince(startDate, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
@@ -103,7 +103,7 @@ void handleRoot() {
       } else {
         html.replace("%CURRENTPHASE%", "<font color=\"lightgreen\">Vegetative: day " + days + " / week " + weeks + "</font>");
       }
-    } else if (curPhase == 2) {
+    } else if (settings.grow.currentPhase == 2) {
       int daysSinceStartInt = 0;
       int weeksSinceStartInt = 0;
       calculateTimeSince(startFlowering, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
@@ -114,7 +114,7 @@ void handleRoot() {
       } else {
         html.replace("%CURRENTPHASE%", "<font color=\"#ff9900\">Flowering: day " + days + " / week " + weeks + "</font>");
       }
-    } else if (curPhase == 3) {
+    } else if (settings.grow.currentPhase == 3) {
       int daysSinceStartInt = 0;
       int weeksSinceStartInt = 0;
       calculateTimeSince(startDrying, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
@@ -190,9 +190,9 @@ void handleRoot() {
     html.replace("%GROWFLOWERDATE%", String(startFlowering));
     html.replace("%GROWDRAYINGDATE%", String(startDrying));
 
-    html.replace("%PHASE1_SEL%", curPhase == 1 ? "selected" : "");
-    html.replace("%PHASE2_SEL%", curPhase == 2 ? "selected" : "");
-    html.replace("%PHASE3_SEL%", curPhase == 3 ? "selected" : "");
+    html.replace("%PHASE1_SEL%", settings.grow.currentPhase == 1 ? "selected" : "");
+    html.replace("%PHASE2_SEL%", settings.grow.currentPhase == 2 ? "selected" : "");
+    html.replace("%PHASE3_SEL%", settings.grow.currentPhase == 3 ? "selected" : "");
 
     html.replace("%TARGETVPD%", String(settings.grow.targetVPD, 1));
 
@@ -288,7 +288,7 @@ void readPreferences() {
   loadPrefString(KEY_STARTDATE, startDate, "", true, "startDate");
   loadPrefString(KEY_FLOWERDATE, startFlowering, "", true, "startFlowering");
   loadPrefString(KEY_DRYINGDATE, startDrying, "", true, "startDrying");
-  loadPrefInt(KEY_CURRENTPHASE, curPhase, 1, true, "curPhase");
+  loadPrefInt(KEY_CURRENTPHASE, settings.grow.currentPhase, 1, true, "settings.grow.currentPhase");
   loadPrefFloat(KEY_LEAFTEMP, offsetLeafTemperature, -1.5f, true, "offsetLeafTemperature");
 
   // Load settings.grow targets from same persisted keys (future primary path)
@@ -508,8 +508,8 @@ String readSensorData() {
   // === JSON BUILDING (unchanged) ===
   String json = "{\n";
 
-  if (!isnan(curPhase)) {
-    json += "\"curGrowPhase\":" + String(curPhase) + ",\n";
+  if (!isnan(settings.grow.currentPhase)) {
+    json += "\"curGrowPhase\":" + String(settings.grow.currentPhase) + ",\n";
   } else {
     json += "\"curGrowPhase\":null,\n";
   } 
