@@ -8,105 +8,100 @@
 
 extern Preferences preferences;
 
+// Forward declaration of ShellySettings (defined in globals.h)
+struct PollSlot {
+  uint32_t nextAllowedMs = 0;
+  uint8_t failStreak = 0;
+};
+
+// Context for a Shelly poller, used to avoid code duplication across multiple Shelly devices.
+struct ShellyPollCtx {
+  ShellyDevice* dev; // settings.shelly.xxx
+  ShellyValues* runtimeVal; // shelly.xxx.values
+  ShellyValues* lastGood;
+  bool* haveGood;
+  PollSlot* slot;
+  const char* name;
+};
+
+// Returns true if poll succeeded and out is updated. On failure, updates backoff slot and logs if needed. Does not modify out.
+static bool pollShellyWithBackoff(ShellyDevice& dev, PollSlot& slot, ShellyValues& out) {
+  const uint32_t now = millis();
+
+  if ((int32_t)(now - slot.nextAllowedMs) < 0) {
+    return false; // still in backoff window
+  }
+
+  // if no IP configured, skip immediately but reset backoff (e.g. for unused slots or when IP is not yet set)
+  if (dev.ip.length() == 0) {
+    slot.failStreak = 0;
+    slot.nextAllowedMs = now + 10000UL;
+    return false;
+  }
+
+  // Try to poll the Shelly device
+  ShellyValues v = getShellyValues(dev, 0);
+  if (v.ok) {
+    slot.failStreak = 0;
+    slot.nextAllowedMs = now;
+    out = v;
+    return true;
+  }
+
+  // Poll failed - apply backoff
+  if (slot.failStreak < 10) slot.failStreak++;
+  uint32_t backoffMs = 2000UL << (slot.failStreak - 1); // 2s,4s,8s...
+  if (backoffMs > 60000UL) backoffMs = 60000UL; // max 60s
+  slot.nextAllowedMs = now + backoffMs;
+
+  logPrint(String("[SHELLY][BACKOFF] ") + dev.ip +
+           " fail=" + String(slot.failStreak) +
+           " next=" + String(backoffMs) + "ms");
+  return false;
+}
+
+// Task: Check Shelly Status
 void taskShellyStatus(void *parameter){
   static UBaseType_t minFree = UINT32_MAX;
-  static ShellyValues lastGoodMain;
-  static ShellyValues lastGoodLight;
-  static ShellyValues lastGoodHumidifier;
-  static ShellyValues lastGoodHeater;
-  static ShellyValues lastGoodFan;
-  static ShellyValues lastGoodExhaust;
-  static bool haveMainGood = false;
-  static bool haveLightGood = false;
-  static bool haveHumidifierGood = false;
-  static bool haveHeaterGood = false;
-  static bool haveFanGood = false;
-  static bool haveExhaustGood = false;
+
+  static ShellyValues lastGoodMain, lastGoodLight, lastGoodHum, lastGoodHeater, lastGoodFan, lastGoodExhaust;
+  static bool haveMain = false, haveLight = false, haveHum = false, haveHeater = false, haveFan = false, haveExhaust = false;
+  static PollSlot slotMain, slotLight, slotHum, slotHeater, slotFan, slotExhaust;
+
+  ShellyPollCtx pollers[] = {
+    { &settings.shelly.main, &shelly.main.values, &lastGoodMain, &haveMain, &slotMain, "main" },
+    { &settings.shelly.light, &shelly.light.values, &lastGoodLight, &haveLight, &slotLight, "light" },
+    { &settings.shelly.humidifier, &shelly.humidifier.values, &lastGoodHum, &haveHum, &slotHum, "humidifier" },
+    { &settings.shelly.heater, &shelly.heater.values, &lastGoodHeater, &haveHeater, &slotHeater, "heater" },
+    { &settings.shelly.fan, &shelly.fan.values, &lastGoodFan, &haveFan, &slotFan, "fan" },
+    { &settings.shelly.exhaust, &shelly.exhaust.values, &lastGoodExhaust, &haveExhaust, &slotExhaust, "exhaust" }
+  };
 
   for (;;) {
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
-    if (freeWords < minFree) {
-      minFree = freeWords;
-    }
+    if (freeWords < minFree) minFree = freeWords;
 
     static uint32_t lastLogMs = 0;
     const uint32_t logIntervalMs = debugLog ? 5000UL : 60000UL;
-
     if (millis() - lastLogMs > logIntervalMs) {
       lastLogMs = millis();
-
-      char buf[96];
-
-      snprintf(
-        buf,
-        sizeof(buf),
-        "[TASK][CheckShellyStatus] free=%u words (%u bytes), min=%u words",
-        freeWords,
-        freeWords * sizeof(StackType_t),
-        minFree
-      );
-
-      logPrint(String(buf));
-  }
-
-    // Read Shelly main; keep previous good value on transient request failure
-    ShellyValues mainNow = getShellyValues(settings.shelly.main, 0);
-    if (mainNow.ok) {
-      shelly.main.values = mainNow;
-      lastGoodMain = mainNow;
-      haveMainGood = true;
-    } else if (haveMainGood) {
-      shelly.main.values = lastGoodMain;
+      logPrint("[TASK][CheckShellyStatus] free=" + String(freeWords) +
+               " words (" + String(freeWords * sizeof(StackType_t)) +
+               " bytes), min=" + String(minFree) + " words");
     }
 
-    // Read Shelly light; keep previous good value on transient request failure
-    ShellyValues lightNow = getShellyValues(settings.shelly.light, 0);
-    if (lightNow.ok) {
-      shelly.light.values = lightNow;
-      lastGoodLight = lightNow;
-      haveLightGood = true;
-    } else if (haveLightGood) {
-      shelly.light.values = lastGoodLight;
+    // Poll each Shelly with backoff. On failure, runtimeVal is not updated but lastGood is kept for a potential fallback.
+    for (auto &p : pollers) {
+      ShellyValues nowVal;
+      if (pollShellyWithBackoff(*p.dev, *p.slot, nowVal)) {
+        *p.runtimeVal = nowVal;
+        *p.lastGood = nowVal;
+        *p.haveGood = true;
+      } else if (*p.haveGood) {
+        *p.runtimeVal = *p.lastGood; // keep last good result
+      }
     }
 
-    ShellyValues humNow = getShellyValues(settings.shelly.humidifier, 0);
-    if (humNow.ok) {
-      shelly.humidifier.values = humNow;
-      lastGoodHumidifier = humNow;
-      haveHumidifierGood = true;
-    } else if (haveHumidifierGood) {
-      shelly.humidifier.values = lastGoodHumidifier;
-    }
-
-    ShellyValues heaterNow = getShellyValues(settings.shelly.heater, 0);
-    if (heaterNow.ok) {
-      shelly.heater.values = heaterNow;
-      lastGoodHeater = heaterNow;
-      haveHeaterGood = true;
-    } else if (haveHeaterGood) {
-      shelly.heater.values = lastGoodHeater;
-    }
-
-    ShellyValues fanNow = getShellyValues(settings.shelly.fan, 0);
-    if (fanNow.ok) {
-      shelly.fan.values = fanNow;
-      lastGoodFan = fanNow;
-      haveFanGood = true;
-    } else if (haveFanGood) {
-      shelly.fan.values = lastGoodFan;
-    }
-
-    ShellyValues exhaustNow = getShellyValues(settings.shelly.exhaust, 0);
-    if (exhaustNow.ok) {
-      shelly.exhaust.values = exhaustNow;
-      lastGoodExhaust = exhaustNow;
-      haveExhaustGood = true;
-    } else if (haveExhaustGood) {
-      shelly.exhaust.values = lastGoodExhaust;
-    }
-
-
-    // task delay 10 seconds
-    vTaskDelay(pdMS_TO_TICKS(10000)); 
+    vTaskDelay(pdMS_TO_TICKS(10000));
   }
 }
