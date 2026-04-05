@@ -2535,7 +2535,7 @@ static void handleSaveAllRelaySchedules() {
 
     // Build preference keys for this relay
     String keyEn  = "relay_enable_"     + String(relay);
-    String keyILO = "relay_iflightoff_" + String(relay);
+    String keyILO = "r_iflo_" + String(relay);
 
     // Select preference keys for ON minute depending on relay number
     const char* kOn =

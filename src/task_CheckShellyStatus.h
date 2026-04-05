@@ -1,21 +1,52 @@
 // task_CheckShellyStatus.h
-
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>
+#include <IPAddress.h>
 #include "globals.h"
 #include <cstdarg>
 
 extern Preferences preferences;
 
+// Returns true only for non-empty valid IPv4 strings
+static bool isValidShellyIp(const String& ip) {
+  IPAddress tmp;
+  return ip.length() > 0 && tmp.fromString(ip);
+}
+
+// Poll helper: skip invalid IPs, keep last good value on failures
+static void pollShellyIfValid(
+  ShellyDevice& dev,
+  ShellyValues& runtimeValues,
+  ShellyValues& lastGood,
+  bool& haveGood
+) {
+  // Skip polling if IP is missing/invalid
+  if (!isValidShellyIp(dev.ip)) {
+    if (haveGood) runtimeValues = lastGood;
+    return;
+  }
+
+  ShellyValues nowVal = getShellyValues(dev, 0);
+  if (nowVal.ok) {
+    runtimeValues = nowVal;
+    lastGood = nowVal;
+    haveGood = true;
+  } else if (haveGood) {
+    runtimeValues = lastGood;
+  }
+}
+
 void taskShellyStatus(void *parameter){
   static UBaseType_t minFree = UINT32_MAX;
+
   static ShellyValues lastGoodMain;
   static ShellyValues lastGoodLight;
   static ShellyValues lastGoodHumidifier;
   static ShellyValues lastGoodHeater;
   static ShellyValues lastGoodFan;
   static ShellyValues lastGoodExhaust;
+
   static bool haveMainGood = false;
   static bool haveLightGood = false;
   static bool haveHumidifierGood = false;
@@ -36,7 +67,6 @@ void taskShellyStatus(void *parameter){
       lastLogMs = millis();
 
       char buf[96];
-
       snprintf(
         buf,
         sizeof(buf),
@@ -45,68 +75,18 @@ void taskShellyStatus(void *parameter){
         freeWords * sizeof(StackType_t),
         minFree
       );
-
       logPrint(String(buf));
-  }
-
-    // Read Shelly main; keep previous good value on transient request failure
-    ShellyValues mainNow = getShellyValues(settings.shelly.main, 0);
-    if (mainNow.ok) {
-      shelly.main.values = mainNow;
-      lastGoodMain = mainNow;
-      haveMainGood = true;
-    } else if (haveMainGood) {
-      shelly.main.values = lastGoodMain;
     }
 
-    // Read Shelly light; keep previous good value on transient request failure
-    ShellyValues lightNow = getShellyValues(settings.shelly.light, 0);
-    if (lightNow.ok) {
-      shelly.light.values = lightNow;
-      lastGoodLight = lightNow;
-      haveLightGood = true;
-    } else if (haveLightGood) {
-      shelly.light.values = lastGoodLight;
-    }
-
-    ShellyValues humNow = getShellyValues(settings.shelly.humidifier, 0);
-    if (humNow.ok) {
-      shelly.humidifier.values = humNow;
-      lastGoodHumidifier = humNow;
-      haveHumidifierGood = true;
-    } else if (haveHumidifierGood) {
-      shelly.humidifier.values = lastGoodHumidifier;
-    }
-
-    ShellyValues heaterNow = getShellyValues(settings.shelly.heater, 0);
-    if (heaterNow.ok) {
-      shelly.heater.values = heaterNow;
-      lastGoodHeater = heaterNow;
-      haveHeaterGood = true;
-    } else if (haveHeaterGood) {
-      shelly.heater.values = lastGoodHeater;
-    }
-
-    ShellyValues fanNow = getShellyValues(settings.shelly.fan, 0);
-    if (fanNow.ok) {
-      shelly.fan.values = fanNow;
-      lastGoodFan = fanNow;
-      haveFanGood = true;
-    } else if (haveFanGood) {
-      shelly.fan.values = lastGoodFan;
-    }
-
-    ShellyValues exhaustNow = getShellyValues(settings.shelly.exhaust, 0);
-    if (exhaustNow.ok) {
-      shelly.exhaust.values = exhaustNow;
-      lastGoodExhaust = exhaustNow;
-      haveExhaustGood = true;
-    } else if (haveExhaustGood) {
-      shelly.exhaust.values = lastGoodExhaust;
-    }
-
+    // Poll all configured Shelly devices (invalid/missing IPs are skipped)
+    pollShellyIfValid(settings.shelly.main, shelly.main.values, lastGoodMain, haveMainGood);
+    pollShellyIfValid(settings.shelly.light, shelly.light.values, lastGoodLight, haveLightGood);
+    pollShellyIfValid(settings.shelly.humidifier, shelly.humidifier.values, lastGoodHumidifier, haveHumidifierGood);
+    pollShellyIfValid(settings.shelly.heater, shelly.heater.values, lastGoodHeater, haveHeaterGood);
+    pollShellyIfValid(settings.shelly.fan, shelly.fan.values, lastGoodFan, haveFanGood);
+    pollShellyIfValid(settings.shelly.exhaust, shelly.exhaust.values, lastGoodExhaust, haveExhaustGood);
 
     // task delay 10 seconds
-    vTaskDelay(pdMS_TO_TICKS(10000)); 
+    vTaskDelay(pdMS_TO_TICKS(10000));
   }
 }
