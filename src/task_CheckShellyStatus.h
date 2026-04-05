@@ -56,13 +56,10 @@ void taskShellyStatus(void *parameter){
 
   for (;;) {
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
-    if (freeWords < minFree) {
-      minFree = freeWords;
-    }
+    if (freeWords < minFree) minFree = freeWords;
 
     static uint32_t lastLogMs = 0;
     const uint32_t logIntervalMs = debugLog ? 5000UL : 60000UL;
-
     if (millis() - lastLogMs > logIntervalMs) {
       lastLogMs = millis();
 
