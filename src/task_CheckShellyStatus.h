@@ -1,3 +1,5 @@
+// task_CheckShellyStatus.h
+
 #pragma once
 #include <Arduino.h>
 #include <Preferences.h>
@@ -5,7 +7,6 @@
 #include <cstdarg>
 
 extern Preferences preferences;
-extern int amountOfWater;
 
 void taskShellyStatus(void *parameter){
   static UBaseType_t minFree = UINT32_MAX;

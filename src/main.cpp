@@ -667,22 +667,33 @@ static void handleDiaryClear() {
 
 // -------------------- State/Variables API (registry -> JSON) --------------------
 void handleApiState() {
+  server.sendHeader("Cache-Control", "no-store");
   server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "application/json", "");
+  server.send(200, "application/json; charset=utf-8", "");
 
-  WiFiClient client = server.client();
-  client.print("{\n");
+  // We build the JSON manually in a streaming fashion to avoid large RAM usage from ArduinoJson's in-memory representation.
+  String line;
+  line.reserve(256);
+
+  server.sendContent("{\n");
 
   for (size_t i = 0; i < VARS_COUNT; i++) {
-    if (i) client.print(",\n");
-    client.print(" \"");
-    client.print(VARS[i].key);
-    client.print("\": ");
-    client.print(VARS[i].get());
+    line = " \"";
+    line += VARS[i].key;
+    line += "\": ";
+    line += VARS[i].get();
+    if (i + 1 < VARS_COUNT) line += ",\n";
+    else line += "\n";
+
+    server.sendContent(line);
   }
 
-  client.print("\n}");
+  server.sendContent("}");
+
+  // finalize response (important when using CONTENT_LENGTH_UNKNOWN)
+  server.sendContent("");
 }
+
 
 // -------------------- Deferred init task (moves slow stuff out of setup) --------------------
 static void taskDeferredInit(void* /*pv*/) {
