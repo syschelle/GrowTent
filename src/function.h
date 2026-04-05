@@ -117,17 +117,45 @@ bool checkFS() {
 
 void sensorTask(void* pvParameters) {
     static uint32_t lastLogMs = 0;
-    const uint32_t debugLogIntervalMs = 60000; // 60s
+    static uint32_t lastWarnMs = 0;
+
+    const uint32_t logIntervalMs = 60000UL; // alle 60s
+    const uint32_t warnCooldownMs = 300000UL; // Warnung max alle 5min
+    const uint32_t heapWarnThreshold = 30000UL; // free heap Warnschwelle
+    const uint32_t largestWarnThreshold = 12000UL; // größter Block Warnschwelle
+
+    logPrint("[TASK][sensor] started");
 
     for (;;) {
-        if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
-            lastLogMs = millis();
+        const uint32_t now = millis();
+
+        if (now - lastLogMs >= logIntervalMs) {
+            lastLogMs = now;
 
             UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+            const uint32_t freeHeap = ESP.getFreeHeap();
+            const uint32_t minFreeHeap = ESP.getMinFreeHeap();
+            const uint32_t largestBlock = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+
             logPrint(
-                "[TASK][sensor] free stack: " + String(freeWords) +
-                " words (" + String(freeWords * sizeof(StackType_t)) + " bytes)"
+                "[TASK][sensor] stack=" + String(freeWords) +
+                " words (" + String(freeWords * sizeof(StackType_t)) + " bytes), " +
+                "heap free=" + String(freeHeap) +
+                " min=" + String(minFreeHeap) +
+                " largest=" + String(largestBlock)
             );
+
+            const bool lowFree = (freeHeap < heapWarnThreshold);
+            const bool fragmented = (largestBlock < largestWarnThreshold);
+
+            if ((lowFree || fragmented) && (now - lastWarnMs >= warnCooldownMs)) {
+                lastWarnMs = now;
+                logPrint(
+                    "[HEAP][WARN] low/fragmented: free=" + String(freeHeap) +
+                    ", largest=" + String(largestBlock) +
+                    ", min=" + String(minFreeHeap)
+                );
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(5000));

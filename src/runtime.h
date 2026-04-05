@@ -273,15 +273,16 @@ void readPreferences() {
   activeRelayCount = (activeRelayCount == 8) ? 8 : 4;
 
   // relays
-  settings.relay.name[0] = preferences.isKey(KEY_RELAY_1) ? strdup(preferences.getString(KEY_RELAY_1).c_str()) : strdup("relay 1");
-  settings.relay.name[1] = preferences.isKey(KEY_RELAY_2) ? strdup(preferences.getString(KEY_RELAY_2).c_str()) : strdup("relay 2");
-  settings.relay.name[2] = preferences.isKey(KEY_RELAY_3) ? strdup(preferences.getString(KEY_RELAY_3).c_str()) : strdup("relay 3");
-  settings.relay.name[3] = preferences.isKey(KEY_RELAY_4) ? strdup(preferences.getString(KEY_RELAY_4).c_str()) : strdup("relay 4");
+  settings.relay.name[0] = preferences.getString(KEY_RELAY_1, "relay 1");
+  settings.relay.name[1] = preferences.getString(KEY_RELAY_2, "relay 2");
+  settings.relay.name[2] = preferences.getString(KEY_RELAY_3, "relay 3");
+  settings.relay.name[3] = preferences.getString(KEY_RELAY_4, "relay 4");
+
   if (activeRelayCount == 8) {
-    settings.relay.name[4] = preferences.isKey(KEY_RELAY_5) ? strdup(preferences.getString(KEY_RELAY_5).c_str()) : strdup("relay 5");
-    settings.relay.name[5] = preferences.isKey(KEY_RELAY_6) ? strdup(preferences.getString(KEY_RELAY_6).c_str()) : strdup("relay 6");
-    settings.relay.name[6] = preferences.isKey(KEY_RELAY_7) ? strdup(preferences.getString(KEY_RELAY_7).c_str()) : strdup("relay 7");
-    settings.relay.name[7] = preferences.isKey(KEY_RELAY_8) ? strdup(preferences.getString(KEY_RELAY_8).c_str()) : strdup("relay 8");
+    settings.relay.name[4] = preferences.getString(KEY_RELAY_5, "relay 5");
+    settings.relay.name[5] = preferences.getString(KEY_RELAY_6, "relay 6");
+    settings.relay.name[6] = preferences.getString(KEY_RELAY_7, "relay 7");
+    settings.relay.name[7] = preferences.getString(KEY_RELAY_8, "relay 8");
   }
 
   // running settings
@@ -506,7 +507,9 @@ String readSensorData() {
   }
 
   // === JSON BUILDING (unchanged) ===
-  String json = "{\n";
+  String json;
+  json.reserve(1536); // verhindert häufige Reallokationen/Fragmentierung
+  json = "{\n"; 
 
   if (!isnan(settings.grow.currentPhase)) {
     json += "\"curGrowPhase\":" + String(settings.grow.currentPhase) + ",\n";

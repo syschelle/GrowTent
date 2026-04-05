@@ -667,31 +667,21 @@ static void handleDiaryClear() {
 
 // -------------------- State/Variables API (registry -> JSON) --------------------
 void handleApiState() {
-  const char* nl  = "\n";
-  const char* ind = "  ";
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/json", "");
 
-  String json;
-  json.reserve(2048);   // optional, aber gut gegen Fragmentierung
-
-  json += "{";
-  json += nl;
+  WiFiClient client = server.client();
+  client.print("{\n");
 
   for (size_t i = 0; i < VARS_COUNT; i++) {
-    if (i) {
-      json += ",";
-      json += nl;
-    }
-    json += ind;
-    json += "\"";
-    json += VARS[i].key;
-    json += "\": ";
-    json += VARS[i].get();
+    if (i) client.print(",\n");
+    client.print(" \"");
+    client.print(VARS[i].key);
+    client.print("\": ");
+    client.print(VARS[i].get());
   }
 
-  json += nl;
-  json += "}";
-
-  server.send(200, "application/json", json);
+  client.print("\n}");
 }
 
 // -------------------- Deferred init task (moves slow stuff out of setup) --------------------
