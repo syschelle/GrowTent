@@ -1,5 +1,6 @@
 #include "vars_registry.h"
 #include "globals.h"
+#include <esp_heap_caps.h>
 
 // These are defined in main.cpp (kept there intentionally)
 extern SensorReadings cur;
@@ -101,6 +102,7 @@ String g_apiVersion() {
 static String g_uptime() { return jUInt((uint32_t)(millis() / 1000UL)); }
 static String g_heap() { return jUInt((uint32_t)ESP.getFreeHeap()); }
 static String g_minheap() { return jUInt((uint32_t)ESP.getMinFreeHeap()); }
+static String g_largestFreeHeapBlock() { return jUInt((uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)); }
 static String g_cpumhz() { return jUInt((uint32_t)ESP.getCpuFreqMHz()); }
 
 static String g_wifiReady() { return jBool(wifiReady); }
@@ -275,6 +277,7 @@ const VarItem VARS[] = {
   {"sys.uptimeS", g_uptime, false, "system"},
   {"sys.freeHeap", g_heap, false, "system"},
   {"sys.minFreeHeap", g_minheap, false, "system"},
+  {"sys.largestFreeHeapBlock", g_largestFreeHeapBlock, false, "system"},
   {"sys.cpuMhz", g_cpumhz, false, "system"},
 
   // --- wifi ---
