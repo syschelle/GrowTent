@@ -2144,4 +2144,43 @@ function pingTank() {
     });
 }
 
+
+// ---------- OTA Update Checker (Settings page) ----------
+let otaInfo = null;
+
+async function checkForOtaUpdate() {
+  const status = document.getElementById('otaStatus');
+  const ver = document.getElementById('otaVersion');
+  const log = document.getElementById('otaChangelog');
+  const btn = document.getElementById('otaInstallBtn');
+
+  status.textContent = 'Prüfe GitHub Release...';
+  ver.textContent = '';
+  log.textContent = '';
+  btn.disabled = true;
+  otaInfo = null;
+
+  try {
+    const r = await fetch('/api/ota/check', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+
+    if (!d.ok) throw new Error(d.error || 'Check failed');
+
+    ver.textContent = `Installiert: ${d.currentVersion} | Neueste: ${d.latestVersion}`;
+
+    if (d.updateAvailable) {
+      status.textContent = 'Update verfügbar ✅';
+      log.textContent = d.changelog || '(kein Changelog)';
+      otaInfo = d;
+      btn.disabled = false;
+    } else {
+      status.textContent = 'Kein Update verfügbar.';
+      log.textContent = d.changelog || '';
+    }
+  } catch (e) {
+    status.textContent = 'Fehler beim Prüfen: ' + (e.message || e);
+  }
+}
+
 )rawliteral";

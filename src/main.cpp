@@ -25,6 +25,7 @@
 #include "index_html.h"
 #include "style_css.h"
 #include "java_script.h"
+#include "ota.h"
 
 // Debug variable registry ("Variables" page)
 #include "vars_registry.h"
@@ -976,6 +977,7 @@ void setup() {
   server.on("/api/logbuffer", HTTP_GET, handleApiLogBuffer);
   server.on("/api/logbuffer/clear", HTTP_POST, handleClearLog);
   server.on("/log", HTTP_GET, handleDownloadLog);
+  server.on("/api/ota/check", HTTP_GET, handleOtaCheck);
   // Catch-all for undefined routes
   server.onNotFound([]() {
     Serial.printf("404 Not Found: %s (method %d)\n", server.uri().c_str(), (int)server.method());

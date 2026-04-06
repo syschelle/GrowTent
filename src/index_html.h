@@ -966,9 +966,19 @@ const char* htmlPage = R"rawliteral(
     <!-- OTA update section -->
     <section id="ota" class="page card">
       <h1 data-i18n="ota.title">OTA Update</h1>
-      <p class="hint" data-i18n="ota.hint">Die Firmware wird von \"https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin\" heruntergeladen.</p>
+      <p class="hint">
+        Firmware-Quelle:
+        <code>https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin</code>
+      </p>
+
+      <div id="otaStatus" class="muted">Noch nicht geprüft.</div>
+      <div id="otaVersion"></div>
+      <pre id="otaChangelog" style="white-space:pre-wrap;"></pre>
+
       <div class="spacer"></div>
-      <button type="button" class="primary" onclick="startOtaUpdate()">OTA Update</button>
+        <button type="button" class="primary" onclick="checkForOtaUpdate()">Auf Update prüfen</button>
+      <div class="spacer"></div>
+        <button type="button" class="primary" id="otaInstallBtn" onclick="startOtaUpdate()" disabled>Update installieren</button>
     </section>
 
     <!-- factory reset section -->
