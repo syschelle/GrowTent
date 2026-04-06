@@ -320,7 +320,7 @@ void readPreferences() {
     int relay = i + 1;
 
     String keyEn = "relay_enable_" + String(relay);
-    String keyILO = "relay_iflightoff_" + String(relay);
+    String keyILO = "ilo_" + String(relay);
 
     const char* keyOn =
     (relay == 1) ? KEY_RELAY_START_1 :
