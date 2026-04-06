@@ -1,12 +1,7 @@
 #pragma once
 #include <Arduino.h>
-#include <Preferences.h>
 #include "globals.h"
 #include "function.h"
-#include <cstdarg>
-
-extern Preferences preferences;
-extern int amountOfWater;
 
 void taskWatering(void *parameter) {
   static UBaseType_t minFree = UINT32_MAX;

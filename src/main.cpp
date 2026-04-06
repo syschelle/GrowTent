@@ -779,12 +779,10 @@ void setup() {
     logPrint("[BOOT] relayMutex create failed");
   }
 
-  // Mount FS quickly (don't auto-format on boot)
-  if (!ensureFsMounted()) {
-    logPrint("[LITTLEFS] mount failed");
-  } else {
+  // if littlefs mounted successfully, print contents for debugging
+  if (ensureFsMounted()) {
     logPrint("[LITTLEFS] mounted");
-  } 
+  }
 
   // Load WiFi credentials only (fast)
   preferences.begin(PREF_NS, true);
