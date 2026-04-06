@@ -22,6 +22,7 @@
 // global, functions, html code, js code and css code includes
 #include "globals.h"
 #include "function.h"
+#include "helper.h"
 #include "index_html.h"
 #include "style_css.h"
 #include "java_script.h"
@@ -164,7 +165,7 @@ static uint32_t fnv1a32(const String& s) {
 }
 
 static bool ensureDiaryHasId() {
-  if (!LittleFS.begin(true)) return false;
+  if (!ensureFsMounted()) return false;
   if (!LittleFS.exists(DIARY_PATH)) return true;
 
   File f = LittleFS.open(DIARY_PATH, FILE_READ);
@@ -334,7 +335,7 @@ static time_t parseLocalTimestamp(const String& tsLocal) {
 // GET /api/diary/list  -> returns JSON list for UI
 static void handleDiaryList() {
   server.sendHeader("Cache-Control", "no-store");
-  if (!LittleFS.begin(true) || !LittleFS.exists(DIARY_PATH)) {
+  if (!ensureFsMounted() || !LittleFS.exists(DIARY_PATH)) {
     server.send(200, "application/json; charset=utf-8", "{\"items\":[]}");
     return;
   }
@@ -520,7 +521,7 @@ static void handleDiaryAdd() {
            nowLocalTm.tm_hour, nowLocalTm.tm_min, nowLocalTm.tm_sec);
 
   // --- write file ---
-  if (!LittleFS.begin(true)) {
+  if (!ensureFsMounted()) {
     server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"LittleFS\"}");
     return;
   }
@@ -637,7 +638,7 @@ static void handleDiaryUpdate() {
 static void handleDiaryDownload() {
   server.sendHeader("Cache-Control", "no-store");
 
-  if (!LittleFS.begin(true) || !LittleFS.exists(DIARY_PATH)) {
+  if (!ensureFsMounted() || !LittleFS.exists(DIARY_PATH)) {
     // Return empty file with header so the browser still downloads something
     server.sendHeader("Content-Disposition", "attachment; filename=\"growdiary.csv\"");
     server.send(200, "text/csv; charset=utf-8", "ts_local,phase,grow_day,grow_week,phase_day,phase_week,note\n");
@@ -658,7 +659,7 @@ static void handleDiaryDownload() {
 // POST /api/diary/clear  -> delete diary file
 static void handleDiaryClear() {
   server.sendHeader("Cache-Control", "no-store");
-  if (!LittleFS.begin(true)) {
+  if (!ensureFsMounted()) {
     server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"LittleFS\"}");
     return;
   }
@@ -771,6 +772,12 @@ static void taskDeferredInit(void* /*pv*/) {
 // -------------------- setup --------------------
 void setup() {
   Serial.begin(115200);
+
+  // Create mutex for relay state access (used by both HTTP handlers and watering task)
+  relayMutex = xSemaphoreCreateMutex();
+  if (relayMutex == nullptr) {
+    logPrint("[BOOT] relayMutex create failed");
+  }
 
   // Mount FS quickly (don't auto-format on boot)
   if (!LittleFS.begin(false)) {

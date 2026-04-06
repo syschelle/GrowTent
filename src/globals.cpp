@@ -189,6 +189,8 @@ const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26, 27, 14, 12, 13 };
 bool relayStates[NUM_RELAYS] = { false };
 unsigned long relayOffTime[NUM_RELAYS] = {0};
 bool relayActive[NUM_RELAYS] = {false};
+// Mutex for relay state changes
+SemaphoreHandle_t relayMutex = nullptr;
 
 // Sensors
 Adafruit_BME280 bme;

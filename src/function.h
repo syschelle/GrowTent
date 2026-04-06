@@ -1099,11 +1099,23 @@ bool isRelayOn(int idx) {
   return digitalRead(relayPins[idx]) == HIGH;
 }
 
-// set relay state by index
+// set relay state by index (0-based) with mutex protection and update state array
 void setRelay(int idx, bool on) {
   if (idx < 0 || idx >= NUM_RELAYS) return;
-  digitalWrite(relayPins[idx], on ? HIGH : LOW); // <-- so!
-  relayStates[idx] = on;
+  if (idx >= activeRelayCount) return;
+
+  if (relayMutex) {
+    if (xSemaphoreTake(relayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      digitalWrite(relayPins[idx], on ? HIGH : LOW);
+      relayStates[idx] = on;
+      xSemaphoreGive(relayMutex);
+    } else {
+      logPrint("[RELAY] mutex timeout in setRelay()");
+    }
+  } else {
+    digitalWrite(relayPins[idx], on ? HIGH : LOW);
+    relayStates[idx] = on;
+  }
 }
 
 // toggle relay state by index and return new state as JSON
@@ -2399,12 +2411,13 @@ static void applyRelaySchedules() {
       // Determine desired relay state by schedule window
       bool shouldBeOn = isMinuteInWindowHour(nowMin, sc.onMin, sc.offMin);
 
-      // Optional rule: relay may run only when light is OFF
-      // If light status is unknown, fail-safe = force OFF
-      if (!sc.ifLightOff) {
-          if (!lightStatusValid || !lightIsOn) {    
-              shouldBeOn = false;
-          }
+      // Light gating:
+      // - If light status is unknown -> fail-safe OFF
+      // - If light is OFF -> relay may run only if ifLightOff is true
+      if (!lightStatusValid) {
+        shouldBeOn = false;
+      } else if (!lightIsOn && !sc.ifLightOff) {
+        shouldBeOn = false;
       }
 
       // Read current physical relay state (HIGH = ON in this project)

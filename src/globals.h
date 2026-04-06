@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include "freertos/semphr.h"
 
 // -------------------- Konstanten / Defines --------------------
 #define MAX_RELAYS 8
@@ -23,6 +24,7 @@
 
 extern int activeRelayCount; // runtime: 4 or 8
 extern const char* KEY_RELAY_COUNT;
+extern SemaphoreHandle_t relayMutex;
 
 // -------------------- Structs (erst Typen, dann Settings) --------------------
 struct DailySchedule {
