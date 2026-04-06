@@ -780,7 +780,7 @@ void setup() {
   }
 
   // Mount FS quickly (don't auto-format on boot)
-  if (!LittleFS.begin(false)) {
+  if (!ensureFsMounted()) {
     logPrint("[LITTLEFS] mount failed");
   } else {
     logPrint("[LITTLEFS] mounted");

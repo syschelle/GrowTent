@@ -1096,6 +1096,8 @@ void handleDownloadLog() {
 
 // helper: read actual relay pin and convert to bool  
 bool isRelayOn(int idx) {
+  if (idx < 0 || idx >= NUM_RELAYS) return false;
+  if (idx >= activeRelayCount) return false;
   return digitalRead(relayPins[idx]) == HIGH;
 }
 
