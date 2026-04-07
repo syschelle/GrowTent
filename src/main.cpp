@@ -667,13 +667,17 @@ static void handleDiaryClear() {
   server.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
 }
 
-// -------------------- State/Variables API (registry -> JSON) --------------------
-void handleApiState() {
+// -------------------- State API caching (registry -> JSON) --------------------
+static String g_apiStateCache;
+static uint32_t g_apiStateCacheMs = 0;
+static const uint32_t API_STATE_CACHE_TTL_MS = 1000;
+
+static void buildApiStateJson(String& json) {
   const char* nl  = "\n";
   const char* ind = "  ";
 
-  String json;
-  json.reserve(2048);   // optional, aber gut gegen Fragmentierung
+  json = "";
+  json.reserve(4096);
 
   json += "{";
   json += nl;
@@ -692,8 +696,19 @@ void handleApiState() {
 
   json += nl;
   json += "}";
+}
 
-  server.send(200, "application/json", json);
+// -------------------- State/Variables API (registry -> JSON) --------------------
+void handleApiState() {
+  uint32_t now = millis();
+
+  if (g_apiStateCache.length() == 0 || (now - g_apiStateCacheMs) > API_STATE_CACHE_TTL_MS) {
+    buildApiStateJson(g_apiStateCache);
+    g_apiStateCacheMs = now;
+  }
+
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json; charset=utf-8", g_apiStateCache);
 }
 
 // -------------------- Deferred init task (moves slow stuff out of setup) --------------------

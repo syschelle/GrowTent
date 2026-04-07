@@ -1384,7 +1384,7 @@ static bool fetchWwwAuthenticate(const String& url, String& outWwwAuth, int& out
   outCode = -1;
 
   HTTPClient http;
-  http.setTimeout(4000);
+  http.setTimeout(1200);
   http.useHTTP10(true);
 
   const char* keys[] = {"WWW-Authenticate"};
