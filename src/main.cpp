@@ -670,7 +670,7 @@ static void handleDiaryClear() {
 // -------------------- State API caching (registry -> JSON) --------------------
 static String g_apiStateCache;
 static uint32_t g_apiStateCacheMs = 0;
-static const uint32_t API_STATE_CACHE_TTL_MS = 1000;
+static const uint32_t API_STATE_CACHE_TTL_MS = 5000;
 
 static void buildApiStateJson(String& json) {
   const char* nl  = "\n";
