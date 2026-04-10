@@ -1932,12 +1932,6 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
     bool haveOn = false;
     bool haveOff = false;
-    // If we found a schedule once, we stop querying forever.
-    // (Set to true later after parsing, when haveOn/haveOff is known.)
-    // Mark schedule as resolved once any valid schedule info exists
-    if (haveOn || haveOff) {
-      g_scheduleResolved = true;
-    }
 
     int onHour = -1, onMinute = -1;
     int offHour = -1, offMinute = -1;
@@ -2006,6 +2000,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
     // Apply the same schedule to all days (and log what was applied)
     if (haveOn || haveOff) {
+      g_scheduleResolved = true; // stop trying in future
       for (int i = 0; i < 7; i++) {
         if (haveOn) {
           dev.schedules.days[i].onHour = onHour;
