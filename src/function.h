@@ -944,13 +944,15 @@ void calculateTimeSince(const String& startDate, int &days, int &weeks) {
 
 
 // Convert minutes to milliseconds (int return type)
-int minutesToMilliseconds(int minutes) {
-    return minutes * 60 * 1000;
+uint32_t minutesToMilliseconds(uint32_t minutes) {
+    if (minutes > 60000UL) minutes = 60000UL;
+    return minutes * 60UL * 1000UL;
 }
 
 // Convert seconds to milliseconds (int return type)
-int secondsToMilliseconds(int seconds) {
-    return seconds * 1000;
+uint32_t secondsToMilliseconds(uint32_t seconds) {
+    if (seconds > 86400UL) seconds = 86400UL;
+    return seconds * 1000UL;
 }
 
 // CSV: ts_ms,tempC,hum,vpd\n
@@ -1445,21 +1447,41 @@ static bool fetchWwwAuthenticate(const String& url, String& outWwwAuth, int& out
 }
 
 // Read the complete HTTP response (status line + headers + body)
-static bool readAllFromClient(WiFiClient& client, String& outRaw) {
+static bool readAllFromClient(WiFiClient& client, String& outRaw, size_t maxBytes = 8192) {
   outRaw = "";
+  outRaw.reserve(maxBytes);
+
   unsigned long start = millis();
 
-  // Wait for first bytes (up to 2s)
+  // Wait for first bytes (up to 2 seconds)
   while (!client.available() && client.connected() && (millis() - start) < 2000) {
     delay(5);
   }
 
-  // Read until connection closes or timeout (4s max)
+  // Read until connection closes or timeout (4 seconds max)
   start = millis();
   while ((client.connected() || client.available()) && (millis() - start) < 4000) {
     while (client.available()) {
-      outRaw += client.readString();
-      start = millis(); // reset timeout while data arrives
+      size_t remaining = maxBytes - outRaw.length();
+      if (remaining == 0) {
+        return false; // response too large
+      }
+
+      char buf[128];
+      size_t chunkSize = remaining < (sizeof(buf) - 1) ? remaining : (sizeof(buf) - 1);
+
+      int n = client.readBytes(buf, chunkSize);
+      if (n <= 0) {
+        break;
+      }
+
+      buf[n] = '\0';
+      outRaw += buf;
+      start = millis(); // reset timeout while data is still arriving
+
+      if (outRaw.length() >= maxBytes) {
+        return false; // response too large
+      }
     }
     delay(5);
   }
@@ -1506,7 +1528,7 @@ static bool rawHttpGet(const String& host, uint16_t port, const String& path,
   outBody = "";
 
   WiFiClient client;
-  client.setTimeout(4); // seconds
+  client.setTimeout(4000); // 4 milliseconds
 
   if (!client.connect(host.c_str(), port)) {
     return false;
@@ -1524,10 +1546,18 @@ static bool rawHttpGet(const String& host, uint16_t port, const String& path,
 
   client.print(req);
 
+  constexpr size_t MAX_HTTP_GET_RAW = 8192;
+
   String raw;
-  bool ok = readAllFromClient(client, raw);
+  raw.reserve(MAX_HTTP_GET_RAW);
+
+  bool ok = readAllFromClient(client, raw, MAX_HTTP_GET_RAW);
   client.stop();
-  if (!ok) return false;
+
+  if (!ok) {
+    logPrint("[HTTP] GET response too large or timed out: " + host + p);
+    return false;
+  }
 
   parseHttpResponse(raw, outCode, outBody);
   return true;
@@ -1537,8 +1567,7 @@ static bool rawHttpGet(const String& host, uint16_t port, const String& path,
 
 // Low-level HTTP request using WiFiClient, with optional Authorization header line.
 static bool rawHttpRequest(const String& method,
-                           const String& host, uint16_t port,
-                           const String& path,
+                           const String& host, uint16_t port, const String& path,
                            const String& authHeaderLine,
                            const String& contentType,
                            const String& body,
@@ -1547,7 +1576,7 @@ static bool rawHttpRequest(const String& method,
   outBody = "";
 
   WiFiClient client;
-  client.setTimeout(6); // seconds
+  client.setTimeout(4000); // 4 milliseconds
 
   if (!client.connect(host.c_str(), port)) {
     return false;
@@ -1556,27 +1585,29 @@ static bool rawHttpRequest(const String& method,
   String p = path;
   if (!p.startsWith("/")) p = "/" + p;
 
-  String req = method + " " + p + " HTTP/1.0\r\n"
-               "Host: " + host + "\r\n" +
-               authHeaderLine;
-
-  if (method == "POST" || method == "PUT" || method == "PATCH") {
-    const String ct = contentType.length() ? contentType : String("application/json");
-    req += "Content-Type: " + ct + "\r\n";
-    req += "Content-Length: " + String(body.length()) + "\r\n";
-  }
-
-  req += "Connection: close\r\n\r\n";
+  String req =
+    method + " " + p + " HTTP/1.0\r\n"
+    "Host: " + host + "\r\n" +
+    authHeaderLine +
+    "Content-Type: " + contentType + "\r\n"
+    "Content-Length: " + String(body.length()) + "\r\n"
+    "Connection: close\r\n\r\n" +
+    body;
 
   client.print(req);
-  if (method == "POST" || method == "PUT" || method == "PATCH") {
-    client.print(body);
-  }
+
+  constexpr size_t MAX_HTTP_REQ_RAW = 4096;
 
   String raw;
-  bool ok = readAllFromClient(client, raw);
+  raw.reserve(MAX_HTTP_REQ_RAW);
+
+  bool ok = readAllFromClient(client, raw, MAX_HTTP_REQ_RAW);
   client.stop();
-  if (!ok) return false;
+
+  if (!ok) {
+    logPrint("[HTTP] " + method + " response too large or timed out: " + host + p);
+    return false;
+  }
 
   parseHttpResponse(raw, outCode, outBody);
   return true;

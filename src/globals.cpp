@@ -243,7 +243,7 @@ int index_pos = 0;
 int count = 0;
 
 // Grow runtime
-char actualDate[10] = {0};
+char actualDate[11] = {0};
 int daysSinceStart = 0, weeksSinceStart = 0;
 int daysSinceFlowering = 0, weeksSinceFlowering = 0;
 int daysSinceDrying = 0, weeksSinceDrying = 0;

@@ -454,7 +454,7 @@ extern int count;
 extern int head;
 
 // Grow runtime
-extern char actualDate[10];
+extern char actualDate[11];
 extern int daysSinceStart, weeksSinceStart;
 extern int daysSinceFlowering, weeksSinceFlowering;
 extern int daysSinceDrying, weeksSinceDrying;

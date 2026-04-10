@@ -449,24 +449,18 @@ void updateSmoothedClimate(float rawTemp, float rawHum) {
       alphaHum * rawHum + (1.0f - alphaHum) * cur.humiditySmoothedPct;
 }
 
-
-
 // Read sensors and build JSON string for API response
 String readSensorData() {
 
   // read DS18B20 water temperature if enabled
   if (DS18B20) {
-    // previous value read from sensor
-    float dsTemp = sensors.getTempCByIndex(0);
-
-    if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp > -100.0f) {
-      DS18B20STemperature = dsTemp;
-      cur.extTempC = dsTemp;
-    } else {
-      logPrint("[SENSOR] DS18B20 sensor error or disconnected. Please check wiring.");
+    if (sensors.isConversionComplete()) {
+      float dsTemp = sensors.getTempCByIndex(0);
+      if (dsTemp != DEVICE_DISCONNECTED_C && dsTemp != 85.0f && dsTemp > -100.0f) {
+        DS18B20STemperature = dsTemp;
+        cur.extTempC = dsTemp;
+      }
     }
-
-    // start next measurement for the upcoming cycle
     sensors.requestTemperatures();
   }
   
