@@ -1029,12 +1029,35 @@ void setup() {
 // -------------------- loop --------------------
 void loop() {
   // Check WiFi every 10s and reconnect if needed (but only if we have credentials; otherwise we're in AP mode and shouldn't try to connect).
+  // WiFi reconnect policy (gentle -> hard reset only after longer outage)
   static uint32_t lastWifiCheck = 0;
-  if (millis() - lastWifiCheck > 10000) {
+  static uint32_t wifiDownSince = 0;
+  const uint32_t WIFI_CHECK_MS = 10000UL; // alle 10s prüfen
+  const uint32_t WIFI_HARD_RESET_AFTER_MS = 60000UL; // erst nach 60s offline hart neu starten
+
+  if (millis() - lastWifiCheck >= WIFI_CHECK_MS) {
     lastWifiCheck = millis();
-    if (!espMode && WiFi.status() != WL_CONNECTED && ssidName.length() > 0) {
-      WiFi.disconnect(false, true);
-      WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
+
+    if (!espMode && ssidName.length() > 0) {
+      wl_status_t st = WiFi.status();
+
+      if (st == WL_CONNECTED) {
+        wifiReady = true;
+        wifiDownSince = 0;
+      } else {
+        wifiReady = false;
+        if (wifiDownSince == 0) wifiDownSince = millis();
+
+        // Erst sanft versuchen (kein disconnect)
+        if ((millis() - wifiDownSince) < WIFI_HARD_RESET_AFTER_MS) {
+          WiFi.reconnect();
+        } else {
+          // Nur wenn wirklich länger weg: harter Reconnect
+          WiFi.disconnect(false, true);
+          WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
+          wifiDownSince = millis(); // Fenster neu starten
+        }
+      }
     }
   }
 

@@ -23,6 +23,11 @@
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP_PLATFORM)
 #include <lwip/inet.h>
 
+// Light schedule refresh window state (file-scope)
+static uint32_t g_scheduleInitStartMs = 0;
+static uint32_t g_lastScheduleFetchMs = 0;
+static bool g_scheduleResolved = false;
+
 // Forward declarations (used before definitions)
 struct ShellyDevice;
 struct ShellyValues;
@@ -663,6 +668,12 @@ void handleSaveShellySettings() {
     lightOnTime = settings.grow.lightOnTime;
     lightDayHours = settings.grow.lightDayHours;
     applyGrowLightSchedule();
+
+    // Re-open 3-minute schedule discovery window after Shelly settings change
+    g_scheduleResolved = false;
+    g_scheduleInitStartMs = millis();
+    g_lastScheduleFetchMs = 0;
+
 
     // Redirect back to status page
     server.sendHeader("Location", "/");
@@ -1870,14 +1881,24 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   const bool isLightShelly =
   settings.shelly.light.ip.length() > 0 && dev.ip == settings.shelly.light.ip;
 
-  // Throttle Schedule.List requests to reduce latency/timeout risk
-  static uint32_t lastScheduleFetchMs = 0;
-  const uint32_t scheduleFetchIntervalMs = 60000UL; // 60 seconds
-  const bool scheduleDue = (lastScheduleFetchMs == 0) ||((millis() - lastScheduleFetchMs) >= scheduleFetchIntervalMs);
+  // Startup-only Schedule.List strategy:
+  // - during first 3 minutes after boot: try every 15s
+  // - stop forever once at least ON or OFF time is found
+  // - stop forever after 3 minutes even if nothing found
+  if (g_scheduleInitStartMs == 0) g_scheduleInitStartMs = millis();
 
+  const uint32_t scheduleFetchIntervalMs = 15000UL; // 15s during startup window
+  const uint32_t scheduleInitWindowMs = 180000UL; // 3 minutes
+  const bool inInitWindow = (uint32_t)(millis() - g_scheduleInitStartMs) < scheduleInitWindowMs;
+
+  const bool scheduleDue =
+    !g_scheduleResolved &&
+    inInitWindow &&
+    ((g_lastScheduleFetchMs == 0) || ((uint32_t)(millis() - g_lastScheduleFetchMs) >= scheduleFetchIntervalMs));
 
   if (dev.gen >= 2 && isLightShelly && scheduleDue) {
-    lastScheduleFetchMs = millis();
+    g_lastScheduleFetchMs = millis();
+
 
     // Initialize schedules to "unset"
     for (int i = 0; i < 7; i++) {
@@ -1911,6 +1932,13 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
     bool haveOn = false;
     bool haveOff = false;
+    // If we found a schedule once, we stop querying forever.
+    // (Set to true later after parsing, when haveOn/haveOff is known.)
+    // Mark schedule as resolved once any valid schedule info exists
+    if (haveOn || haveOff) {
+      g_scheduleResolved = true;
+    }
+
     int onHour = -1, onMinute = -1;
     int offHour = -1, offMinute = -1;
 
