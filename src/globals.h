@@ -239,6 +239,10 @@ extern const char* PREF_NS;
 extern const char* KEY_SSID;
 extern const char* KEY_PASS;
 
+// log buffer (for UI)
+extern SemaphoreHandle_t relayMutex;
+extern SemaphoreHandle_t logBufferMutex;
+
 // Running settings keys
 extern const char* KEY_STARTDATE;
 extern const char* KEY_FLOWERDATE;

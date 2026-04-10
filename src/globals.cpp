@@ -183,6 +183,9 @@ String gotifyToken = "";
 // Heating relay
 const char* KEY_HEATING_SOURCE = "heatingSource";
 
+// Mutexes log buffer
+SemaphoreHandle_t logBufferMutex = nullptr;
+
 // Relays
 int activeRelayCount = 4;
 const int relayPins[NUM_RELAYS] = { 32, 33, 25, 26, 27, 14, 12, 13 };

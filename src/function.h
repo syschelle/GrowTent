@@ -80,9 +80,23 @@ void logPrint(const String& msg) {
 
   Serial.println(line);
 
-  logBuffer.push_back(line);
-  if (logBuffer.size() > LOG_MAX_LINES) {
-    logBuffer.pop_front();
+  if (logBufferMutex) {
+    if (xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+      logBuffer.push_back(line);
+      if (logBuffer.size() > LOG_MAX_LINES) {
+        logBuffer.pop_front();
+      }
+      xSemaphoreGive(logBufferMutex);
+    } else {
+      // Kein logPrint() hier aufrufen, sonst Rekursion möglich
+      Serial.println("[LOG] logBufferMutex timeout, line not buffered");
+    }
+  } else {
+    // Fallback falls Mutex noch nicht existiert
+    logBuffer.push_back(line);
+    if (logBuffer.size() > LOG_MAX_LINES) {
+      logBuffer.pop_front();
+    }
   }
 }
 
@@ -1074,21 +1088,48 @@ float pingTankLevel(uint8_t trigPin, uint8_t echoPin,
 }
 
 void handleApiLogBuffer() {
-  String txt; txt.reserve(4096);
-  for (const auto& line : logBuffer) {
-    txt += line; txt += '\n';
+  String txt;
+  txt.reserve(4096);
+
+  if (logBufferMutex && xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    for (const auto& line : logBuffer) {
+      txt += line;
+      txt += '\n';
+    }
+    xSemaphoreGive(logBufferMutex);
+  } else {
+    server.send(503, "text/plain; charset=utf-8", "log busy");
+    return;
   }
+
   server.send(200, "text/plain; charset=utf-8", txt);
 }
 
 void handleClearLog() {
-  logBuffer.clear();
-  server.send(204); // No Content
+  if (logBufferMutex && xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    logBuffer.clear();
+    xSemaphoreGive(logBufferMutex);
+    server.send(204);
+  } else {
+    server.send(503, "text/plain; charset=utf-8", "log busy");
+  }
 }
 
 void handleDownloadLog() {
-  String txt; txt.reserve(8192);
-  for (const auto& line : logBuffer) { txt += line; txt += '\n'; }
+  String txt;
+  txt.reserve(8192);
+
+  if (logBufferMutex && xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    for (const auto& line : logBuffer) {
+      txt += line;
+      txt += '\n';
+    }
+    xSemaphoreGive(logBufferMutex);
+  } else {
+    server.send(503, "text/plain; charset=utf-8", "log busy");
+    return;
+  }
+
   server.sendHeader("Content-Type", "text/plain; charset=utf-8");
   server.sendHeader("Content-Disposition", "attachment; filename=weblog.txt");
   server.send(200, "text/plain; charset=utf-8", txt);

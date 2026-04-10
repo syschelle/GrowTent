@@ -718,6 +718,9 @@ static void taskDeferredInit(void* /*pv*/) {
 
   // DS18B20 init (quick)
   sensors.begin();
+  sensors.setWaitForConversion(false); // async mode; we will check for completion in the sensor task
+  sensors.setResolution(12); // max precision, takes ~750ms per conversion, but we start it now so it can run in parallel with other init. Subsequent readings will be faster due to async mode.
+  sensors.requestTemperatures(); // start first conversion ASAP (takes ~750ms), subsequent readings will be faster due to async mode
 
   // I2C + BME280 init
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -792,6 +795,12 @@ void setup() {
   relayMutex = xSemaphoreCreateMutex();
   if (relayMutex == nullptr) {
     logPrint("[BOOT] relayMutex create failed");
+  }
+
+  // Create mutex for log buffer access (used by multiple tasks)
+  logBufferMutex = xSemaphoreCreateMutex();
+  if (logBufferMutex == nullptr) {
+    logPrint("[BOOT] logBufferMutex create failed");
   }
 
   // if littlefs mounted successfully, print contents for debugging
@@ -886,7 +895,7 @@ void setup() {
   server.on("/pump/7/triggerPump10s", HTTP_POST, []() { handlePumpPulseIdx(6, 10000UL); });
   server.on("/pump/8/triggerPump10s", HTTP_POST, []() { handlePumpPulseIdx(7, 10000UL); });
 
-  
+  // Shelly toggle endpoints (read current state, invert, set new state, return result). We have separate endpoints per device to simplify frontend logic (no need to send which one in body).
   server.on("/shelly/main/toggle", HTTP_POST, []() {
     bool ok = false;
     bool newState = false;
@@ -903,6 +912,7 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  // Note: we have separate endpoints for each Shelly device to simplify frontend logic (no need to send which one in body).
   server.on("/shelly/light/toggle", HTTP_POST, []() {
     bool ok = false;
     bool newState = false;
@@ -919,6 +929,7 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  // Note: we have separate endpoints for each Shelly device to simplify frontend logic (no need to send which one in body).
   server.on("/shelly/humidifier/toggle", HTTP_POST, []() {
     bool ok = false;
     bool newState = false;
@@ -935,6 +946,7 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  // Note: we have separate endpoints for each Shelly device to simplify frontend logic (no need to send which one in body).
   server.on("/shelly/heater/toggle", HTTP_POST, []() {
     bool ok = false;
     bool newState = false;
@@ -951,6 +963,7 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  // Note: we have separate endpoints for each Shelly device to simplify frontend logic (no need to send which one in body).
   server.on("/shelly/fan/toggle", HTTP_POST, []() {
     bool ok = false;
     bool newState = false;
@@ -967,6 +980,7 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  // Note: we have separate endpoints for each Shelly device to simplify frontend logic (no need to send which one in body).
   server.on("/shelly/exhaust/toggle", HTTP_POST, []() {
     bool ok = false;
     bool newState = false;
@@ -983,6 +997,7 @@ void setup() {
     server.send(ok ? 200 : 500, "application/json", resp);
   });
 
+  // Watering and tank level (used by pump toggle and tank level read buttons in UI)
   server.on("/startWatering", HTTP_POST, handleStartWatering);
   server.on("/pingTank", HTTP_POST, readTankLevel);
 

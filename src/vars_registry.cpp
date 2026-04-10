@@ -100,6 +100,7 @@ String g_apiVersion() {
 }
 
 static String g_uptime() { return jUInt((uint32_t)(millis() / 1000UL)); }
+static String g_heapSize() { return jUInt((uint32_t)ESP.getHeapSize()); }
 static String g_heap() { return jUInt((uint32_t)ESP.getFreeHeap()); }
 static String g_minheap() { return jUInt((uint32_t)ESP.getMinFreeHeap()); }
 static String g_largestFreeHeapBlock() { return jUInt((uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)); }
@@ -274,6 +275,7 @@ const VarItem VARS[] = {
   {"api.version", g_apiVersion, false, "api"},
   {"debug.buildTag", g_buildTag, false, "debug"},
   // --- system ---
+  {"sys.heapSize", g_heapSize, false, "system"},
   {"sys.uptimeS", g_uptime, false, "system"},
   {"sys.freeHeap", g_heap, false, "system"},
   {"sys.minFreeHeap", g_minheap, false, "system"},
