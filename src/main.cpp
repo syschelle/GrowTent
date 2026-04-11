@@ -822,37 +822,54 @@ void setup() {
     digitalWrite(relayPins[i], LOW);
   }
 
-  // Decide WiFi mode quickly: try STA for 3s, else AP
+  // Decide WiFi mode:
+  // - no credentials -> AP only
+  // - credentials present -> try STA first
+  // - if STA is not up in time, start AP as fallback but keep STA reconnect possible
   wifiReady = false;
+
   if (ssidName.length() == 0) {
     espMode = true;
     startSoftAP();
   } else {
     WiFi.mode(WIFI_STA);
+    WiFi.persistent(false);
+    WiFi.setAutoReconnect(true);
     WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
+
     Serial.println("[WIFI] Connecting to: " + ssidName);
 
+    const uint32_t WIFI_BOOT_CONNECT_TIMEOUT_MS = 10000UL;
     const uint32_t t0 = millis();
-    while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 3000) {
-      delay(50);
+
+    while (WiFi.status() != WL_CONNECTED &&
+           (uint32_t)(millis() - t0) < WIFI_BOOT_CONNECT_TIMEOUT_MS) {
+      delay(100);
     }
 
     if (WiFi.status() == WL_CONNECTED) {
       wifiReady = true;
       espMode = false;
-      Serial.println("[WIFI] Connected: " + WiFi.localIP().toString());
 
-      // Minimal boot info (fast)
+      Serial.println("[WIFI] Connected: " + WiFi.localIP().toString());
       Serial.println("[BOOT] FW build: " + String(__DATE__) + " " + String(__TIME__));
 
-      // NTP sync now (only if WiFi up)
       logPrint("[BOOT] Starting initial NTP sync...");
       configTzTime(tzInfo.c_str(), ntpServer.c_str());
       ntpSyncPending = true;
       ntpStartMs = millis();
     } else {
-      Serial.println("[WIFI] Connect timeout -> start AP");
-      espMode = true;
+      Serial.println("[WIFI] STA connect timeout -> start AP fallback, keep STA reconnect enabled");
+
+      wifiReady = false;
+
+      // Important:
+      // We do NOT want to end up in AP-only mode if credentials exist.
+      // Keep reconnect logic alive in loop().
+      espMode = false;
+
+      // Start fallback AP, but do not disable STA operation.
+      WiFi.mode(WIFI_AP_STA);
       startSoftAP();
     }
   }
@@ -1028,34 +1045,66 @@ void setup() {
 
 // -------------------- loop --------------------
 void loop() {
-  // Check WiFi every 10s and reconnect if needed (but only if we have credentials; otherwise we're in AP mode and shouldn't try to connect).
-  // WiFi reconnect policy (gentle -> hard reset only after longer outage)
+  // WiFi reconnect policy:
+  // - check every 10s
+  // - gentle reconnect only every 15s
+  // - hard reset only after 60s offline
+  // - hard reset retry only every 60s
   static uint32_t lastWifiCheck = 0;
   static uint32_t wifiDownSince = 0;
-  const uint32_t WIFI_CHECK_MS = 10000UL; // alle 10s prüfen
-  const uint32_t WIFI_HARD_RESET_AFTER_MS = 60000UL; // erst nach 60s offline hart neu starten
+  static uint32_t lastWifiReconnectAttempt = 0;
+  static uint32_t lastWifiHardResetAttempt = 0;
 
-  if (millis() - lastWifiCheck >= WIFI_CHECK_MS) {
+  const uint32_t WIFI_CHECK_MS = 10000UL;
+  const uint32_t WIFI_RECONNECT_RETRY_MS = 15000UL;
+  const uint32_t WIFI_HARD_RESET_AFTER_MS = 60000UL;
+  const uint32_t WIFI_HARD_RESET_RETRY_MS = 60000UL;
+
+  if ((uint32_t)(millis() - lastWifiCheck) >= WIFI_CHECK_MS) {
     lastWifiCheck = millis();
 
+    // Only try STA reconnects when we actually have credentials and are not in AP mode
     if (!espMode && ssidName.length() > 0) {
       wl_status_t st = WiFi.status();
 
       if (st == WL_CONNECTED) {
         wifiReady = true;
         wifiDownSince = 0;
+        lastWifiReconnectAttempt = 0;
+        lastWifiHardResetAttempt = 0;
       } else {
         wifiReady = false;
-        if (wifiDownSince == 0) wifiDownSince = millis();
 
-        // Erst sanft versuchen (kein disconnect)
-        if ((millis() - wifiDownSince) < WIFI_HARD_RESET_AFTER_MS) {
-          WiFi.reconnect();
+        if (wifiDownSince == 0) {
+          wifiDownSince = millis();
+        }
+
+        const bool longOffline =
+          (uint32_t)(millis() - wifiDownSince) >= WIFI_HARD_RESET_AFTER_MS;
+
+        // Avoid reconnect hammering while WiFi stack is already busy connecting
+        const bool wifiBusyConnecting =
+          (st == WL_IDLE_STATUS);
+
+        if (!longOffline) {
+          if (!wifiBusyConnecting &&
+              (lastWifiReconnectAttempt == 0 ||
+               (uint32_t)(millis() - lastWifiReconnectAttempt) >= WIFI_RECONNECT_RETRY_MS)) {
+
+            lastWifiReconnectAttempt = millis();
+            WiFi.reconnect();
+          }
         } else {
-          // Nur wenn wirklich länger weg: harter Reconnect
-          WiFi.disconnect(false, true);
-          WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
-          wifiDownSince = millis(); // Fenster neu starten
+          if (lastWifiHardResetAttempt == 0 ||
+              (uint32_t)(millis() - lastWifiHardResetAttempt) >= WIFI_HARD_RESET_RETRY_MS) {
+
+            lastWifiHardResetAttempt = millis();
+
+            // Important: do NOT erase saved WiFi/AP config
+            WiFi.disconnect(false, false);
+            delay(100);
+            WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
+          }
         }
       }
     }
@@ -1073,5 +1122,4 @@ void loop() {
     g_restartRequested = false;
     ESP.restart();
   }
-
 }
