@@ -2598,7 +2598,7 @@ void controlMinVPD() {
 static bool isMinuteInWindowHour(int nowMin, int startMin, int endMin) {
 
   // Same start/end means no active window
-  if (startMin == endMin) return false;
+  if (startMin == endMin) return true;
 
   // Normal window (e.g. 10 -> 40)
   if (startMin < endMin) {
@@ -2608,7 +2608,6 @@ static bool isMinuteInWindowHour(int nowMin, int startMin, int endMin) {
   // Wrapped window across hour boundary (e.g. 50 -> 10)
   return (nowMin >= startMin || nowMin < endMin);
 }
-
 
 // Applies relay schedules once per task cycle.
 // Scheduling works per hour and compares only the minute-of-hour.
@@ -2624,46 +2623,61 @@ static void applyRelaySchedules() {
   const bool lightStatusValid = shelly.light.values.ok;
   const bool lightIsOn = lightStatusValid ? shelly.light.values.isOn : false;
 
-  // Iterate through all relays
-  for (int i = 0; i < NUM_RELAYS; i++) {
-      const RelaySchedule& sc = settings.relay.schedule[i];
+  // Only relays 1..5 currently support minute scheduling
+  const int scheduledRelayCount = (activeRelayCount < 5) ? activeRelayCount : 5;
 
-      // Skip relay if scheduling is disabled
-      if (!sc.enabled) continue;
+  for (int i = 0; i < scheduledRelayCount; i++) {
+    const RelaySchedule& sc = settings.relay.schedule[i];
 
-      // Validate minute values for per-hour scheduling mode
-      if (sc.onMin < 0 || sc.onMin > 59 || sc.offMin < 0 || sc.offMin > 59) {
-          continue;
-      }
+    // Skip relay if scheduling is disabled
+    if (!sc.enabled) {
+      relayStates[i] = (digitalRead(relayPins[i]) == HIGH);
+      continue;
+    }
 
-      // Determine desired relay state by schedule window
-      bool shouldBeOn = isMinuteInWindowHour(nowMin, sc.onMin, sc.offMin);
+    // Validate minute values for per-hour scheduling mode
+    if (sc.onMin < 0 || sc.onMin > 59 || sc.offMin < 0 || sc.offMin > 59) {
+      relayStates[i] = (digitalRead(relayPins[i]) == HIGH);
+      continue;
+    }
 
-      // Light gating:
-      // - If light status is unknown -> fail-safe OFF
-      // - If light is OFF -> relay may run only if ifLightOff is true
-      if (!lightStatusValid) {
-        shouldBeOn = false;
-      } else if (!lightIsOn && !sc.ifLightOff) {
-        shouldBeOn = false;
-      }
+    // Same start/end (e.g. 0/0) means schedule is always active
+    const bool permanentOn = (sc.onMin == sc.offMin);
 
-      // Read current physical relay state (HIGH = ON in this project)
-      const bool isOn = (digitalRead(relayPins[i]) == HIGH);
+    // Determine desired relay state by schedule window
+    bool shouldBeOn = permanentOn ? true : isMinuteInWindowHour(nowMin, sc.onMin, sc.offMin);
 
-      // Apply state only if needed
-      if (shouldBeOn != isOn) {
-          digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
-          relayStates[i] = shouldBeOn;
+    // Light gating always applies:
+    // - If light status is unknown -> fail-safe OFF
+    // - If light is OFF -> relay may run only if ifLightOff is true
+    if (!lightStatusValid) {
+      shouldBeOn = false;
+    } else if (!lightIsOn && !sc.ifLightOff) {
+      shouldBeOn = false;
+    }
 
-          logPrint(
-              "[SCHED] Relay " + String(i + 1) +
-              (shouldBeOn ? " ON" : " OFF")
-          );
-      } else {
-          // Keep internal mirror synchronized
-          relayStates[i] = isOn;
-      }
+    // Read current physical relay state (HIGH = ON in this project)
+    const bool isOn = (digitalRead(relayPins[i]) == HIGH);
+
+    // Apply state only if needed
+    if (shouldBeOn != isOn) {
+      digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
+      relayStates[i] = shouldBeOn;
+
+      logPrint(
+        "[SCHED] Relay " + String(i + 1) +
+        (shouldBeOn ? " ON" : " OFF") +
+        " | enabled=" + String(sc.enabled ? "1" : "0") +
+        " | onMin=" + String(sc.onMin) +
+        " | offMin=" + String(sc.offMin) +
+        " | permanentOn=" + String(permanentOn ? "1" : "0") +
+        " | lightValid=" + String(lightStatusValid ? "1" : "0") +
+        " | lightOn=" + String(lightIsOn ? "1" : "0") +
+        " | ifLightOff=" + String(sc.ifLightOff ? "1" : "0")
+      );
+    } else {
+      relayStates[i] = isOn;
+    }
   }
 }
 

@@ -169,8 +169,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "runsetting.relay.stop": { de: "Stopp:", en: "Stop:" },
 
   "runsetting.relay.minutesHint": {
-  de: "Minutenformat: 0–59 (Minute innerhalb der Stunde).",
-  en: "Minute format: 0–59 (minute within the hour)."
+  de: "Minutenformat: 0–59 (Minute innerhalb der Stunde). Oder 0 / 0 für permanent an. Einschränkung: Wenn 'auch wenn Licht aus' nicht aktiviert ist, wird das Relay nur geschaltet, wenn auch das Licht an ist (Shelly Gerät).",
+  en: "Minute format: 0–59 (minute within the hour). Or 0 / 0 for always on. Restriction: If 'also if light off' is not enabled, the relay will only operate when the light is on (Shelly device)."
   },
   "runsetting.relay.ifLightOff": { de: "auch wenn Licht aus", en: "also if light off" },
   "runsetting.relay.onMinute": { de: "Einschaltminute", en: "On minute" },
