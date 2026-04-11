@@ -481,7 +481,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group">
           <label for="targetVPD" data-i18n="runsetting.targetVPD">Soll-VPD:</label>
-          <input name="webTargetVPD" id="webTargetVPD" style="width: 65px;" type="number" step="0.1" min="0.5" max="1.5" value="%TARGETVPD%">&nbsp;kPa
+          <input name="webTargetVPD" id="webTargetVPD" style="width: 65px;" type="number" step="0.01" min="0.50" max="1.50" value="%TARGETVPD%">&nbsp;kPa
         </div>
 
         <div class="form-group">
