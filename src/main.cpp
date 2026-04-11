@@ -878,8 +878,6 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/save", HTTP_POST, handleSaveWiFi);
   server.on("/saverunsettings", HTTP_POST, handleSaveRunsettings);
-  // Note: we have separate endpoints for single relay schedule updates vs. bulk save-all, to simplify frontend logic and reduce risk of overwriting schedules accidentally.
-  server.on("/api/relay/schedule/save-all", HTTP_POST, handleSaveAllRelaySchedules);
   server.on("/saveshellysettings", HTTP_POST, handleSaveShellySettings);
   // For resetting shelly energy counters, we have separate endpoints per device (main/light) to simplify frontend logic (no need to send which one in body).
   server.on("/api/shelly/reset-energy", HTTP_POST, handleResetShellyEnergy);

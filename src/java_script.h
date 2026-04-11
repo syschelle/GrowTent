@@ -2020,44 +2020,16 @@ async function loadLightScheduleFromState(){
 //---------- save Runsettings ----------
 window.saveRunsettingsAll = async function () {
   try {
-    const p = new URLSearchParams();
-
-    const add = (name, id) => {
+    const val = (id, fallback = "") => {
       const el = document.getElementById(id);
-      if (!el) return;
-      p.append(name, el.value ?? "");
+      return el ? (el.value ?? fallback) : fallback;
     };
 
-    const addBool = (name, id) => {
+    const checked = (id) => {
       const el = document.getElementById(id);
-      // Checkboxes senden "on" wenn checked, sonst "0"
-      p.append(name, el?.checked ? "on" : "0");
+      return !!el?.checked;
     };
 
-    // 
-    add("webGrowStart", "webGrowStart");
-    add("webFloweringStart", "webFloweringStart");
-    add("webDryingStart", "webDryingStart");
-    add("webCurrentPhase", "phaseSelect");
-
-    add("webTargetTemp", "webTargetTemp");
-    add("webOffsetLeafTemp", "webOffsetLeafTemp");
-
-    addBool("webMinVPDMonitoring", "webMinVPDMonitoring");
-    add("webTargetVPD", "webTargetVPD");
-    add("webMinVPD", "webMinVPD");
-    add("webHysteresis", "webHysteresis");
-
-    add("webAmountOfWater", "webAmountOfWater");
-    add("webTimePerTask", "webTimePerTask");
-    add("webBetweenTasks", "webBetweenTasks");
-    add("webMinTank", "webMinTank");
-    add("webMaxTank", "webMaxTank");
-
-    add("webHeatingSource", "heatingSource");
-    add("webHeatingRelay", "heatingRelay");
-
-    // ---------- Scheduling (JSON) ----------
     let maxRelay = 4;
     try {
       const relayCountEl = document.getElementById("webRelayCount");
@@ -2069,41 +2041,56 @@ window.saveRunsettingsAll = async function () {
 
     const relays = [];
     for (let relay = 1; relay <= maxRelay; relay++) {
-      const enabled = document.getElementById(`espRelay${relay}Enabled`)?.checked || false;
-      const ifLightOff = document.getElementById(`espRelay${relay}IfLightOff`)?.checked || false;
-
       const onMinRaw = parseInt(document.getElementById(`espRelay${relay}OnMin`)?.value || "0", 10);
       const offMinRaw = parseInt(document.getElementById(`espRelay${relay}OffMin`)?.value || "0", 10);
 
-      const onMin = Number.isFinite(onMinRaw) ? Math.max(0, Math.min(59, onMinRaw)) : 0;
-      const offMin = Number.isFinite(offMinRaw) ? Math.max(0, Math.min(59, offMinRaw)) : 0;
-
-      relays.push({ relay, enabled, ifLightOff, onMin, offMin });
+      relays.push({
+        relay,
+        enabled: checked(`espRelay${relay}Enabled`),
+        ifLightOff: checked(`espRelay${relay}IfLightOff`),
+        onMin: Number.isFinite(onMinRaw) ? Math.max(0, Math.min(59, onMinRaw)) : 0,
+        offMin: Number.isFinite(offMinRaw) ? Math.max(0, Math.min(59, offMinRaw)) : 0
+      });
     }
 
-    // ---------- Save Runsettings ----------
-    // 1) runsettings
-    const runRes = await fetch("/saverunsettings", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: p.toString(),
-      redirect: "follow"
-    });
+    const payload = {
+      webGrowStart: val("webGrowStart"),
+      webFloweringStart: val("webFloweringStart"),
+      webDryingStart: val("webDryingStart"),
+      webCurrentPhase: val("phaseSelect"),
 
-    if (!runRes.ok) {
-      window.showToast("Failed to save run settings.", "error");
-      return;
-    }
+      webTargetTemp: val("webTargetTemp"),
+      webOffsetLeafTemp: val("webOffsetLeafTemp"),
 
-    // 2) scheduling
-    const schedRes = await fetch("/api/relay/schedule/save-all", {
+      webMinVPDMonitoring: checked("webMinVPDMonitoring"),
+      webTargetVPD: val("webTargetVPD"),
+      webMinVPD: val("webMinVPD"),
+      webHysteresis: val("webHysteresis"),
+
+      webAmountOfWater: val("webAmountOfWater"),
+      webTimePerTask: val("webTimePerTask"),
+      webBetweenTasks: val("webBetweenTasks"),
+      webIrrigation: val("webIrrigation"),
+      webMinTank: val("webMinTank"),
+      webMaxTank: val("webMaxTank"),
+
+      webHeatingSource: val("heatingSource"),
+      webHeatingRelay: val("heatingRelay"),
+
+      relays
+    };
+
+    const res = await fetch("/saverunsettings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ relays })
+      body: JSON.stringify(payload)
     });
 
-    if (!schedRes.ok) {
-      window.showToast("Run settings saved, but schedule save failed.", "error");
+    let json = null;
+    try { json = await res.json(); } catch (e) {}
+
+    if (!res.ok || json?.ok === false) {
+      window.showToast("Failed to save operating settings.", "error");
       return;
     }
 

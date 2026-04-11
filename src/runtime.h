@@ -138,7 +138,7 @@ void handleRoot() {
     html.replace("%WATERTEMPERATURE%", String(DS18B20STemperature, 1));
     html.replace("%LEAFTEMPERATURE%", String(settings.grow.offsetLeafTemperature, 1));
     html.replace("%HUMIDITY%", String(cur.humidityPct, 0));
-    html.replace("%TARGETVPD%",  String(settings.grow.targetVPD, 1));
+    html.replace("%TARGETVPD%",  String(settings.grow.targetVPD, 2));
     html.replace("%MINVPDMONITORING%", settings.grow.minVpdMonEnabled ? "checked" : "");
     html.replace("%MINVPD%",  String(settings.grow.minVPD, 2));
     html.replace("%VPDHYSTERESIS%",  String(settings.grow.vpdHysteresis, 2));

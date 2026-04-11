@@ -364,49 +364,209 @@ void loadPrefString(
   }
 }
 
+// Handler for POST /saverunsettings - saves run settings sent as JSON in the request body
 void handleSaveRunsettings() {
-  // Open the Preferences namespace with write access (readOnly = false)
-  // Only call begin() once — calling it twice can cause writes to fail!
-  if (!preferences.begin(PREF_NS, false)) {
-    logPrint("[PREF][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.");
-    server.send(500, "text/plain", "Failed to open Preferences");
+  if (!server.hasArg("plain")) {
+    server.send(
+      400,
+      "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"missing_body\"}"
+    );
     return;
   }
 
-  // Save all run settings
-  savePrefString("webGrowStart", KEY_STARTDATE, startDate, true, "Grow Start Date");
-  savePrefString("webFloweringStart", KEY_FLOWERDATE, startFlowering, true, "Flowering Start Date");
-  savePrefString("webDryingStart", KEY_DRYINGDATE, startDrying, true, "Drying Start Date");
-  savePrefInt("webCurrentPhase", KEY_CURRENTPHASE, settings.grow.currentPhase, true, "Current Phase");
-  savePrefFloat("webTargetTemp", KEY_TARGETTEMP, settings.grow.targetTemperature, true, "Target Temperature");
-  savePrefFloat("webTargetVPD", KEY_TARGETVPD, settings.grow.targetVPD, true, "Target VPD");
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain"))) {
+    server.send(
+      400,
+      "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"bad_json\"}"
+    );
+    return;
+  }
+
+  if (!preferences.begin(PREF_NS, false)) {
+    logPrint("[PREF][ERROR] preferences.begin() failed. Check PREF_NS.");
+    server.send(
+      500,
+      "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"prefs\"}"
+    );
+    return;
+  }
+
+  auto clampIntLocal = [](int value, int minValue, int maxValue) -> int {
+    if (value < minValue) return minValue;
+    if (value > maxValue) return maxValue;
+    return value;
+  };
+
+  auto clampFloatLocal = [](float value, float minValue, float maxValue) -> float {
+    if (value < minValue) return minValue;
+    if (value > maxValue) return maxValue;
+    return value;
+  };
+
+  auto saveStringJson = [&](const char* jsonKey, const char* prefKey, String& targetVar, const char* label) {
+    if (doc[jsonKey].isNull()) return;
+    targetVar = String(doc[jsonKey].as<const char*>());
+    preferences.putString(prefKey, targetVar);
+    logPrint("[PREFERENCES SAVE] " + String(label) + " written = " + targetVar);
+  };
+
+  auto saveIntJson = [&](const char* jsonKey, const char* prefKey, int& targetVar, const char* label) {
+    if (doc[jsonKey].isNull()) return;
+    targetVar = doc[jsonKey].as<int>();
+    preferences.putInt(prefKey, targetVar);
+    logPrint("[PREFERENCES SAVE] " + String(label) + " written = " + String(targetVar));
+  };
+
+  auto saveFloatJson = [&](const char* jsonKey, const char* prefKey, float& targetVar, const char* label) {
+    if (doc[jsonKey].isNull()) return;
+    targetVar = doc[jsonKey].as<float>();
+    preferences.putFloat(prefKey, targetVar);
+    logPrint("[PREFERENCES SAVE] " + String(label) + " = " + String(targetVar, 2));
+  };
+
+  auto saveBoolJson = [&](const char* jsonKey, const char* prefKey, bool& targetVar, const char* label) {
+    if (doc[jsonKey].isNull()) return;
+    targetVar = doc[jsonKey].as<bool>();
+    preferences.putBool(prefKey, targetVar);
+    logPrint("[PREFERENCES SAVE] " + String(label) + " = " + String(targetVar ? "true" : "false"));
+  };
+
+  // -----------------------------
+  // Runsettings - grow settings
+  // -----------------------------
+  saveStringJson("webGrowStart",       KEY_STARTDATE,     startDate,                    "Grow Start Date");
+  saveStringJson("webFloweringStart",  KEY_FLOWERDATE,    startFlowering,               "Flowering Start Date");
+  saveStringJson("webDryingStart",     KEY_DRYINGDATE,    startDrying,                  "Drying Start Date");
+
+  saveIntJson("webCurrentPhase",       KEY_CURRENTPHASE,  settings.grow.currentPhase,   "Current Phase");
+  settings.grow.currentPhase = clampIntLocal(settings.grow.currentPhase, 1, 3);
+  preferences.putInt(KEY_CURRENTPHASE, settings.grow.currentPhase);
+  curPhase = settings.grow.currentPhase;
+
+  saveFloatJson("webTargetTemp",       KEY_TARGETTEMP,    settings.grow.targetTemperature, "Target Temperature");
+  settings.grow.targetTemperature = clampFloatLocal(settings.grow.targetTemperature, 18.0f, 30.0f);
+  preferences.putFloat(KEY_TARGETTEMP, settings.grow.targetTemperature);
+  targetTemperature = settings.grow.targetTemperature;
+
+  saveFloatJson("webTargetVPD",        KEY_TARGETVPD,     settings.grow.targetVPD,      "Target VPD");
+  settings.grow.targetVPD = clampFloatLocal(settings.grow.targetVPD, 0.50f, 1.50f);
+  preferences.putFloat(KEY_TARGETVPD, settings.grow.targetVPD);
+  targetVPD = settings.grow.targetVPD;
+
   savePrefBool("webMinVPDMonitoring", KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, true, "Min VPD Monitoring Enabled");
+
   savePrefFloat("webMinVPD", KEY_MINVPD, settings.grow.minVPD, true, "Min VPD");
+  settings.grow.minVPD = clampFloatLocal(settings.grow.minVPD, 0.00f, 0.30f);
+  preferences.putFloat(KEY_MINVPD, settings.grow.minVPD);
+
   savePrefFloat("webHysteresis", KEY_HYSTERESIS, settings.grow.vpdHysteresis, true, "VPD Hysteresis");
-  savePrefFloat("webOffsetLeafTemp", KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, true, "Leaf Temperature Offset");
-  savePrefFloat("webAmountOfWater", KEY_AMOUNTOFWATER, irrigation.amountOfWater, true, "Amount of Water");
-  savePrefInt("webTimePerTask", KEY_TIMEPERTASK, irrigation.timePerTask, true, "Time Per Task");
-  savePrefInt("webBetweenTasks", KEY_BETWEENTASKS, irrigation.betweenTasks, true, "Between Tasks");
-  savePrefFloat("webMinTank", KEY_MINTANK, irrigation.tank.min, true, "Tank Min Level (cm)");
-  savePrefFloat("webMaxTank", KEY_MAXTANK, irrigation.tank.max, true, "Tank Max Level (cm)");
+  settings.grow.vpdHysteresis = clampFloatLocal(settings.grow.vpdHysteresis, 0.00f, 0.10f);
+  preferences.putFloat(KEY_HYSTERESIS, settings.grow.vpdHysteresis);
 
+  saveFloatJson("webOffsetLeafTemp",   KEY_LEAFTEMP,      settings.grow.offsetLeafTemperature, "Leaf Temperature Offset");
+  settings.grow.offsetLeafTemperature = clampFloatLocal(settings.grow.offsetLeafTemperature, -3.0f, 0.0f);
+  preferences.putFloat(KEY_LEAFTEMP, settings.grow.offsetLeafTemperature);
+  offsetLeafTemperature = settings.grow.offsetLeafTemperature;
 
-  savePrefInt("webHeatingSource", KEY_HEATING_SOURCE, settings.heating.sourceType, true, "Heating Source");
-  savePrefInt("webHeatingRelay", KEY_HEATING_RELAY, settings.heating.Relay, true, "Heating Relay");
+  saveFloatJson("webAmountOfWater",    KEY_AMOUNTOFWATER, irrigation.amountOfWater,     "Amount of Water");
+  irrigation.amountOfWater = clampFloatLocal(irrigation.amountOfWater, 10.0f, 100.0f);
+  preferences.putFloat(KEY_AMOUNTOFWATER, irrigation.amountOfWater);
 
-  // enforce one active source
+  saveIntJson("webTimePerTask",        KEY_TIMEPERTASK,   irrigation.timePerTask,       "Time Per Task");
+  irrigation.timePerTask = clampIntLocal(irrigation.timePerTask, 1, 10);
+  preferences.putInt(KEY_TIMEPERTASK, irrigation.timePerTask);
+
+  saveIntJson("webBetweenTasks",       KEY_BETWEENTASKS,  irrigation.betweenTasks,      "Between Tasks");
+  irrigation.betweenTasks = clampIntLocal(irrigation.betweenTasks, 1, 10);
+  preferences.putInt(KEY_BETWEENTASKS, irrigation.betweenTasks);
+
+  saveFloatJson("webIrrigation",       KEY_IRRIGATION,    irrigation.irrigationAmount,  "Irrigation Amount");
+  irrigation.irrigationAmount = clampFloatLocal(irrigation.irrigationAmount, 100.0f, 3000.0f);
+  preferences.putFloat(KEY_IRRIGATION, irrigation.irrigationAmount);
+
+  saveFloatJson("webMinTank",          KEY_MINTANK,       irrigation.tank.min,          "Tank Min Level (cm)");
+  saveFloatJson("webMaxTank",          KEY_MAXTANK,       irrigation.tank.max,          "Tank Max Level (cm)");
+
+  if (irrigation.tank.min > irrigation.tank.max) {
+    float tmp = irrigation.tank.min;
+    irrigation.tank.min = irrigation.tank.max;
+    irrigation.tank.max = tmp;
+  }
+  preferences.putFloat(KEY_MINTANK, irrigation.tank.min);
+  preferences.putFloat(KEY_MAXTANK, irrigation.tank.max);
+
+  saveIntJson("webHeatingSource",      KEY_HEATING_SOURCE, settings.heating.sourceType, "Heating Source");
+  settings.heating.sourceType = clampIntLocal(settings.heating.sourceType, 0, 2);
+  preferences.putInt(KEY_HEATING_SOURCE, settings.heating.sourceType);
+
+  saveIntJson("webHeatingRelay",       KEY_HEATING_RELAY, settings.heating.Relay,       "Heating Relay");
+  settings.heating.Relay = clampIntLocal(settings.heating.Relay, 0, 4);
+
   if (settings.heating.sourceType != 1) {
     settings.heating.Relay = 0;
   }
+  preferences.putInt(KEY_HEATING_RELAY, settings.heating.Relay);
+  heatingRelay = settings.heating.Relay;
 
+  // -----------------------------
+  // store relay scheduling settings (up to 5 relays, each with enabled, ifLightOff, onMin and offMin)
+  // -----------------------------
+  JsonArray arr = doc["relays"].as<JsonArray>();
+  if (!arr.isNull()) {
+    const int maxScheduledRelay = (activeRelayCount < 5) ? activeRelayCount : 5;
 
-  preferences.end(); // always close Preferences handle
+    for (JsonObject r : arr) {
+      int relay = r["relay"] | 0;
+      if (relay < 1 || relay > maxScheduledRelay) continue;
 
-  // Send redirect response and restart the ESP
-  server.sendHeader("Location", "/");
-  server.send(303);  // HTTP redirect to status page
-  readPreferences(); // reload preferences to update in-memory variables (e.g. heatingRelay) before restart
+      int idx = relay - 1;
+
+      bool enabled = r["enabled"] | false;
+      bool ifLightOff = r["ifLightOff"] | false;
+      int onMin  = clampIntLocal((int)(r["onMin"]  | 0), 0, 59);
+      int offMin = clampIntLocal((int)(r["offMin"] | 0), 0, 59);
+
+      settings.relay.schedule[idx].enabled    = enabled;
+      settings.relay.schedule[idx].ifLightOff = ifLightOff;
+      settings.relay.schedule[idx].onMin      = onMin;
+      settings.relay.schedule[idx].offMin     = offMin;
+
+      String keyEn  = "relay_enable_" + String(relay);
+      String keyILO = "ilo_" + String(relay);
+
+      const char* kOn =
+        (relay == 1) ? KEY_RELAY_START_1 :
+        (relay == 2) ? KEY_RELAY_START_2 :
+        (relay == 3) ? KEY_RELAY_START_3 :
+        (relay == 4) ? KEY_RELAY_START_4 :
+                       KEY_RELAY_START_5;
+
+      const char* kOff =
+        (relay == 1) ? KEY_RELAY_END_1 :
+        (relay == 2) ? KEY_RELAY_END_2 :
+        (relay == 3) ? KEY_RELAY_END_3 :
+        (relay == 4) ? KEY_RELAY_END_4 :
+                       KEY_RELAY_END_5;
+
+      preferences.putBool(keyEn.c_str(), enabled);
+      preferences.putBool(keyILO.c_str(), ifLightOff);
+      preferences.putInt(kOn, onMin);
+      preferences.putInt(kOff, offMin);
+    }
+  }
+
+  preferences.end();
+
+  readPreferences();
+  server.send(
+    200,
+    "application/json; charset=utf-8",
+    "{\"ok\":true}"
+  );
 }
 
 // Handle Shelly settings save
@@ -2512,114 +2672,6 @@ static int clampInt(int v, int lo, int hi) {
   if (v < lo) return lo;
   if (v > hi) return hi;
   return v;
-}
-
-static void handleSaveAllRelaySchedules() {
-
-  // Ensure the request contains a body (JSON payload)
-  if (!server.hasArg("plain")) {
-    server.send(
-      400,
-      "application/json; charset=utf-8",
-      "{\"ok\":false,\"err\":\"missing_body\"}"
-    );
-    return;
-  }
-
-  // Parse JSON body
-  JsonDocument doc;
-
-  // If JSON parsing fails, return error
-  if (deserializeJson(doc, server.arg("plain"))) {
-    server.send(
-      400,
-      "application/json; charset=utf-8",
-      "{\"ok\":false,\"err\":\"bad_json\"}"
-    );
-    return;
-  }
-
-  // Extract the "relays" array from JSON
-  JsonArray arr = doc["relays"].as<JsonArray>();
-
-  // Validate that the array exists
-  if (arr.isNull()) {
-    server.send(
-      400,
-      "application/json; charset=utf-8",
-      "{\"ok\":false,\"err\":\"missing_relays\"}"
-    );
-    return;
-  }
-
-  // Open preferences namespace for writing
-  if (!preferences.begin(PREF_NS, false)) {
-    server.send(
-      500,
-      "application/json; charset=utf-8",
-      "{\"ok\":false,\"err\":\"prefs\"}"
-    );
-    return;
-  }
-
-  // Iterate over all relay entries in the JSON array
-  for (JsonObject r : arr) {
-
-    // Relay number (expected 1..NUM_RELAYS)
-    int relay = r["relay"] | 0;
-    if (relay < 1 || relay > NUM_RELAYS) continue;
-
-    // Convert relay number to zero-based index
-    int idx = relay - 1;
-
-    // Read settings from JSON with default values
-    bool enabled = r["enabled"] | false;
-    bool ifLightOff = r["ifLightOff"] | false;
-
-    // Clamp minute values to valid range (0..59)
-    int onMin  = clampInt((int)(r["onMin"]  | 0), 0, 59);
-    int offMin = clampInt((int)(r["offMin"] | 0), 0, 59);
-
-    // Update in-memory settings structure
-    settings.relay.schedule[idx].enabled    = enabled;
-    settings.relay.schedule[idx].ifLightOff = ifLightOff;
-    settings.relay.schedule[idx].onMin      = onMin;
-    settings.relay.schedule[idx].offMin     = offMin;
-
-    // Build preference keys for this relay
-    String keyEn  = "relay_enable_"     + String(relay);
-    String keyILO = "ilo_" + String(relay);
-
-    // Select preference keys for ON minute depending on relay number
-    const char* kOn =
-      (relay == 1) ? KEY_RELAY_START_1 :
-      (relay == 2) ? KEY_RELAY_START_2 :
-      (relay == 3) ? KEY_RELAY_START_3 :
-                     KEY_RELAY_START_4;
-
-    // Select preference keys for OFF minute depending on relay number
-    const char* kOff =
-      (relay == 1) ? KEY_RELAY_END_1 :
-      (relay == 2) ? KEY_RELAY_END_2 :
-      (relay == 3) ? KEY_RELAY_END_3 :
-                     KEY_RELAY_END_4;
-
-    // Persist values to non-volatile storage (NVS)
-    preferences.putBool(keyEn.c_str(), enabled);
-    preferences.putBool(keyILO.c_str(), ifLightOff);
-    preferences.putInt(kOn, onMin);
-    preferences.putInt(kOff, offMin);
-  }
-
-  // Close preferences namespace
-  preferences.end();
-
-  // Respond with success
-  server.send(
-    200,
-    "application/json; charset=utf-8",
-    "{\"ok\":true}"
-  );
 }
 
 // Resets Shelly energy counters for both main and light devices (if configured).
