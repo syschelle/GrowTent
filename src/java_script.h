@@ -2017,61 +2017,100 @@ async function loadLightScheduleFromState(){
 
 }); // end DOMContentLoaded
 
-window.saveAllRelaySchedules = async function () {
-  const relays = [];
-
-  for (let relay = 1; relay <= 4; relay++) {
-    const enabled =
-      document.getElementById(`espRelay${relay}Enabled`)?.checked || false;
-
-    const ifLightOff =
-      document.getElementById(`espRelay${relay}IfLightOff`)?.checked || false;
-
-    const onMinRaw = parseInt(
-      document.getElementById(`espRelay${relay}OnMin`)?.value || "0",
-      10
-    );
-
-    const offMinRaw = parseInt(
-      document.getElementById(`espRelay${relay}OffMin`)?.value || "0",
-      10
-    );
-
-    const onMin = Number.isFinite(onMinRaw)
-      ? Math.max(0, Math.min(59, onMinRaw))
-      : 0;
-
-    const offMin = Number.isFinite(offMinRaw)
-      ? Math.max(0, Math.min(59, offMinRaw))
-      : 0;
-
-    relays.push({
-      relay,
-      enabled,
-      ifLightOff,
-      onMin,
-      offMin
-    });
-  }
-
+//---------- save Runsettings ----------
+window.saveRunsettingsAll = async function () {
   try {
-    const res = await fetch("/api/relay/schedule/save-all", {
+    const p = new URLSearchParams();
+
+    const add = (name, id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      p.append(name, el.value ?? "");
+    };
+
+    const addBool = (name, id) => {
+      const el = document.getElementById(id);
+      // Checkboxes senden "on" wenn checked, sonst "0"
+      p.append(name, el?.checked ? "on" : "0");
+    };
+
+    // 
+    add("webGrowStart", "webGrowStart");
+    add("webFloweringStart", "webFloweringStart");
+    add("webDryingStart", "webDryingStart");
+    add("webCurrentPhase", "phaseSelect");
+
+    add("webTargetTemp", "webTargetTemp");
+    add("webOffsetLeafTemp", "webOffsetLeafTemp");
+
+    addBool("webMinVPDMonitoring", "webMinVPDMonitoring");
+    add("webTargetVPD", "webTargetVPD");
+    add("webMinVPD", "webMinVPD");
+    add("webHysteresis", "webHysteresis");
+
+    add("webAmountOfWater", "webAmountOfWater");
+    add("webTimePerTask", "webTimePerTask");
+    add("webBetweenTasks", "webBetweenTasks");
+    add("webMinTank", "webMinTank");
+    add("webMaxTank", "webMaxTank");
+
+    add("webHeatingSource", "heatingSource");
+    add("webHeatingRelay", "heatingRelay");
+
+    // ---------- Scheduling (JSON) ----------
+    let maxRelay = 4;
+    try {
+      const relayCountEl = document.getElementById("webRelayCount");
+      const relayCount = parseInt(relayCountEl?.value || "4", 10);
+      if (Number.isFinite(relayCount)) {
+        maxRelay = Math.max(4, Math.min(5, relayCount));
+      }
+    } catch (e) {}
+
+    const relays = [];
+    for (let relay = 1; relay <= maxRelay; relay++) {
+      const enabled = document.getElementById(`espRelay${relay}Enabled`)?.checked || false;
+      const ifLightOff = document.getElementById(`espRelay${relay}IfLightOff`)?.checked || false;
+
+      const onMinRaw = parseInt(document.getElementById(`espRelay${relay}OnMin`)?.value || "0", 10);
+      const offMinRaw = parseInt(document.getElementById(`espRelay${relay}OffMin`)?.value || "0", 10);
+
+      const onMin = Number.isFinite(onMinRaw) ? Math.max(0, Math.min(59, onMinRaw)) : 0;
+      const offMin = Number.isFinite(offMinRaw) ? Math.max(0, Math.min(59, offMinRaw)) : 0;
+
+      relays.push({ relay, enabled, ifLightOff, onMin, offMin });
+    }
+
+    // ---------- Save Runsettings ----------
+    // 1) runsettings
+    const runRes = await fetch("/saverunsettings", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ relays })
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: p.toString(),
+      redirect: "follow"
     });
 
-    if (!res.ok) {
-      window.showToast("Failed to save relay schedules.", "error");
+    if (!runRes.ok) {
+      window.showToast("Failed to save run settings.", "error");
       return;
     }
 
-    window.showToast("Relay schedules saved.", "success");
+    // 2) scheduling
+    const schedRes = await fetch("/api/relay/schedule/save-all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ relays })
+    });
+
+    if (!schedRes.ok) {
+      window.showToast("Run settings saved, but schedule save failed.", "error");
+      return;
+    }
+
+    window.showToast("All operating settings saved.", "success");
   } catch (err) {
-    console.error("[SCHED] saveAllRelaySchedules failed:", err);
-    window.showToast("Failed to save relay schedules.", "error");
+    console.error("[RUN] saveRunsettingsAll failed:", err);
+    window.showToast("Failed to save operating settings.", "error");
   }
 };
 

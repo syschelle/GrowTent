@@ -427,7 +427,6 @@ const char* htmlPage = R"rawliteral(
     </section>
 
     <!-- runsettings section -->
-    <form action="/saverunsettings" method="POST">
     <section id="runsettings" class="page card">
       <h1 data-i18n="runsetting.title">Betriebseinstellungen</h1>
 
@@ -560,10 +559,6 @@ const char* htmlPage = R"rawliteral(
             <option value="4" %HEATRELAY4_SEL%>%RELAYNAMES4%</option>
           </select>
         </div>
-
-      <div class="spacer"></div>
-      <button class="primary" id="saverunsettingsBtn" data-i18n="settings.save">Speichern</button>
-      </form>
 
         <!-- ESP32 Relay Scheduling -->
         <div class="relay-sched">
@@ -735,7 +730,7 @@ const char* htmlPage = R"rawliteral(
             </div>
 
           <div class="relay-sched-actions">
-            <button type="button" class="primary" data-i18n="settings.save" onclick="saveAllRelaySchedules()">speichern</button>
+            <button type="button" class="primary" data-i18n="settings.save" onclick="saveRunsettingsAll()">speichern</button>
           </div>
           
         </div>
