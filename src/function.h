@@ -473,7 +473,7 @@ void handleSaveRunsettings() {
   offsetLeafTemperature = settings.grow.offsetLeafTemperature;
 
   saveFloatJson("webAmountOfWater",    KEY_AMOUNTOFWATER, irrigation.amountOfWater,     "Amount of Water");
-  irrigation.amountOfWater = clampFloatLocal(irrigation.amountOfWater, 10.0f, 100.0f);
+  irrigation.amountOfWater = clampFloatLocal(irrigation.amountOfWater, 10.0f, 500.0f);
   preferences.putFloat(KEY_AMOUNTOFWATER, irrigation.amountOfWater);
 
   saveIntJson("webTimePerTask",        KEY_TIMEPERTASK,   irrigation.timePerTask,       "Time Per Task");
@@ -2867,22 +2867,23 @@ void handleStartWatering() {
         return;
     }
 
-    // Calculate number of runs:
-    // amountOfWater = ml delivered in 10 seconds
-    // timePerTask = seconds pump ON per run
-    // irrigationAmount = total target ml
-    const float mlPerRun =
-        (irrigation.amountOfWater / 10.0f) * (float)irrigation.timePerTask;
+    // amountOfWater = ml delivered in 10 seconds PER POT / PER RELAY
+    // timePerTask   = seconds watering time per task
+    // amount        = target total ml PER POT
+    const float mlPerSecondPerPot = irrigation.amountOfWater / 10.0f;
+    const float mlPerTaskPerPot =
+        mlPerSecondPerPot * (float)irrigation.timePerTask;
 
-    if (mlPerRun <= 0.0f) {
-        logPrint("[IRRIGATION] Computed mlPerRun <= 0. Aborting.");
+    if (mlPerTaskPerPot <= 0.0f) {
+        logPrint("[IRRIGATION] Computed mlPerTaskPerPot <= 0. Aborting.");
         server.sendHeader("Location", "/");
         server.send(303);
         return;
     }
 
+    // Number of tasks needed so that each pot reaches the configured target amount
     irrigation.irrigationRuns =
-        (int)ceil(irrigation.amount / mlPerRun);
+        (int)ceilf(irrigation.amount / mlPerTaskPerPot);
 
     if (irrigation.irrigationRuns <= 0) {
         logPrint("[IRRIGATION] Computed runs <= 0. Aborting.");
@@ -2895,10 +2896,11 @@ void handleStartWatering() {
     irrigation.wTimeLeft = calculateEndtimeWatering();
 
     logPrint(
-        "[IRRIGATION] Starting watering: target=" +
-        String(irrigation.amount, 0) +
-        " ml, mlPerRun=" + String(mlPerRun, 1) +
-        ", runs=" + String(irrigation.irrigationRuns)
+        "[IRRIGATION] Starting watering: targetPerPot=" +
+        String(irrigation.amount, 1) +
+        " ml, mlPerTaskPerPot=" + String(mlPerTaskPerPot, 1) +
+        ", runs=" + String(irrigation.irrigationRuns) +
+        ", plannedPerPot=" + String(irrigation.irrigationRuns * mlPerTaskPerPot, 1) + " ml"
     );
 
     if (language == "de") {
@@ -2942,14 +2944,38 @@ void readTankLevel() {
   }
 }
 
+// Calculates the estimated end time for the watering process based on the number of runs, time per task, and pause between tasks.
 String calculateEndtimeWatering() {
-  unsigned long totalIrrigationTimeMs = irrigation.irrigationRuns * ((secondsToMilliseconds(irrigation.timePerTask) * 3) + minutesToMilliseconds(irrigation.betweenTasks));
-  unsigned long totalSeconds = totalIrrigationTimeMs / 1000;
-  unsigned long totalMinutes = totalSeconds / 60;
-  unsigned long hours = totalMinutes / 60;
-  unsigned long minutes = totalMinutes % 60;
+    const unsigned long runs =
+        (irrigation.irrigationRuns > 0) ? (unsigned long)irrigation.irrigationRuns : 0;
 
-  logPrint("[IRRIGATION] Estimated total irrigation time: " + String(hours) + " hours and " + String(minutes) + " minutes.");
+    const unsigned long relayCount = 3;
+    const unsigned long interRelayGapMs = 250;
 
-  return String(hours) + ":" + String(minutes);
+    // One task = all 3 relays sequentially
+    const unsigned long taskTimeMs =
+        relayCount * secondsToMilliseconds(irrigation.timePerTask) +
+        (relayCount - 1) * interRelayGapMs;
+
+    // Pause only between tasks, not after the last one
+    const unsigned long pauseTimeMs =
+        (runs > 1)
+            ? (runs - 1) * minutesToMilliseconds(irrigation.betweenTasks)
+            : 0;
+
+    const unsigned long totalMs = runs * taskTimeMs + pauseTimeMs;
+
+    const unsigned long totalSeconds = totalMs / 1000;
+    const unsigned long hours = totalSeconds / 3600;
+    const unsigned long minutes = (totalSeconds % 3600) / 60;
+
+    char buf[6];
+    snprintf(buf, sizeof(buf), "%02lu:%02lu", hours, minutes);
+
+    logPrint(
+        "[IRRIGATION] Estimated total irrigation time: " +
+        String(hours) + " hours and " + String(minutes) + " minutes."
+    );
+
+    return String(buf);
 }

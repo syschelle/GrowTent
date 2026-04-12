@@ -159,10 +159,10 @@ static String g_notify_gotifyToken() { return jMasked(); }
 
 static String g_irrigation_runs_left() { return jInt(irrigation.irrigationRuns); }
 static String g_irrigation_time_left() { return jStr(irrigation.wTimeLeft); }
-static String g_irrigation_amount() { return jNumOrNull(irrigation.amountOfWater, 1); } 
+static String g_irrigation_amount() { return jNumOrNull(irrigation.amountOfWater, 1); }
+static String g_irrigation_amount_total() { return jNumOrNull(irrigation.amount, 1); } 
 static String g_irrigation_time_per_task() { return jInt(irrigation.timePerTask); }
 static String g_irrigation_between_tasks() { return jInt(irrigation.betweenTasks); }
-static String g_irrigation_amount_total() { return jNumOrNull(irrigation.amount, 1); }
 static String g_irrigation_tank_level_cm() { return jNumOrNull(tankLevelCm, 1); }
 static String g_irrigation_tank_level_percent() { return jNumOrNull(tankLevel, 0); }
 
