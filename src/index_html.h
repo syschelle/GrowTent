@@ -509,7 +509,7 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group">
           <label for="amountOfWater" data-i18n="runsetting.amountOfWater">Wassermenge nach 10 Sekunden:</label>
-          <input name="webAmountOfWater" id="webAmountOfWater" style="width: 65px;" type="number" step="5" min="10" max="100" value="%AMOUNTOFWATER%">&nbsp;ml&nbsp;(min 10ml, max 100ml, step 5ml)
+          <input name="webAmountOfWater" id="webAmountOfWater" style="width: 65px;" type="number" step="5" min="10" max="500" value="%AMOUNTOFWATER%">&nbsp;ml&nbsp;(min 10ml, max 500ml, step 5ml)
         </div>
 
         <div class="form-group">
