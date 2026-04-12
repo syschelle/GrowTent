@@ -83,7 +83,7 @@ const char* KEY_SHELLYPASSWORD = "shPass";
 const char* KEY_TIMEPERTASK = "timePerTask";
 const char* KEY_BETWEENTASKS = "betweenTasks";
 const char* KEY_AMOUNTOFWATER = "amountOfWater";
-const char* KEY_IRRIGATION = "irrigationAmount";
+const char* KEY_IRRIGATION = "amount";
 const char* KEY_MINTANK = "minTank";
 const char* KEY_MAXTANK = "maxTank";
 

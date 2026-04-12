@@ -147,7 +147,7 @@ void handleRoot() {
     html.replace("%TIMEPERTASK%", String(irrigation.timePerTask));
     html.replace("%BETWEENTASKS%", String(irrigation.betweenTasks));
     html.replace("%AMOUNTOFWATER%", String(irrigation.amountOfWater));
-    html.replace("%IRRIGATION%", String(irrigation.irrigationAmount));
+    html.replace("%IRRIGATION%", String(irrigation.amount));
     
     String minTankStr = String(irrigation.tank.min, 1); minTankStr.trim();
     String maxTankStr = String(irrigation.tank.max, 1); maxTankStr.trim();
@@ -384,7 +384,7 @@ void readPreferences() {
   loadPrefInt(KEY_TIMEPERTASK, irrigation.timePerTask, 10, true, "timePerTask");
   loadPrefInt(KEY_BETWEENTASKS, irrigation.betweenTasks, 5, true, "betweenTasks");
   loadPrefFloat(KEY_AMOUNTOFWATER, irrigation.amountOfWater, 20, true, "amountOfWater");
-  loadPrefFloat(KEY_IRRIGATION, irrigation.irrigationAmount, 500, true, "irrigationAmount");
+  loadPrefFloat(KEY_IRRIGATION, irrigation.amount, 500, true, "irrigationAmount");
 
   loadPrefFloat(KEY_MINTANK, irrigation.tank.min, 0.0f, true, "minTank");
   loadPrefFloat(KEY_MAXTANK, irrigation.tank.max, 0.0f, true, "maxTank");

@@ -484,9 +484,9 @@ void handleSaveRunsettings() {
   irrigation.betweenTasks = clampIntLocal(irrigation.betweenTasks, 1, 10);
   preferences.putInt(KEY_BETWEENTASKS, irrigation.betweenTasks);
 
-  saveFloatJson("webIrrigation",       KEY_IRRIGATION,    irrigation.irrigationAmount,  "Irrigation Amount");
-  irrigation.irrigationAmount = clampFloatLocal(irrigation.irrigationAmount, 100.0f, 3000.0f);
-  preferences.putFloat(KEY_IRRIGATION, irrigation.irrigationAmount);
+  saveFloatJson("webIrrigation",       KEY_IRRIGATION,    irrigation.amount,  "Irrigation Amount");
+  irrigation.amount = clampFloatLocal(irrigation.amount, 100.0f, 3000.0f);
+  preferences.putFloat(KEY_IRRIGATION, irrigation.amount);
 
   saveFloatJson("webMinTank",          KEY_MINTANK,       irrigation.tank.min,          "Tank Min Level (cm)");
   saveFloatJson("webMaxTank",          KEY_MAXTANK,       irrigation.tank.max,          "Tank Max Level (cm)");
@@ -2856,7 +2856,7 @@ void handleStartWatering() {
         irrigation.timePerTask <= 0 ||
         irrigation.betweenTasks <= 0 ||
         irrigation.amountOfWater <= 0.0f ||
-        irrigation.irrigationAmount <= 0.0f
+        irrigation.amount <= 0.0f
     ) {
         logPrint(
             "[IRRIGATION] Invalid configuration. Check timePerTask, "
@@ -2882,7 +2882,7 @@ void handleStartWatering() {
     }
 
     irrigation.irrigationRuns =
-        (int)ceil(irrigation.irrigationAmount / mlPerRun);
+        (int)ceil(irrigation.amount / mlPerRun);
 
     if (irrigation.irrigationRuns <= 0) {
         logPrint("[IRRIGATION] Computed runs <= 0. Aborting.");
@@ -2896,7 +2896,7 @@ void handleStartWatering() {
 
     logPrint(
         "[IRRIGATION] Starting watering: target=" +
-        String(irrigation.irrigationAmount, 0) +
+        String(irrigation.amount, 0) +
         " ml, mlPerRun=" + String(mlPerRun, 1) +
         ", runs=" + String(irrigation.irrigationRuns)
     );

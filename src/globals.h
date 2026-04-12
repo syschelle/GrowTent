@@ -146,7 +146,7 @@ struct Tank {
 };
 
 struct Irrigation {
-  float irrigationAmount = 0.0f; 
+  float amount = 0.0f; 
   int irrigationRuns = 0;
   int timePerTask = 0;
   int betweenTasks = 0;
