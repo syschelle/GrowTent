@@ -267,43 +267,6 @@ Triggers OTA update from the configured firmware URL.
 
 ---
 
-## API Endpoints (Connectors)
-
-### Core
-- `GET /api/state`
-Unified state payload for frontend and external integrations (recommended primary endpoint).
-
-### Control
-- `POST /relay/{1..5}/toggle`
-- `POST /pump/6/triggerPump10s`
-- `POST /pump/7/triggerPump10s`
-- `POST /pump/8/triggerPump10s`
-- `POST /startWatering`
-- `POST /pingTank`
-
-### Shelly
-- `POST /shelly/main/toggle`
-- `POST /shelly/light/toggle`
-- `POST /shelly/humidifier/toggle`
-- `POST /shelly/heater/toggle`
-- `POST /api/shelly/reset-energy`
-
-### Scheduling / Settings
-- `POST /api/relay/schedule/save-all`
-- `POST /savesettings`
-- `POST /saverunsettings`
-- `POST /saveshellysettings`
-- `POST /savemessagesettings`
-
-### Logs
-- `GET /api/logbuffer`
-- `POST /api/logbuffer/clear`
-- `GET /log`
-
-### OTA
-- `POST /api/ota/update`
-Triggers OTA update from the configured firmware URL.
-
 ## ⚙️ Configuration
 
 - WiFi: AP or Station mode
