@@ -836,6 +836,8 @@ void setup() {
     WiFi.persistent(false);
     WiFi.setAutoReconnect(true);
     WiFi.begin(ssidName.c_str(), ssidPassword.c_str());
+    txPower = (WiFi.getTxPower() / 4);
+    //WiFi.setTxPower(WIFI_POWER_19_5dBm); // max power (range boost, but more current)
 
     Serial.println("[WIFI] Connecting to: " + ssidName);
 
@@ -1066,6 +1068,7 @@ void loop() {
       wl_status_t st = WiFi.status();
 
       if (st == WL_CONNECTED) {
+        txPower = (WiFi.getTxPower() / 4);
         wifiReady = true;
         wifiDownSince = 0;
         lastWifiReconnectAttempt = 0;

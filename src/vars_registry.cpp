@@ -109,6 +109,7 @@ static String g_cpumhz() { return jUInt((uint32_t)ESP.getCpuFreqMHz()); }
 static String g_wifiReady() { return jBool(wifiReady); }
 static String g_espMode() { return jBool(espMode); }
 static String g_ssid() { return jStr(ssidName); }
+static String g_txPower() { return jNumOrNull(txPower, 1); }
 
 static String g_temp() { return jNumOrNull(cur.temperatureC, 1); }
 static String g_temp_raw() { return jNumOrNull(cur.temperatureRawC, 2); }
@@ -286,6 +287,7 @@ const VarItem VARS[] = {
   {"wifi.ready", g_wifiReady, false, "wifi"},
   {"wifi.apMode", g_espMode, false, "wifi"},
   {"wifi.ssid", g_ssid, false, "wifi"},
+  {"wifi.txPowerDB", g_txPower, false, "wifi"},
 
   // --- sensors ---
   {"sensors.cur.temperatureC", g_temp, false, "sensors"},

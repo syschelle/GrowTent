@@ -233,6 +233,7 @@ extern const char* KEY_APPASSWORD;
 extern String ssidName;
 extern String ssidPassword;
 extern bool wifiReady;
+extern float txPower;
 
 // Preferences namespace + keys
 extern const char* PREF_NS;

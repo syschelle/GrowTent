@@ -16,6 +16,7 @@ const char* KEY_APPASSWORD = "GT-12$34";
 String ssidName = "";
 String ssidPassword = "";
 bool wifiReady = false;
+float txPower;
 
 // Preferences namespace + keys
 const char* PREF_NS = "growtent";
