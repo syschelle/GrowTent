@@ -457,15 +457,9 @@ void handleSaveRunsettings() {
   preferences.putFloat(KEY_TARGETVPD, settings.grow.targetVPD);
   targetVPD = settings.grow.targetVPD;
 
-  savePrefBool("webMinVPDMonitoring", KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, true, "Min VPD Monitoring Enabled");
-
-  savePrefFloat("webMinVPD", KEY_MINVPD, settings.grow.minVPD, true, "Min VPD");
-  settings.grow.minVPD = clampFloatLocal(settings.grow.minVPD, 0.00f, 0.30f);
-  preferences.putFloat(KEY_MINVPD, settings.grow.minVPD);
-
-  savePrefFloat("webHysteresis", KEY_HYSTERESIS, settings.grow.vpdHysteresis, true, "VPD Hysteresis");
-  settings.grow.vpdHysteresis = clampFloatLocal(settings.grow.vpdHysteresis, 0.00f, 0.10f);
-  preferences.putFloat(KEY_HYSTERESIS, settings.grow.vpdHysteresis);
+  saveBoolJson("webMinVPDMonitoring", KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, "Min VPD Monitoring Enabled");
+  saveFloatJson("webMinVPD", KEY_MINVPD, settings.grow.minVPD, "Min VPD");
+  saveFloatJson("webHysteresis", KEY_HYSTERESIS, settings.grow.vpdHysteresis, "VPD Hysteresis");
 
   saveFloatJson("webOffsetLeafTemp",   KEY_LEAFTEMP,      settings.grow.offsetLeafTemperature, "Leaf Temperature Offset");
   settings.grow.offsetLeafTemperature = clampFloatLocal(settings.grow.offsetLeafTemperature, -3.0f, 0.0f);
