@@ -110,6 +110,53 @@ static void requestSafeRestart(uint32_t delayMs = 1500) {
   g_restartAtMs = millis() + delayMs;
 }
 
+// Helper function to calculate day/week counters based on a start date string (returns false if date is invalid)
+bool calculateCounter(const String& date, int& day, int& week) {
+  if (date == "") {
+    day = 0;
+    week = 0;
+    return false;
+  }
+
+  calculateTimeSince(date, day, week);
+  return true;
+}
+
+// Updates the grow time values (currentGrowDay, currentGrowWeek, currentPhaseDay, currentPhaseWeek) based on the configured start dates and current time.
+void updateGrowTimeValues() {
+  if (startDate == "") {
+    settings.grow.currentGrowDay = 0;
+    settings.grow.currentGrowWeek = 0;
+    settings.grow.currentPhaseDay = 0;
+    settings.grow.currentPhaseWeek = 0;
+    return;
+  }
+
+  calculateCounter(
+    startDate,
+    settings.grow.currentGrowDay,
+    settings.grow.currentGrowWeek
+  );
+
+  switch (settings.grow.currentPhase) {
+    case 1:
+      calculateCounter(startDate, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
+      break;
+
+    case 2:
+      calculateCounter(startFlowering, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
+      break;
+
+    case 3:
+      calculateCounter(startDrying, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
+      break;
+
+    default:
+      settings.grow.currentPhaseDay = 0;
+      settings.grow.currentPhaseWeek = 0;
+      break;
+  }
+}
 
 bool checkFS() {
   // Info abfragen (geht nur wenn gemountet)
@@ -1047,6 +1094,7 @@ void dailyNtpTrigger() {
 
     // so it really only fires once per day:
     lastSyncDay = timeinfo.tm_mday;
+    updateGrowTimeValues();
   }
 }
 

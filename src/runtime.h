@@ -58,6 +58,7 @@ extern String readSensorData();
 extern void calculateTimeSince(const String& dateStr, int& daysOut, int& weeksOut);
 extern void logPrint(const String& msg);
 extern void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd);
+extern void updateGrowTimeValues();
 
 // forward declaration for calcVPD (defined elsewhere)
 float calcVPD(float temperatureC, float leafOffset, float humidityPct);
@@ -77,10 +78,9 @@ void handleRoot() {
     } else {
     html = FPSTR(htmlPage);
 
+    updateGrowTimeValues();
+
     if (startDate != "") {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startDate, settings.grow.currentGrowDay, settings.grow.currentGrowWeek);
       String days = String(settings.grow.currentGrowDay);
       String weeks = String(settings.grow.currentGrowWeek);
       if (language == "de") {
@@ -93,9 +93,6 @@ void handleRoot() {
     }
 
     if (settings.grow.currentPhase == 1) {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startDate, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
       String days = String(settings.grow.currentPhaseDay);
       String weeks = String(settings.grow.currentPhaseWeek);
       if (language == "de") {
@@ -104,9 +101,6 @@ void handleRoot() {
         html.replace("%CURRENTPHASE%", "<font color=\"lightgreen\">Vegetative: day " + days + " / week " + weeks + "</font>");
       }
     } else if (settings.grow.currentPhase == 2) {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startFlowering, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
       String days = String(settings.grow.currentPhaseDay);
       String weeks = String(settings.grow.currentPhaseWeek);
       if (language == "de") {
@@ -115,9 +109,6 @@ void handleRoot() {
         html.replace("%CURRENTPHASE%", "<font color=\"#ff9900\">Flowering: day " + days + " / week " + weeks + "</font>");
       }
     } else if (settings.grow.currentPhase == 3) {
-      int daysSinceStartInt = 0;
-      int weeksSinceStartInt = 0;
-      calculateTimeSince(startDrying, settings.grow.currentPhaseDay, settings.grow.currentPhaseWeek);
       String days = String(settings.grow.currentPhaseDay);
       String weeks = String(settings.grow.currentPhaseWeek);
       if (language == "de") {
