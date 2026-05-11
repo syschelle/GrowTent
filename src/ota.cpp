@@ -10,7 +10,9 @@
 extern WebServer server;
 
 // ---- configuration ----
-static const char* FW_VERSION = "v0.1.0";
+#ifndef FW_VERSION
+#define FW_VERSION "dev"
+#endif
 static const char* GITHUB_OWNER = "syschelle";
 static const char* GITHUB_REPO = "GrowTent";
 static const char* OTA_ASSET_NAME = "firmware.bin";
@@ -170,7 +172,6 @@ void handleOtaUpdate() {
 
   const char* firmwareUrl =
     "https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin";
-
   Serial.print("[OTA] URL: ");
   Serial.println(firmwareUrl);
 
