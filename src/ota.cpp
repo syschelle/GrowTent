@@ -9,10 +9,15 @@
 #include <ArduinoJson.h>
 extern WebServer server;
 
-// ---- configuration ----
+#if __has_include("build_version.h")
+#include "build_version.h"
+#endif
+
 #ifndef FW_VERSION
 #define FW_VERSION "dev"
 #endif
+
+// ---- configuration ----
 static const char* GITHUB_OWNER = "syschelle";
 static const char* GITHUB_REPO = "GrowTent";
 static const char* OTA_ASSET_NAME = "firmware.bin";

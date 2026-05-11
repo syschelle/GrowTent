@@ -26,7 +26,7 @@ jobs:
 
       - name: Build firmware
         run: |
-          pio run -e nodemcu-32s --project-option "build_flags=-DFW_VERSION=\"${GITHUB_REF_NAME}\""
+          pio run -e nodemcu-32s --project-option 'build_flags=-DFW_VERSION="${{ github.ref_name }}"'
 
       - name: Prepare release file
         run: |
