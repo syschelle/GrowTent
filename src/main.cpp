@@ -1030,6 +1030,7 @@ void setup() {
   server.on("/api/logbuffer/clear", HTTP_POST, handleClearLog);
   server.on("/log", HTTP_GET, handleDownloadLog);
   server.on("/api/ota/check", HTTP_GET, handleOtaCheck);
+  server.on("/api/ota/update", HTTP_POST, handleOtaUpdate);
   // Catch-all for undefined routes
   server.onNotFound([]() {
     Serial.printf("404 Not Found: %s (method %d)\n", server.uri().c_str(), (int)server.method());

@@ -2,10 +2,11 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
 #include <WebServer.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
-
 extern WebServer server;
 
 // ---- configuration ----
@@ -153,4 +154,78 @@ void handleOtaCheck() {
 
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json; charset=utf-8", resp);
+}
+
+void handleOtaUpdate() {
+  if (WiFi.status() != WL_CONNECTED) {
+    server.send(503, "application/json; charset=utf-8",
+                "{\"ok\":false,\"error\":\"wifi_not_connected\"}");
+    return;
+  }
+
+  Serial.println("[OTA] Update requested");
+  Serial.println("[OTA] WiFi connected");
+  Serial.print("[OTA] IP: ");
+  Serial.println(WiFi.localIP());
+
+  const char* firmwareUrl =
+    "https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin";
+
+  Serial.print("[OTA] URL: ");
+  Serial.println(firmwareUrl);
+
+  WiFiClientSecure client;
+  client.setInsecure();
+  client.setTimeout(30);
+
+  HTTPUpdate otaUpdater;
+  otaUpdater.rebootOnUpdate(false);
+  otaUpdater.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
+  otaUpdater.onStart([]() {
+    Serial.println("[OTA] Start");
+  });
+
+  otaUpdater.onProgress([](int current, int total) {
+    Serial.printf("[OTA] Progress: %d / %d\n", current, total);
+  });
+
+  otaUpdater.onEnd([]() {
+    Serial.println("[OTA] End");
+  });
+
+  otaUpdater.onError([](int error) {
+    Serial.printf("[OTA] Error callback: %d\n", error);
+  });
+
+  t_httpUpdate_return ret = otaUpdater.update(client, firmwareUrl);
+
+  if (ret == HTTP_UPDATE_OK) {
+    Serial.println("[OTA] Update OK, restarting...");
+    server.send(200, "application/json; charset=utf-8",
+                "{\"ok\":true,\"message\":\"updated_restarting\"}");
+    delay(1000);
+    ESP.restart();
+    return;
+  }
+
+  if (ret == HTTP_UPDATE_NO_UPDATES) {
+    Serial.println("[OTA] No updates");
+    server.send(200, "application/json; charset=utf-8",
+                "{\"ok\":true,\"message\":\"no_update\"}");
+    return;
+  }
+
+  String err = otaUpdater.getLastErrorString();
+  Serial.print("[OTA] Failed: ");
+  Serial.println(err);
+
+  err.replace("\\", "\\\\");
+  err.replace("\"", "\\\"");
+
+  String json = "{\"ok\":false,\"error\":\"";
+  json += err;
+  json += "\"}";
+
+  server.send(500, "application/json; charset=utf-8", json);
 }
