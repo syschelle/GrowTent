@@ -1094,7 +1094,6 @@ void dailyNtpTrigger() {
 
     // so it really only fires once per day:
     lastSyncDay = timeinfo.tm_mday;
-    updateGrowTimeValues();
   }
 }
 

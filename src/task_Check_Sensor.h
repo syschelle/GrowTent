@@ -30,6 +30,8 @@ void taskCheckBMESensor(void *parameter) {
 
 
   for (;;) {
+    updateGrowTimeValues();
+
     // --- stack watermark logging (debug) ---
     UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
 
