@@ -24,9 +24,18 @@ jobs:
       - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Build firmware
+      - name: Generate firmware version header
         run: |
-          pio run -e nodemcu-32s --project-option 'build_flags=-DFW_VERSION="${{ github.ref_name }}"'
+          printf '#pragma once\n#define FW_VERSION "%s"\n' "${GITHUB_REF_NAME}" > src/build_version.h
+          cat src/build_version.h
+
+      - name: Build firmware
+        run: pio run -e nodemcu-32s
+
+      - name: Verify firmware file
+        run: |
+          ls -lh .pio/build/nodemcu-32s/
+          test -f .pio/build/nodemcu-32s/firmware.bin
 
       - name: Prepare release file
         run: |
