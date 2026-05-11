@@ -25,7 +25,9 @@ jobs:
         run: pip install platformio
 
       - name: Build firmware
-        run: pio run -e nodemcu-32s
+        run: |
+          pio run -e nodemcu-32s \
+            --project-option "build_flags=-DFW_VERSION='\"${GITHUB_REF_NAME}\"' -DCONFIG_FREERTOS_CHECK_STACKOVERFLOW=2 -Os -ffunction-sections -fdata-sections -Wl,--gc-sections"
 
       - name: Prepare release file
         run: |
