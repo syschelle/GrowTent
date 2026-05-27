@@ -48,14 +48,24 @@ static int compareSemver(const String& a, const String& b) {
   int aMajor, aMinor, aPatch;
   int bMajor, bMinor, bPatch;
 
-  if (!parseSemver(a, aMajor, aMinor, aPatch) ||
-      !parseSemver(b, bMajor, bMinor, bPatch)) {
-    return 0;
-  }
+  bool aOk = parseSemver(a, aMajor, aMinor, aPatch);
+  bool bOk = parseSemver(b, bMajor, bMinor, bPatch);
+
+  // If the installed version is "dev" or otherwise invalid,
+  // treat it as older than any valid release tag.
+  if (!aOk && bOk) return -1;
+
+  // If the latest version is invalid but the installed one is valid,
+  // do not offer an update.
+  if (aOk && !bOk) return 1;
+
+  // If both are invalid, consider them equal.
+  if (!aOk && !bOk) return 0;
 
   if (aMajor != bMajor) return (aMajor < bMajor) ? -1 : 1;
   if (aMinor != bMinor) return (aMinor < bMinor) ? -1 : 1;
   if (aPatch != bPatch) return (aPatch < bPatch) ? -1 : 1;
+
   return 0;
 }
 
