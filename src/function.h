@@ -2783,46 +2783,57 @@ static void handleResetShellyEnergy() {
 }
 
 // Humidifier control:
-// Trigger Shelly humidifier ON when VPD is above target + hysteresis.
-// Shelly auto-off is configured on the Shelly device.
+// Trigger Shelly humidifier ON when VPD is above target.
+// Shelly auto-off handles the OFF time on the Shelly device.
 static void controlHumidifierByVPD() {
     // Run check only every 20 seconds
     static uint32_t lastCheckMs = 0;
     const uint32_t checkIntervalMs = 20000UL;
 
-    if (millis() - lastCheckMs < checkIntervalMs) return;
-    lastCheckMs = millis();
+    uint32_t now = millis();
+    if (now - lastCheckMs < checkIntervalMs) return;
+    lastCheckMs = now;
 
-    // Single source of truth for target VPD:
-    // target.targetVpdKpa <-> /api/state: settings.grow.targetVPD
-    if (isnan(cur.vpdKpa) || isnan(settings.grow.targetVPD)) return;
+    // Validate sensor and target values
+    if (!isfinite(cur.vpdKpa)) return;
+    if (!isfinite(settings.grow.targetVPD)) return;
     if (settings.shelly.humidifier.ip.length() == 0) return;
 
-    const float HYST = 0.05f;
-    const float threshold = settings.grow.targetVPD + HYST;
+    // Use configured VPD hysteresis only for logging / future tuning.
+    // IMPORTANT:
+    // Do NOT add hysteresis to target here, otherwise the controller will
+    // intentionally keep VPD above the target.
+    float target = settings.grow.targetVPD;
+    float hyst   = settings.grow.vpdHysteresis;
+
+    if (!isfinite(hyst) || hyst < 0.0f) hyst = 0.0f;
 
     logPrint(
         "[HUM] cur=" + String(cur.vpdKpa, 3) +
-        " target=" + String(settings.grow.targetVPD, 3) +
-        " thresh=" + String(threshold, 3)
+        " target=" + String(target, 3) +
+        " hyst=" + String(hyst, 3)
     );
 
-    // Trigger only when clearly above threshold
-    if (cur.vpdKpa > threshold) {
-        // Only send ON if Shelly status is known and currently OFF
-        if (shelly.humidifier.values.ok && !shelly.humidifier.values.isOn) {
-            bool ok = shellySwitchOn(
-                settings.shelly.humidifier.ip,
-                settings.shelly.humidifier.gen,
-                0,
-                80
-            );
+    // Humidifier lowers VPD.
+    // Therefore trigger as soon as VPD is above target.
+    if (cur.vpdKpa <= target) {
+        return;
+    }
 
-            if (ok) {
-                logPrint("[HUM] Triggered humidifier ON (Shelly auto-off)");
-            } else {
-                logPrint("[HUM] Failed to trigger humidifier ON");
-            }
+    // Only send ON if Shelly status is known and currently OFF.
+    // Shelly auto-off will switch it off again after the configured pulse.
+    if (shelly.humidifier.values.ok && !shelly.humidifier.values.isOn) {
+        bool ok = shellySwitchOn(
+            settings.shelly.humidifier.ip,
+            settings.shelly.humidifier.gen,
+            0,
+            80
+        );
+
+        if (ok) {
+            logPrint("[HUM] Triggered humidifier ON because VPD is above target");
+        } else {
+            logPrint("[HUM] Failed to trigger humidifier ON");
         }
     }
 }
