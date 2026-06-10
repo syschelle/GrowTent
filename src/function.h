@@ -965,6 +965,9 @@ void handleSaveMessageSettings() {
     pushoverEnabled = "";
   }
 
+  pushoverSent = (pushoverEnabled == "checked");
+  preferences.putString(KEY_PUSHOVER, pushoverEnabled);
+
   savePrefString("webPushoverUserKey", KEY_PUSHOVERUSER, pushoverUserKey, "Pushover User Key");
   savePrefString("webPushoverAppKey", KEY_PUSHOVERAPP, pushoverAppKey, "Pushover App Key");
   savePrefString("webPushoverDevice", KEY_PUSHOVERDEVICE, pushoverDevice, "Pushover Device");
@@ -998,6 +1001,9 @@ void handleSaveMessageSettings() {
     }
   }
   
+  gotifySent = (gotifyEnabled == "checked");
+  preferences.putString(KEY_GOTIFY, gotifyEnabled);
+
   // 11) Send redirect response and restart the ESP
   server.sendHeader("Location", "/");
   server.send(303);  // HTTP redirect to status page
@@ -2960,11 +2966,19 @@ void handleStartWatering() {
             "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
             "Bewässerung startet."
         );
+        sendGotify(
+            "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
+            "Bewässerung startet."
+        );
     } else {
         sendPushover(
             "Irrigation started. Duration: " + calculateEndtimeWatering(),
             "Irrigation started."
         );
+        sendGotify(
+            "Irrigation started. Duration: " + calculateEndtimeWatering(),
+            "Irrigation started."
+        );  
     }
 
     server.sendHeader("Location", "/");
