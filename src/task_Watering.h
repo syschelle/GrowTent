@@ -68,8 +68,10 @@ void taskWatering(void *parameter) {
 
       if (language == "de") {
         sendPushover("Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
+        sendGotify("Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
       } else {
         sendPushover("Irrigation completed.", "Irrigation completed.");
+        sendGotify("Irrigation completed.", "Irrigation completed.");
       }
 
       vTaskDelay(pdMS_TO_TICKS(1000));

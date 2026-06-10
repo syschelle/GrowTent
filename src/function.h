@@ -983,7 +983,6 @@ void handleSaveMessageSettings() {
   savePrefString("webGotifyURL", KEY_GOTIFYSERVER, gotifyServer, "Gotify Server URL");
   savePrefString("webGotifyToken", KEY_GOTIFYTOKEN, gotifyToken, "Gotify Token");
 
-  preferences.end(); // always close Preferences handle
 
   if (pushoverEnabled == "checked") {
     if (language == "de") {
@@ -1003,6 +1002,8 @@ void handleSaveMessageSettings() {
   
   gotifySent = (gotifyEnabled == "checked");
   preferences.putString(KEY_GOTIFY, gotifyEnabled);
+
+  preferences.end(); // always close Preferences handle
 
   // 11) Send redirect response and restart the ESP
   server.sendHeader("Location", "/");
