@@ -311,8 +311,3 @@ Contributions, bug reports and improvements welcome. Please open issues or pull 
 Add license information here (no license file present in the source snapshot). If you want to use a permissive license, consider adding an SPDX header and LICENSE file (MIT, Apache-2.0, etc.).
 
 ---
-
-If you want, I can:
-- Generate a ready-to-commit README.md updated with more precise build commands for your preferred toolchain (PlatformIO / Arduino IDE / Arduino CLI).
-- Create a wiring diagram (text-based) for the BME280 and relays.
-- Create a sample config example or instructions for changing NTP/timezone/initial WiFi via the code.
