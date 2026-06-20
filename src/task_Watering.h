@@ -67,11 +67,11 @@ void taskWatering(void *parameter) {
       irrigation.wTimeLeft = "00:00";
 
       if (language == "de") {
-        sendPushover("Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
-        sendGotify("Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
+        sendPushover(boxName + "Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
+        sendGotify(boxName + "Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
       } else {
-        sendPushover("Irrigation completed.", "Irrigation completed.");
-        sendGotify("Irrigation completed.", "Irrigation completed.");
+        sendPushover(boxName + "Irrigation completed.", "Irrigation completed.");
+        sendGotify(boxName + "Irrigation completed.", "Irrigation completed.");
       }
 
       vTaskDelay(pdMS_TO_TICKS(1000));
