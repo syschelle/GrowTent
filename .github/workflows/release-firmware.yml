@@ -48,4 +48,5 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" firmware.bin \
             --title "${GITHUB_REF_NAME}" \
             --notes "ESP32 firmware ${GITHUB_REF_NAME}" \
-            --verify-tag
+            --verify-tag \
+            --clobber
