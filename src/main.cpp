@@ -72,7 +72,27 @@ static const char* DIARY_PATH = "/growdiary.csv";
 
 // -------------------- LittleFS recovery API --------------------
 // OTA-safe: normal boot never formats LittleFS. Formatting is only possible
-// through this explicit recovery endpoint with a confirmation token.
+// through explicit user-triggered endpoints with a confirmation token.
+static bool readFsFormatConfirmation() {
+  String confirm;
+
+  if (server.hasArg("confirm")) confirm = server.arg("confirm");
+
+  if (!confirm.length() && server.hasArg("plain") && server.arg("plain").length()) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (!err) confirm = (const char*)(doc["confirm"] | "");
+  }
+
+  confirm.trim();
+  return confirm == "FORMAT_LITTLEFS";
+}
+
+static void sendFsConfirmationRequired() {
+  server.send(403, "application/json; charset=utf-8",
+              "{\"ok\":false,\"err\":\"confirmation_required\",\"confirm\":\"FORMAT_LITTLEFS\"}");
+}
+
 static void handleFsStatus() {
   server.sendHeader("Cache-Control", "no-store");
 
@@ -98,19 +118,9 @@ static void handleFsStatus() {
 static void handleFsFormat() {
   server.sendHeader("Cache-Control", "no-store");
 
-  String confirm;
-  if (server.hasArg("confirm")) confirm = server.arg("confirm");
-
-  if (!confirm.length() && server.hasArg("plain") && server.arg("plain").length()) {
-    JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, server.arg("plain"));
-    if (!err) confirm = (const char*)(doc["confirm"] | "");
-  }
-
   // Intentional friction: this endpoint erases all LittleFS files, including growdiary.csv.
-  if (confirm != "FORMAT_LITTLEFS") {
-    server.send(403, "application/json; charset=utf-8",
-                "{\"ok\":false,\"err\":\"confirmation_required\",\"confirm\":\"FORMAT_LITTLEFS\"}");
+  if (!readFsFormatConfirmation()) {
+    sendFsConfirmationRequired();
     return;
   }
 
@@ -120,7 +130,7 @@ static void handleFsFormat() {
     return;
   }
 
-  server.send(200, "application/json; charset=utf-8", "{\"ok\":true,\"formatted\":true}");
+  server.send(200, "application/json; charset=utf-8", "{\"ok\":true,\"formatted\":true,\"mounted\":true}");
 }
 
 
@@ -710,15 +720,27 @@ static void handleDiaryDownload() {
   f.close();
 }
 
-// POST /api/diary/clear  -> delete diary file
+// POST /api/diary/clear
+// Manual, user-triggered recovery action:
+// - requires confirmation token
+// - formats LittleFS
+// - mounts LittleFS again
+// This intentionally deletes the diary and any other LittleFS files, but never runs automatically.
 static void handleDiaryClear() {
   server.sendHeader("Cache-Control", "no-store");
-  if (!ensureFsMounted()) {
-    server.send(503, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"fs_not_mounted\"}");
+
+  if (!readFsFormatConfirmation()) {
+    sendFsConfirmationRequired();
     return;
   }
-  if (LittleFS.exists(DIARY_PATH)) LittleFS.remove(DIARY_PATH);
-  server.send(200, "application/json; charset=utf-8", "{\"ok\":true}");
+
+  const bool ok = formatFsForRecovery();
+  if (!ok) {
+    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"format_failed\"}");
+    return;
+  }
+
+  server.send(200, "application/json; charset=utf-8", "{\"ok\":true,\"cleared\":true,\"formatted\":true,\"mounted\":true}");
 }
 
 // -------------------- State API caching (registry -> JSON) --------------------

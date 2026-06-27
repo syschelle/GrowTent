@@ -310,10 +310,13 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "diary.note.ph": { de: "z. B. Gießen, Dünger, Beobachtungen…", en: "e.g. watering, nutrients, observations…" },
   "diary.save": { de: "Eintrag speichern", en: "Save entry" },
   "diary.download": { de: "CSV herunterladen", en: "Download CSV" },
-  "diary.clear": { de: "Tagebuch löschen", en: "Clear diary" },
+  "diary.clear": { de: "Tagebuch löschen / Speicher reparieren", en: "Clear diary / repair storage" },
   "diary.saved": { de: "Gespeichert ✓", en: "Saved ✓" },
+  "diary.cleared": { de: "Tagebuch gelöscht, LittleFS formatiert und gemountet ✓", en: "Diary cleared, LittleFS formatted and mounted ✓" },
   "diary.error": { de: "Fehler beim Speichern", en: "Save failed" },
-  "diary.confirmClear": { de: "Wirklich alle Tagebuch-Einträge löschen?", en: "Really clear all diary entries?" },
+  "diary.fsError": { de: "Tagebuch-Speicher ist nicht bereit. Bitte 'Tagebuch löschen / Speicher reparieren' ausführen.", en: "Diary storage is not ready. Please run 'Clear diary / repair storage'." },
+  "diary.confirmClear": { de: "Tagebuch wirklich löschen und LittleFS neu formatieren? Dadurch werden alle Tagebuchdaten im Gerätespeicher gelöscht. Firmware, WLAN und Einstellungen bleiben erhalten.", en: "Really clear the diary and reformat LittleFS? This deletes all diary data in device storage. Firmware, Wi-Fi and settings remain unchanged." },
+  "diary.confirmClear2": { de: "Sicher? Dieser manuelle Schritt formatiert LittleFS und mountet es danach neu.", en: "Are you sure? This manual step formats LittleFS and mounts it again." },
 
   /* -------------------- Hints -------------------- */
   "hint.systemStarted": { de: "System gestartet", en: "System started" },
@@ -1712,7 +1715,12 @@ async function startNewGrow(){
         cache: 'no-store'
       });
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) {
+        if (res.status === 503 && status) {
+          status.textContent = I18N['diary.fsError'] || 'Diary storage is not ready';
+        }
+        throw new Error('HTTP ' + res.status);
+      }
 
       ta.value = '';
       updateDiaryCounter();
@@ -1724,25 +1732,34 @@ async function startNewGrow(){
       setTimeout(() => { if (status) status.textContent = ''; }, 2500);
     } catch (e) {
       console.warn('[DIARY] save failed', e);
-      if (status) status.textContent = I18N['diary.error'] || 'Save failed';
+      if (status && !status.textContent) status.textContent = I18N['diary.error'] || 'Save failed';
     }
   });
 
   document.getElementById('diaryClearBtn')?.addEventListener('click', async () => {
-    const msg = I18N['diary.confirmClear'] || 'Really clear all diary entries?';
+    const msg = I18N['diary.confirmClear'] || 'Really clear the diary and reformat LittleFS?';
     if (!confirm(msg)) return;
+
+    const msg2 = I18N['diary.confirmClear2'] || 'Are you sure? This manual step formats LittleFS and mounts it again.';
+    if (!confirm(msg2)) return;
 
     const status = document.getElementById('diaryStatus');
     if (status) status.textContent = '';
 
     try {
-      const res = await fetch('/api/diary/clear', { method: 'POST', cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      if (status) status.textContent = (I18N['diary.saved'] || 'Saved ✓');
-      setTimeout(() => { if (status) status.textContent = ''; }, 2500);
+      const res = await fetch('/api/diary/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'FORMAT_LITTLEFS' }),
+        cache: 'no-store'
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.ok || !data.mounted) throw new Error('HTTP ' + res.status);
+      if (status) status.textContent = (I18N['diary.cleared'] || 'Diary cleared, LittleFS formatted and mounted ✓');
+      setTimeout(() => { if (status) status.textContent = ''; }, 3500);
       loadDiaryList();
     } catch (e) {
-      console.warn('[DIARY] clear failed', e);
+      console.warn('[DIARY] clear/repair failed', e);
       if (status) status.textContent = I18N['diary.error'] || 'Error';
     }
   });
