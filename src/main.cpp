@@ -70,6 +70,60 @@ void startSoftAP();
 // -------------------- Grow Diary (CSV in LittleFS) --------------------
 static const char* DIARY_PATH = "/growdiary.csv";
 
+// -------------------- LittleFS recovery API --------------------
+// OTA-safe: normal boot never formats LittleFS. Formatting is only possible
+// through this explicit recovery endpoint with a confirmation token.
+static void handleFsStatus() {
+  server.sendHeader("Cache-Control", "no-store");
+
+  const bool ok = ensureFsMounted();
+  String json = "{\"ok\":";
+  json += ok ? "true" : "false";
+
+  if (ok) {
+    json += ",\"mounted\":true";
+    json += ",\"total\":" + String((uint32_t)LittleFS.totalBytes());
+    json += ",\"used\":" + String((uint32_t)LittleFS.usedBytes());
+    json += ",\"diaryExists\":";
+    json += LittleFS.exists(DIARY_PATH) ? "true" : "false";
+  } else {
+    json += ",\"mounted\":false";
+    json += ",\"err\":\"fs_not_mounted\"";
+  }
+
+  json += "}";
+  server.send(ok ? 200 : 503, "application/json; charset=utf-8", json);
+}
+
+static void handleFsFormat() {
+  server.sendHeader("Cache-Control", "no-store");
+
+  String confirm;
+  if (server.hasArg("confirm")) confirm = server.arg("confirm");
+
+  if (!confirm.length() && server.hasArg("plain") && server.arg("plain").length()) {
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, server.arg("plain"));
+    if (!err) confirm = (const char*)(doc["confirm"] | "");
+  }
+
+  // Intentional friction: this endpoint erases all LittleFS files, including growdiary.csv.
+  if (confirm != "FORMAT_LITTLEFS") {
+    server.send(403, "application/json; charset=utf-8",
+                "{\"ok\":false,\"err\":\"confirmation_required\",\"confirm\":\"FORMAT_LITTLEFS\"}");
+    return;
+  }
+
+  const bool ok = formatFsForRecovery();
+  if (!ok) {
+    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"format_failed\"}");
+    return;
+  }
+
+  server.send(200, "application/json; charset=utf-8", "{\"ok\":true,\"formatted\":true}");
+}
+
+
 // Parse "YYYY-MM-DD" -> time_t (local midnight). Returns 0 if invalid.
 static time_t parseYmdToLocalMidnight(const String& ymd) {
   if (ymd.length() < 10) return 0;
@@ -522,7 +576,7 @@ static void handleDiaryAdd() {
 
   // --- write file ---
   if (!ensureFsMounted()) {
-    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"LittleFS\"}");
+    server.send(503, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"fs_not_mounted\"}");
     return;
   }
 
@@ -660,7 +714,7 @@ static void handleDiaryDownload() {
 static void handleDiaryClear() {
   server.sendHeader("Cache-Control", "no-store");
   if (!ensureFsMounted()) {
-    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"LittleFS\"}");
+    server.send(503, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"fs_not_mounted\"}");
     return;
   }
   if (LittleFS.exists(DIARY_PATH)) LittleFS.remove(DIARY_PATH);
@@ -889,6 +943,10 @@ void setup() {
   // Static assets (from PROGMEM)
   server.on("/style.css", []() { server.send_P(200, "text/css", cssContent); });
   server.on("/script.js", []() { server.send_P(200, "application/javascript", jsContent); });
+
+  // LittleFS status / explicit recovery format (OTA-safe)
+  server.on("/api/fs/status", HTTP_GET, handleFsStatus);
+  server.on("/api/fs/format", HTTP_POST, handleFsFormat);
 
   // grow diary (LittleFS CSV)
   server.on("/api/diary/add", HTTP_POST, handleDiaryAdd);
