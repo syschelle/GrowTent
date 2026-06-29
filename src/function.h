@@ -500,7 +500,7 @@ void handleSaveRunsettings() {
   targetTemperature = settings.grow.targetTemperature;
 
   saveFloatJson("webTargetVPD",        KEY_TARGETVPD,     settings.grow.targetVPD,      "Target VPD");
-  settings.grow.targetVPD = clampFloatLocal(settings.grow.targetVPD, 0.50f, 1.50f);
+  settings.grow.targetVPD = clampFloatLocal(settings.grow.targetVPD, 0.50f, 3.50f);
   preferences.putFloat(KEY_TARGETVPD, settings.grow.targetVPD);
   targetVPD = settings.grow.targetVPD;
 
