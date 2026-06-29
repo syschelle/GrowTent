@@ -96,9 +96,13 @@ static void sendFsConfirmationRequired() {
 static void handleFsStatus() {
   server.sendHeader("Cache-Control", "no-store");
 
-  const bool ok = ensureFsMounted();
+  // Status endpoint must not trigger another mount attempt.
+  // Mount is checked once at boot; failure is cached until manual recovery.
+  const bool ok = isFsMounted();
   String json = "{\"ok\":";
   json += ok ? "true" : "false";
+  json += ",\"mountTried\":";
+  json += fsMountWasTried() ? "true" : "false";
 
   if (ok) {
     json += ",\"mounted\":true";
@@ -108,6 +112,8 @@ static void handleFsStatus() {
     json += LittleFS.exists(DIARY_PATH) ? "true" : "false";
   } else {
     json += ",\"mounted\":false";
+    json += ",\"mountFailed\":";
+    json += fsMountFailed() ? "true" : "false";
     json += ",\"err\":\"fs_not_mounted\"";
   }
 
@@ -879,10 +885,9 @@ void setup() {
     logPrint("[BOOT] logBufferMutex create failed");
   }
 
-  // if littlefs mounted successfully, print contents for debugging
-  if (ensureFsMounted()) {
-    logPrint("[LITTLEFS] mounted");
-  }
+  // LittleFS is checked exactly once during boot.
+  // On failure, the result is cached and no automatic retries are performed.
+  ensureFsMounted();
 
   // Load WiFi credentials only (fast)
   preferences.begin(PREF_NS, true);

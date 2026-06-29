@@ -1309,21 +1309,24 @@ float pingTankLevel(uint8_t trigPin, uint8_t echoPin,
 }
 
 void handleApiLogBuffer() {
-  String txt;
-  txt.reserve(4096);
+  server.sendHeader("Cache-Control", "no-store");
 
-  if (logBufferMutex && xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    for (const auto& line : logBuffer) {
-      txt += line;
-      txt += '\n';
-    }
-    xSemaphoreGive(logBufferMutex);
-  } else {
+  if (!logBufferMutex || xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
     server.send(503, "text/plain; charset=utf-8", "log busy");
     return;
   }
 
-  server.send(200, "text/plain; charset=utf-8", txt);
+  // Heap-friendly streaming: avoid building one large String for every poll.
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/plain; charset=utf-8", "");
+
+  for (const auto& line : logBuffer) {
+    server.sendContent(line);
+    server.sendContent("\n");
+  }
+
+  xSemaphoreGive(logBufferMutex);
+  server.sendContent("");
 }
 
 void handleClearLog() {
@@ -1337,23 +1340,24 @@ void handleClearLog() {
 }
 
 void handleDownloadLog() {
-  String txt;
-  txt.reserve(8192);
-
-  if (logBufferMutex && xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    for (const auto& line : logBuffer) {
-      txt += line;
-      txt += '\n';
-    }
-    xSemaphoreGive(logBufferMutex);
-  } else {
+  if (!logBufferMutex || xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
     server.send(503, "text/plain; charset=utf-8", "log busy");
     return;
   }
 
+  // Heap-friendly streaming download: avoid an 8 KB temporary String.
   server.sendHeader("Content-Type", "text/plain; charset=utf-8");
   server.sendHeader("Content-Disposition", "attachment; filename=weblog.txt");
-  server.send(200, "text/plain; charset=utf-8", txt);
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "text/plain; charset=utf-8", "");
+
+  for (const auto& line : logBuffer) {
+    server.sendContent(line);
+    server.sendContent("\n");
+  }
+
+  xSemaphoreGive(logBufferMutex);
+  server.sendContent("");
 }
 
 // helper: read actual relay pin and convert to bool  

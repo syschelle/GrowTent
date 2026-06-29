@@ -1281,12 +1281,12 @@ async function startNewGrow(){
     autoScroll = nearBottom;
   });
 
-  // Start periodic polling (every 5 seconds)
+  // Start periodic polling (every 10 seconds to reduce ESP32 heap pressure)
   function startWebLog() {
     if (logTimer) return;
 
     fetchWebLog(); // initial immediate fetch
-    logTimer = setInterval(fetchWebLog, 5000);
+    logTimer = setInterval(fetchWebLog, 10000);
   }
 
   // Stop periodic polling
