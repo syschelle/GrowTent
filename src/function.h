@@ -2179,10 +2179,8 @@ static bool refreshShellyLightSchedule(bool force) {
   return ok;
 }
 
-void handleRefreshShellyLightSchedule() {
-  const bool ok = refreshShellyLightSchedule(true);
-  const DailySchedule& ds = settings.shelly.light.schedules.days[0];
-
+static void sendShellyScheduleRefreshResponse(ShellyDevice& dev, bool ok) {
+  const DailySchedule& ds = dev.schedules.days[0];
   String resp = "{";
   resp += "\"ok\":" + String(ok ? "true" : "false");
   resp += ",\"on\":\"";
@@ -2194,6 +2192,31 @@ void handleRefreshShellyLightSchedule() {
   resp += "}";
 
   server.send(ok ? 200 : 502, "application/json; charset=utf-8", resp);
+}
+
+void handleRefreshShellyLightSchedule() {
+  const bool ok = refreshShellyLightSchedule(true);
+  sendShellyScheduleRefreshResponse(settings.shelly.light, ok);
+}
+
+void handleRefreshShellyHumidifierSchedule() {
+  const bool ok = readShellyScheduleList(settings.shelly.humidifier, 0, 80);
+  sendShellyScheduleRefreshResponse(settings.shelly.humidifier, ok);
+}
+
+void handleRefreshShellyHeaterSchedule() {
+  const bool ok = readShellyScheduleList(settings.shelly.heater, 0, 80);
+  sendShellyScheduleRefreshResponse(settings.shelly.heater, ok);
+}
+
+void handleRefreshShellyFanSchedule() {
+  const bool ok = readShellyScheduleList(settings.shelly.fan, 0, 80);
+  sendShellyScheduleRefreshResponse(settings.shelly.fan, ok);
+}
+
+void handleRefreshShellyExhaustSchedule() {
+  const bool ok = readShellyScheduleList(settings.shelly.exhaust, 0, 80);
+  sendShellyScheduleRefreshResponse(settings.shelly.exhaust, ok);
 }
 
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {

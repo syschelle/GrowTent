@@ -185,6 +185,10 @@ const char cssContent[] PROGMEM = R"rawliteral(
       filter: brightness(.95);
     }
 
+    button.shelly-refresh-button {
+      margin-top: 8px;
+    }
+
     @media (min-width:1024px){
       .hamburger{display:none}
       .sidebar{transform:none;position:sticky;inset:auto;top:56px;height:calc(100dvh - 56px)}

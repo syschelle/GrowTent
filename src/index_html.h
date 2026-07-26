@@ -250,31 +250,35 @@ const char* htmlPage = R"rawliteral(
         <div id="shelly-light-switch-state" class="shelly-status shelly-off"></div>
         <div class="info" id="shellyLightInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('light')">Toggle</button>
-        <button class="primary" data-i18n="shelly.refreshSchedule" onclick="refreshShellyLightSchedule(this)">Schedule neu einlesen</button>
+        <button class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('light', this)">Schedule neu einlesen</button>
       </div>
       <div class="relay-card" data-relay="shellyHumidifier">
         <div class="relay-title" data-i18n="status.shellyHumidifier">Luftbefeuchter</div>
         <div id="shelly-humidifier-switch-state" class="shelly-status shelly-off"></div>
         <div class="info" id="shellyHumidifierInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('humidifier')">Toggle</button>
+        <button class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('humidifier', this)">Schedule neu einlesen</button>
       </div>
       <div class="relay-card" data-relay="shellyHeater">
         <div class="relay-title" data-i18n="status.shellyHeater">Heizung</div>
         <div id="shelly-heater-switch-state" class="shelly-status shelly-off"></div>
         <div class="info" id="shellyHeaterInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('heater')">Toggle</button>
+        <button class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('heater', this)">Schedule neu einlesen</button>
       </div>
       <div class="relay-card" data-relay="shellyFan">
         <div class="relay-title" data-i18n="status.shellyFan">Lüfter</div>
         <div id="shelly-fan-switch-state" class="shelly-status shelly-off"></div>
         <div class="info" id="shellyFanInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('fan')">Toggle</button>
+        <button class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('fan', this)">Schedule neu einlesen</button>
       </div>
       <div class="relay-card" data-relay="shellyExhaust">
         <div class="relay-title" data-i18n="status.shellyExhaust">Abluft</div>
         <div id="shelly-exhaust-switch-state" class="shelly-status shelly-off"></div>
         <div class="info" id="shellyExhaustInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('exhaust')">Toggle</button>
+        <button class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('exhaust', this)">Schedule neu einlesen</button>
       </div>
     </div>
     
@@ -360,7 +364,7 @@ const char* htmlPage = R"rawliteral(
           <select name="webShellyLightOnTime" id="shellyLightOnTime" class="control-sm shelly-other"></select>
           <select name="webShellyLightDayHours" id="shellyLightDayHours" class="control-sm shelly-other"></select>
           <input name="webShellyLightOffTime" id="shellyLightOffTime" class="control-sm shelly-other" type="text" readonly value="—">
-          <button type="button" class="primary" data-i18n="shelly.refreshSchedule" onclick="refreshShellyLightSchedule(this)">Schedule neu einlesen</button>
+          <button type="button" class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('light', this)">Schedule neu einlesen</button>
         </div>
       </div>
 

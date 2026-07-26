@@ -1898,17 +1898,22 @@ function updateShellyInfoLinesFromState(s){
   } catch(e) {}
 }
 
-window.refreshShellyLightSchedule = async function(buttonEl) {
+window.refreshShellySchedule = async function(device, buttonEl) {
   const btn = buttonEl || null;
   const oldText = btn ? btn.textContent : '';
+  const deviceKey = String(device || '').toLowerCase();
 
   try {
+    if (!['light', 'humidifier', 'heater', 'fan', 'exhaust'].includes(deviceKey)) {
+      throw new Error('unsupported device');
+    }
+
     if (btn) {
       btn.disabled = true;
       btn.textContent = I18N?.['status.refresh'] || 'Refresh';
     }
 
-    const res = await fetch('/api/shelly/light/refresh-schedule', {
+    const res = await fetch(`/api/shelly/${deviceKey}/refresh-schedule`, {
       method: 'POST',
       cache: 'no-store'
     });
@@ -1926,6 +1931,10 @@ window.refreshShellyLightSchedule = async function(buttonEl) {
       btn.textContent = oldText || (I18N?.['shelly.refreshSchedule'] || 'Refresh schedule');
     }
   }
+};
+
+window.refreshShellyLightSchedule = function(buttonEl) {
+  return window.refreshShellySchedule('light', buttonEl);
 };
 
 // ---------- Light schedule UI (Shelly settings page) ----------
