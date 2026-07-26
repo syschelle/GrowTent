@@ -139,7 +139,8 @@ UI highlights:
 - Settings page for language, theme, date/time format, temperature unit, and NTP/timezone configuration
 - Uses localStorage + Preferences for persistent settings across reloads
 - Statuspage
- <img width="1702" height="1124" alt="image" src="https://github.com/user-attachments/assets/5439fcfe-d08a-42a5-b105-eb2148a9d6f3" />
+ <img width="1658" height="1167" alt="Bildschirmfoto_26-7-2026_191323_192 168 178 88" src="https://github.com/user-attachments/assets/3eaaaf75-0dce-4206-9e91-79ac6b099125" />
+
 
 
 
