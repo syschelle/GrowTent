@@ -3032,10 +3032,11 @@ void handleStartWatering() {
     server.send(303);
 }
 
-// Calculates the percentage fill level of a tank based on current, minimum, and maximum values.
+// Calculates fill percentage from ultrasonic distance:
+// minTank = full tank / smallest distance, maxTank = empty tank / largest distance.
 float calculateTankPercent(float current, float minTank, float maxTank) {
   if (maxTank == minTank) return 0;
-  float percent = (current - minTank) / (maxTank - minTank) * 100;
+  float percent = (maxTank - current) / (maxTank - minTank) * 100;
   percent = fmax(0, fmin(100, percent));
   return round(percent);
 }
