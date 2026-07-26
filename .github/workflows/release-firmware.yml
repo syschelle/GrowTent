@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -41,11 +43,26 @@ jobs:
         run: |
           cp .pio/build/nodemcu-32s/firmware.bin firmware.bin
 
+      - name: Prepare release notes
+        run: |
+          git fetch --force --tags
+          git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            printf 'ESP32 firmware %s\n' "${GITHUB_REF_NAME}" > release_notes.md
+          fi
+
       - name: Create GitHub Release and upload firmware.bin
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" firmware.bin \
-            --title "${GITHUB_REF_NAME}" \
-            --notes-from-tag \
-            --verify-tag
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release edit "${GITHUB_REF_NAME}" \
+              --title "${GITHUB_REF_NAME}" \
+              --notes-file release_notes.md
+            gh release upload "${GITHUB_REF_NAME}" firmware.bin --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" firmware.bin \
+              --title "${GITHUB_REF_NAME}" \
+              --notes-file release_notes.md \
+              --verify-tag
+          fi
