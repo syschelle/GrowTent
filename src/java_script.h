@@ -192,6 +192,9 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   "shelly.shellyIPNames": { de: "Shelly Gerätenamen:", en: "Shelly device names:" },
   "shelly.shellyIPNamesHeater": { de: "Heizung:", en: "Heater:" },
+  "shelly.refreshSchedule": { de: "Schedule neu einlesen", en: "Refresh schedule" },
+  "shelly.refreshScheduleOk": { de: "Shelly Schedule aktualisiert.", en: "Shelly schedule refreshed." },
+  "shelly.refreshScheduleError": { de: "Shelly Schedule konnte nicht gelesen werden.", en: "Failed to refresh Shelly schedule." },
 
   /* -------------------- settings.* -------------------- */
   "settings.title": { de: "Systemeinstellungen", en: "Settings" },
@@ -1894,6 +1897,36 @@ function updateShellyInfoLinesFromState(s){
     }
   } catch(e) {}
 }
+
+window.refreshShellyLightSchedule = async function(buttonEl) {
+  const btn = buttonEl || null;
+  const oldText = btn ? btn.textContent : '';
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = I18N?.['status.refresh'] || 'Refresh';
+    }
+
+    const res = await fetch('/api/shelly/light/refresh-schedule', {
+      method: 'POST',
+      cache: 'no-store'
+    });
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    await fetchStateAndUpdateShellyUI();
+    window.showToast?.(I18N?.['shelly.refreshScheduleOk'] || 'Shelly schedule refreshed.', 'success');
+  } catch (e) {
+    console.warn('[SHELLY] refresh schedule failed', e);
+    window.showToast?.(I18N?.['shelly.refreshScheduleError'] || 'Failed to refresh Shelly schedule.', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = oldText || (I18N?.['shelly.refreshSchedule'] || 'Refresh schedule');
+    }
+  }
+};
 
 // ---------- Light schedule UI (Shelly settings page) ----------
 // Requires these elements in index_html.h (Shelly page):

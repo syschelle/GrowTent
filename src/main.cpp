@@ -964,6 +964,7 @@ void setup() {
   server.on("/saveshellysettings", HTTP_POST, handleSaveShellySettings);
   // For resetting shelly energy counters, we have separate endpoints per device (main/light) to simplify frontend logic (no need to send which one in body).
   server.on("/api/shelly/reset-energy", HTTP_POST, handleResetShellyEnergy);
+  server.on("/api/shelly/light/refresh-schedule", HTTP_POST, handleRefreshShellyLightSchedule);
   server.on("/savesettings", HTTP_POST, handleSaveSettings);
   server.on("/savemessagesettings", HTTP_POST, handleSaveMessageSettings);
   server.on("/api/newgrow", HTTP_POST, handleNewGrow);

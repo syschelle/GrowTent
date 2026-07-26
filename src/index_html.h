@@ -250,6 +250,7 @@ const char* htmlPage = R"rawliteral(
         <div id="shelly-light-switch-state" class="shelly-status shelly-off"></div>
         <div class="info" id="shellyLightInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('light')">Toggle</button>
+        <button class="secondary" data-i18n="shelly.refreshSchedule" onclick="refreshShellyLightSchedule(this)">Schedule neu einlesen</button>
       </div>
       <div class="relay-card" data-relay="shellyHumidifier">
         <div class="relay-title" data-i18n="status.shellyHumidifier">Luftbefeuchter</div>
@@ -359,6 +360,7 @@ const char* htmlPage = R"rawliteral(
           <select name="webShellyLightOnTime" id="shellyLightOnTime" class="control-sm shelly-other"></select>
           <select name="webShellyLightDayHours" id="shellyLightDayHours" class="control-sm shelly-other"></select>
           <input name="webShellyLightOffTime" id="shellyLightOffTime" class="control-sm shelly-other" type="text" readonly value="—">
+          <button type="button" class="secondary" data-i18n="shelly.refreshSchedule" onclick="refreshShellyLightSchedule(this)">Schedule neu einlesen</button>
         </div>
       </div>
 
