@@ -524,13 +524,13 @@ const char* htmlPage = R"rawliteral(
         </div>
 
         <div class="form-group">
-          <label for="minTank">min. Tank:</label>
-          <input name="webMinTank" id="webMinTank" style="width: 65px;" type="number" value="%MINTANK%">&nbsp;cm
-        </div>
-      
-        <div class="form-group">
-          <label for="maxTank">max. Tank:</label>
+          <label for="webMaxTank">0% Tank:</label>
           <input name="webMaxTank" id="webMaxTank" style="width: 65px;" type="number" value="%MAXTANK%">&nbsp;cm
+        </div>
+
+        <div class="form-group">
+          <label for="webMinTank">100% Tank:</label>
+          <input name="webMinTank" id="webMinTank" style="width: 65px;" type="number" value="%MINTANK%">&nbsp;cm
         </div>
       </div>
 
