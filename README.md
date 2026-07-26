@@ -6,6 +6,8 @@ GrowTent is a compact ESP32-based grow-tent controller that reads temperature, h
 
 It provides a web interface (German/English), relay control, automation logic and integrates with Shelly devices. The system is designed for **stable long-term operation** and **minimal manual intervention**.
 
+For centralized history, multi-tent management, irrigation control (if installed), and basic remote control, this firmware can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend). The backend is intended to offload history recording and higher-level coordination from the ESP32, keeping the controller focused on reliable real-time tent operation.
+
 ---
 
 ## 🚀 Features
