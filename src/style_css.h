@@ -386,25 +386,24 @@ const char cssContent[] PROGMEM = R"rawliteral(
       filter: grayscale(0.55);
     }
 
-    .pump-disabled-badge {
+    .pump-disabled-action {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      align-self: flex-start;
-      margin-top: 0.15rem;
-      padding: 0.25rem 0.55rem;
-      border-radius: 999px;
+      width: 100%;
+      min-height: 38px;
+      border-radius: 8px;
       background: #6c757d;
       color: #fff;
-      font-size: 0.78rem;
+      font-size: 0.92rem;
       font-weight: 700;
+      text-transform: none;
     }
 
-    .pump-disabled-badge[hidden] {
+    .pump-disabled-action[hidden] {
       display: none;
     }
 
-    .relay-card.irrigation .primary:disabled,
     #startWateringButton:disabled {
       opacity: 0.45;
       cursor: not-allowed;

@@ -561,11 +561,12 @@ function updatePumpAvailabilityFromFlags(flags, force = false) {
     pumpRelays.forEach((relayNo, index) => {
         const button = document.getElementById(`pumpButton${relayNo}`);
         const card = document.getElementById(`irrigationRelay${relayNo}`);
-        const disabledBadge = document.getElementById(`pumpDisabled${relayNo}`);
+        const disabledAction = document.getElementById(`pumpDisabledAction${relayNo}`);
         const isEnabled = enabledFlags[index];
 
         if (button) {
             button.disabled = !isEnabled;
+            button.hidden = !isEnabled;
             button.setAttribute('aria-disabled', isEnabled ? 'false' : 'true');
             button.title = isEnabled ? '' : disabledHint;
         }
@@ -574,8 +575,8 @@ function updatePumpAvailabilityFromFlags(flags, force = false) {
             card.classList.toggle('pump-disabled', !isEnabled);
         }
 
-        if (disabledBadge) {
-            disabledBadge.hidden = isEnabled;
+        if (disabledAction) {
+            disabledAction.hidden = isEnabled;
         }
     });
 

@@ -327,3 +327,8 @@ Add license information here (no license file present in the source snapshot). I
 - Pump status rendering is now handled after `/api/state` is loaded, reducing server-side HTML processing.
 - Sensor rendering is isolated from pump UI updates so pump controls cannot suppress sensor values.
 - Static assets use a firmware-version query string to avoid stale browser cache after updates.
+
+
+### v0.2.22 pump status UI
+- Disabled pumps now show a translated text label instead of a grey disabled test button.
+- The manual 10-second test button is only visible for enabled pumps.
