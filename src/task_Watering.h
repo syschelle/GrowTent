@@ -44,17 +44,37 @@ void taskWatering(void *parameter) {
       continue;
     }
 
+    const size_t activePumpCount = enabledIrrigationPumpCount();
+
+    if (activePumpCount == 0) {
+      logPrint("[IRRIGATION] Aborted: all irrigation pumps were disabled.");
+      irrigation.irrigationRuns = 0;
+      irrigation.wTimeLeft = "00:00";
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      continue;
+    }
+
     irrigation.wTimeLeft = calculateEndtimeWatering();
 
-    const int pumpRelays[] = {5, 6, 7};
-    const size_t pumpRelayCount = sizeof(pumpRelays) / sizeof(pumpRelays[0]);
+    size_t pumpsProcessed = 0;
 
-    for (size_t i = 0; i < pumpRelayCount; i++) {
-      setRelay(pumpRelays[i], true);
+    // Run only the pumps that are enabled in the operating settings.
+    // Pump-to-relay mapping is centralized in globals.h to avoid magic numbers here.
+    for (size_t pump = 0; pump < IRRIGATION_PUMP_COUNT; ++pump) {
+      if (!irrigation.pumpEnabled[pump]) {
+        continue;
+      }
+
+      const int relayIndex = IRRIGATION_PUMP_RELAY_INDEX[pump];
+
+      setRelay(relayIndex, true);
       vTaskDelay(pdMS_TO_TICKS(secondsToMilliseconds(irrigation.timePerTask)));
-      setRelay(pumpRelays[i], false);
+      setRelay(relayIndex, false);
 
-      if (i + 1 < pumpRelayCount) {
+      ++pumpsProcessed;
+
+      // Keep the existing short gap, but only between pumps that will actually run.
+      if (pumpsProcessed < activePumpCount) {
         vTaskDelay(pdMS_TO_TICKS(250));
       }
     }

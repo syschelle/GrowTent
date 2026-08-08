@@ -191,21 +191,21 @@ const char* htmlPage = R"rawliteral(
             <div class="relay-title" data-i18n="status.irrigationRelay6">Pumpe 1 Relay 6</div>
             <div class="relay-status" id="relay-Status6"></div>
             <div class="spacer"></div>
-            <button type="button" class="primary" data-i18n="status.togglePump10s" onclick="triggerPump10s(6)">Toggle</button>
+            <button type="button" class="primary" id="pumpButton6" data-i18n="status.togglePump10s" onclick="triggerPump10s(6)" %PUMP1_BUTTON_DISABLED%>Toggle</button>
           </div>
 
           <div class="relay-card irrigation" data-relay="7" id="irrigationRelay7">
             <div class="relay-title" data-i18n="status.irrigationRelay7">Pumpe 2 Relay 7</div>
             <div class="relay-status" id="relay-Status7"></div>
             <div class="spacer"></div>
-            <button type="button" class="primary" data-i18n="status.togglePump10s" onclick="triggerPump10s(7)">Toggle</button>
+            <button type="button" class="primary" id="pumpButton7" data-i18n="status.togglePump10s" onclick="triggerPump10s(7)" %PUMP2_BUTTON_DISABLED%>Toggle</button>
           </div>
 
           <div class="relay-card irrigation" data-relay="8" id="irrigationRelay8">
             <div class="relay-title" data-i18n="status.irrigationRelay8">Pumpe 3 Relay 8</div>
             <div class="relay-status" id="relay-Status8"></div>
             <div class="spacer"></div>
-            <button type="button" class="primary" data-i18n="status.togglePump10s" onclick="triggerPump10s(8)">Toggle</button>
+            <button type="button" class="primary" id="pumpButton8" data-i18n="status.togglePump10s" onclick="triggerPump10s(8)" %PUMP3_BUTTON_DISABLED%>Toggle</button>
           </div>
 
           <!-- watering section -->
@@ -218,7 +218,7 @@ const char* htmlPage = R"rawliteral(
               <span class="unit" data-i18n="status.endIn" >Ende in </span><span id="irTimeLeftSpan"  ></span>
             </div> 
             <div class="spacermini"></div>
-            <button class="primary" onclick="startWatering()">Toggle</button>
+            <button class="primary" id="startWateringButton" onclick="startWatering()" %START_WATERING_DISABLED%>Toggle</button>
           </div>
           <div class="relay-card" data-relay="TankFilling">
             <div class="relay-title" data-i18n="status.tank">Tank Füllung</div>
@@ -502,6 +502,31 @@ const char* htmlPage = R"rawliteral(
 
       <div class="tile-row relay-extra" id="irrigationSettingsSection" style="display:none;">
         <h2 data-i18n="runsetting.wateringSettings">Bewässerungseinstellung</h2>
+
+        <p class="hint" data-i18n="runsetting.pumpsHint">
+          Aktivieren Sie nur die Pumpen für tatsächlich verwendete Töpfe.
+        </p>
+
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webPump1Enabled" id="webPump1Enabled" %PUMP1_ENABLED_CHECKED%>
+            <span data-i18n="runsetting.pump1Enabled">Pumpe 1 aktiv</span>
+          </label>
+        </div>
+
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webPump2Enabled" id="webPump2Enabled" %PUMP2_ENABLED_CHECKED%>
+            <span data-i18n="runsetting.pump2Enabled">Pumpe 2 aktiv</span>
+          </label>
+        </div>
+
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webPump3Enabled" id="webPump3Enabled" %PUMP3_ENABLED_CHECKED%>
+            <span data-i18n="runsetting.pump3Enabled">Pumpe 3 aktiv</span>
+          </label>
+        </div>
 
         <div class="form-group">
           <label for="timePerTask" data-i18n="runsetting.timePerTask">Bewässerungszeit pro Task:</label>

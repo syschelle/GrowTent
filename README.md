@@ -34,8 +34,10 @@ For centralized history, multi-tent management, irrigation control (if installed
   - Exthaust (only on 8x boards)
 - **Heater control by temperature**
   - ESP relay or Shelly device
-- **Irrigation support (only on 8x boards)** 
+- **Irrigation support (only on 8x boards)**
   - peristaltic pumps (relay 6–8)
+  - each pump can be enabled or disabled independently in Operating Settings
+  - disabled pumps are skipped by automatic watering and blocked for manual 10-second tests
 - **Tank level monitoring (HC-SR04) (only on 8x boards)**
   - distance-based water level detection
   - usable for irrigation safety (empty tank protection)
@@ -87,6 +89,7 @@ stability and responsiveness of sensor readings.
 - 4x Relay pins (in order): `{ 32, 33, 25, 26 }` 
 - 8x Relay pins (in order): `{32, 33, 25, 26, 27, 14, 12, 13 }`
 - only for 8x Relay board connect Relay 6, 7, 8 to a peristaltic pump for watering the pods
+- Pump 1, Pump 2 and Pump 3 can be enabled independently in **Operating Settings → Irrigation settings**; all three are enabled by default after an upgrade
 - Shelly devices (Gen1/Gen2/Gen3 depending on endpoint support)
 
 ### Wiring notes:
@@ -236,13 +239,16 @@ Example (Arduino CLI):
 ### Core
 - `GET /api/state`
 Unified state payload for frontend and external integrations (recommended primary endpoint).
+Pump selection is exposed as `irrigation.pump1.enabled`, `irrigation.pump2.enabled` and `irrigation.pump3.enabled`.
 
 ### Control
 - `POST /relay/{1..5}/toggle`
 - `POST /pump/6/triggerPump10s`
 - `POST /pump/7/triggerPump10s`
 - `POST /pump/8/triggerPump10s`
+  - returns `409 pump_disabled` when the selected pump is disabled in Operating Settings
 - `POST /startWatering`
+  - starts only when at least one irrigation pump is enabled
 - `POST /pingTank`
 
 ### Shelly

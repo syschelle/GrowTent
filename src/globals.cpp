@@ -87,6 +87,9 @@ const char* KEY_AMOUNTOFWATER = "amountOfWater";
 const char* KEY_IRRIGATION = "amount";
 const char* KEY_MINTANK = "minTank";
 const char* KEY_MAXTANK = "maxTank";
+const char* KEY_PUMP1_ENABLED = "pump1Enabled";
+const char* KEY_PUMP2_ENABLED = "pump2Enabled";
+const char* KEY_PUMP3_ENABLED = "pump3Enabled";
 
 // UI/settings keys
 const char* KEY_NAME   = "boxName";

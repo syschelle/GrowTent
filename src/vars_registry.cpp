@@ -164,6 +164,9 @@ static String g_irrigation_amount() { return jNumOrNull(irrigation.amountOfWater
 static String g_irrigation_amount_total() { return jNumOrNull(irrigation.amount, 1); } 
 static String g_irrigation_time_per_task() { return jInt(irrigation.timePerTask); }
 static String g_irrigation_between_tasks() { return jInt(irrigation.betweenTasks); }
+static String g_irrigation_pump1_enabled() { return jBool(irrigation.pumpEnabled[0]); }
+static String g_irrigation_pump2_enabled() { return jBool(irrigation.pumpEnabled[1]); }
+static String g_irrigation_pump3_enabled() { return jBool(irrigation.pumpEnabled[2]); }
 static String g_irrigation_tank_level_cm() { return jNumOrNull(tankLevelCm, 1); }
 static String g_irrigation_tank_level_percent() { return jNumOrNull(tankLevel, 0); }
 
@@ -444,6 +447,9 @@ const VarItem VARS[] = {
   {"irrigation.timePerTask", g_irrigation_time_per_task, false, "irrigation"},
   {"irrigation.betweenTasks", g_irrigation_between_tasks, false, "irrigation"},
   {"irrigation.amountTotal", g_irrigation_amount_total, false, "irrigation"},
+  {"irrigation.pump1.enabled", g_irrigation_pump1_enabled, false, "irrigation"},
+  {"irrigation.pump2.enabled", g_irrigation_pump2_enabled, false, "irrigation"},
+  {"irrigation.pump3.enabled", g_irrigation_pump3_enabled, false, "irrigation"},
   {"irrigation.tankLevelCm", g_irrigation_tank_level_cm, false, "irrigation"},
   {"irrigation.tankLevelPercent", g_irrigation_tank_level_percent, false, "irrigation"},
 

@@ -139,6 +139,22 @@ void handleRoot() {
     html.replace("%BETWEENTASKS%", String(irrigation.betweenTasks));
     html.replace("%AMOUNTOFWATER%", String(irrigation.amountOfWater));
     html.replace("%IRRIGATION%", String(irrigation.amount));
+
+    // Pump enable flags are rendered directly into the operating-settings checkboxes.
+    html.replace("%PUMP1_ENABLED_CHECKED%", irrigation.pumpEnabled[0] ? "checked" : "");
+    html.replace("%PUMP2_ENABLED_CHECKED%", irrigation.pumpEnabled[1] ? "checked" : "");
+    html.replace("%PUMP3_ENABLED_CHECKED%", irrigation.pumpEnabled[2] ? "checked" : "");
+
+    // Disabled pumps are also locked on the status page.
+    html.replace("%PUMP1_BUTTON_DISABLED%", irrigation.pumpEnabled[0] ? "" : "disabled");
+    html.replace("%PUMP2_BUTTON_DISABLED%", irrigation.pumpEnabled[1] ? "" : "disabled");
+    html.replace("%PUMP3_BUTTON_DISABLED%", irrigation.pumpEnabled[2] ? "" : "disabled");
+
+    const bool anyPumpEnabled =
+        irrigation.pumpEnabled[0] ||
+        irrigation.pumpEnabled[1] ||
+        irrigation.pumpEnabled[2];
+    html.replace("%START_WATERING_DISABLED%", anyPumpEnabled ? "" : "disabled");
     
     String minTankStr = String(irrigation.tank.min, 1); minTankStr.trim();
     String maxTankStr = String(irrigation.tank.max, 1); maxTankStr.trim();
@@ -376,6 +392,11 @@ void readPreferences() {
   loadPrefInt(KEY_BETWEENTASKS, irrigation.betweenTasks, 5, true, "betweenTasks");
   loadPrefFloat(KEY_AMOUNTOFWATER, irrigation.amountOfWater, 20, true, "amountOfWater");
   loadPrefFloat(KEY_IRRIGATION, irrigation.amount, 500, true, "irrigationAmount");
+
+  // Keep all pumps enabled by default so upgrades preserve the previous behavior.
+  loadPrefBool(KEY_PUMP1_ENABLED, irrigation.pumpEnabled[0], true, true, "pump1Enabled");
+  loadPrefBool(KEY_PUMP2_ENABLED, irrigation.pumpEnabled[1], true, true, "pump2Enabled");
+  loadPrefBool(KEY_PUMP3_ENABLED, irrigation.pumpEnabled[2], true, true, "pump3Enabled");
 
   loadPrefFloat(KEY_MINTANK, irrigation.tank.min, 0.0f, true, "minTank");
   loadPrefFloat(KEY_MAXTANK, irrigation.tank.max, 0.0f, true, "maxTank");

@@ -531,6 +531,11 @@ void handleSaveRunsettings() {
   irrigation.amount = clampFloatLocal(irrigation.amount, 100.0f, 3000.0f);
   preferences.putFloat(KEY_IRRIGATION, irrigation.amount);
 
+  // Store pump selection independently so unused pots can be excluded from watering.
+  saveBoolJson("webPump1Enabled", KEY_PUMP1_ENABLED, irrigation.pumpEnabled[0], "Pump 1 Enabled");
+  saveBoolJson("webPump2Enabled", KEY_PUMP2_ENABLED, irrigation.pumpEnabled[1], "Pump 2 Enabled");
+  saveBoolJson("webPump3Enabled", KEY_PUMP3_ENABLED, irrigation.pumpEnabled[2], "Pump 3 Enabled");
+
   saveFloatJson("webMinTank",          KEY_MINTANK,       irrigation.tank.min,          "Tank Min Level (cm)");
   saveFloatJson("webMaxTank",          KEY_MAXTANK,       irrigation.tank.max,          "Tank Max Level (cm)");
 
@@ -2891,10 +2896,43 @@ static void controlHumidifierByVPD() {
     }
 }
 
-// Handles a pump pulse request for a specific relay index (1-based).
+// Returns the irrigation pump slot (0..2) for a zero-based relay index.
+// Returns -1 when the relay is not assigned to an irrigation pump.
+static int irrigationPumpSlotFromRelayIndex(int relayIndex) {
+    for (size_t pump = 0; pump < IRRIGATION_PUMP_COUNT; ++pump) {
+        if (IRRIGATION_PUMP_RELAY_INDEX[pump] == relayIndex) {
+            return static_cast<int>(pump);
+        }
+    }
+
+    return -1;
+}
+
+// Counts pumps that are enabled and physically available on the selected board.
+static size_t enabledIrrigationPumpCount() {
+    size_t count = 0;
+
+    for (size_t pump = 0; pump < IRRIGATION_PUMP_COUNT; ++pump) {
+        const int relayIndex = IRRIGATION_PUMP_RELAY_INDEX[pump];
+
+        if (
+            irrigation.pumpEnabled[pump] &&
+            relayIndex >= 0 &&
+            relayIndex < activeRelayCount &&
+            relayPins[relayIndex] >= 0
+        ) {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
+// Handles a pump pulse request for a zero-based relay index.
 void handlePumpPulseIdx(int idx, uint32_t ms = 10000UL) {
-    // allow only relay 6..8 (index 5..7)
-    if (idx < 5 || idx > 7) {
+    const int pumpSlot = irrigationPumpSlotFromRelayIndex(idx);
+
+    if (pumpSlot < 0) {
         server.send(
             400,
             "application/json",
@@ -2903,8 +2941,8 @@ void handlePumpPulseIdx(int idx, uint32_t ms = 10000UL) {
         return;
     }
 
-    // physical bounds check
-    if (idx < 0 || idx >= NUM_RELAYS) {
+    // Reject relays that are not available on the currently selected relay board.
+    if (idx < 0 || idx >= NUM_RELAYS || idx >= activeRelayCount || relayPins[idx] < 0) {
         server.send(
             400,
             "application/json",
@@ -2913,7 +2951,18 @@ void handlePumpPulseIdx(int idx, uint32_t ms = 10000UL) {
         return;
     }
 
-    // turn ON now
+    // A disabled pump must not run through the manual 10-second test endpoint.
+    if (!irrigation.pumpEnabled[pumpSlot]) {
+        server.send(
+            409,
+            "application/json",
+            "{\"ok\":false,\"err\":\"pump_disabled\"}"
+        );
+        logPrint("[PUMP] Relay " + String(idx + 1) + " ignored because the pump is disabled.");
+        return;
+    }
+
+    // Turn the selected pump on now.
     setRelay(idx, true);
 
     // arm auto-off timer
@@ -2932,15 +2981,18 @@ void handlePumpPulseIdx(int idx, uint32_t ms = 10000UL) {
 }
 
 static void processPumpAutoOff() {
-  uint32_t now = millis();
+  const uint32_t now = millis();
 
-  for (int relayNo = 6; relayNo <= 8; relayNo++) {
-    if (relayNo > activeRelayCount) continue;
+  // Always process all pump relays, even if a pump was disabled after a pulse started.
+  for (size_t pump = 0; pump < IRRIGATION_PUMP_COUNT; ++pump) {
+    const int idx = IRRIGATION_PUMP_RELAY_INDEX[pump];
 
-    int idx = relayNo - 1;
+    if (idx < 0 || idx >= activeRelayCount || relayPins[idx] < 0) {
+      continue;
+    }
+
     if (relayActive[idx] && (int32_t)(now - relayOffTime[idx]) >= 0) {
-      digitalWrite(relayPins[idx], LOW);
-      relayStates[idx] = false;
+      setRelay(idx, false);
       relayActive[idx] = false;
     }
   }
@@ -2951,6 +3003,17 @@ void handleStartWatering() {
     // Do not start a new cycle while one is already running
     if (irrigation.irrigationRuns > 0) {
         logPrint("[IRRIGATION] Already running. Start request ignored.");
+        server.sendHeader("Location", "/");
+        server.send(303);
+        return;
+    }
+
+    const size_t activePumpCount = enabledIrrigationPumpCount();
+
+    // Do not start a watering cycle when every pump is disabled.
+    if (activePumpCount == 0) {
+        logPrint("[IRRIGATION] Aborted: no irrigation pumps are enabled.");
+        irrigation.wTimeLeft = "00:00";
         server.sendHeader("Location", "/");
         server.send(303);
         return;
@@ -3005,6 +3068,7 @@ void handleStartWatering() {
         String(irrigation.amount, 1) +
         " ml, mlPerTaskPerPot=" + String(mlPerTaskPerPot, 1) +
         ", runs=" + String(irrigation.irrigationRuns) +
+        ", activePumps=" + String(activePumpCount) +
         ", plannedPerPot=" + String(irrigation.irrigationRuns * mlPerTaskPerPot, 1) + " ml"
     );
 
@@ -3063,13 +3127,19 @@ String calculateEndtimeWatering() {
     const unsigned long runs =
         (irrigation.irrigationRuns > 0) ? (unsigned long)irrigation.irrigationRuns : 0;
 
-    const unsigned long relayCount = 3;
-    const unsigned long interRelayGapMs = 250;
+    const unsigned long pumpCount =
+        static_cast<unsigned long>(enabledIrrigationPumpCount());
+    const unsigned long interPumpGapMs = 250;
 
-    // One task = all 3 relays sequentially
+    // No pump selected means there is no watering duration to calculate.
+    if (pumpCount == 0) {
+        return "00:00";
+    }
+
+    // One task runs only the pumps that are enabled in the operating settings.
     const unsigned long taskTimeMs =
-        relayCount * secondsToMilliseconds(irrigation.timePerTask) +
-        (relayCount - 1) * interRelayGapMs;
+        pumpCount * secondsToMilliseconds(irrigation.timePerTask) +
+        (pumpCount > 1 ? (pumpCount - 1) * interPumpGapMs : 0);
 
     // Pause only between tasks, not after the last one
     const unsigned long pauseTimeMs =

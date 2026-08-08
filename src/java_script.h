@@ -156,6 +156,19 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "runsetting.minVPD": { de: "Offset Min-VPD", en: "Offset min VPD" },
   "runsetting.hysteresis": { de: "Hysterese", en: "Hysteresis" },
 
+  "runsetting.wateringSettings": { de: "Bewässerungseinstellung", en: "Irrigation settings" },
+  "runsetting.pumpsHint": {
+    de: "Nur Pumpen aktivieren, deren Töpfe tatsächlich verwendet werden.",
+    en: "Enable only pumps whose pots are actually in use."
+  },
+  "runsetting.pump1Enabled": { de: "Pumpe 1 aktiv", en: "Enable pump 1" },
+  "runsetting.pump2Enabled": { de: "Pumpe 2 aktiv", en: "Enable pump 2" },
+  "runsetting.pump3Enabled": { de: "Pumpe 3 aktiv", en: "Enable pump 3" },
+  "runsetting.timePerTask": { de: "Bewässerungszeit pro Task:", en: "Watering time per task:" },
+  "runsetting.betweenTasks": { de: "Pause zwischen Bewässerungen:", en: "Pause between watering tasks:" },
+  "runsetting.amountOfWater": { de: "Wassermenge nach 10 Sekunden:", en: "Water volume after 10 seconds:" },
+  "runsetting.irrigation": { de: "Gesamte Bewässerungsmenge:", en: "Total irrigation volume:" },
+
   "runsetting.relayScheduling": {
     de: "Relais Zeitsteuerung",
     en: "Relay Scheduling"
@@ -519,6 +532,32 @@ window.toggleRelay = function (nr) {
             console.error('toggle relay failed:', err);
         });
 };
+
+function updatePumpAvailabilityFromFlags(flags) {
+    const pumpRelays = [6, 7, 8];
+    const enabledFlags = flags.map(flag => flag !== false);
+
+    pumpRelays.forEach((relayNo, index) => {
+        const button = document.getElementById(`pumpButton${relayNo}`);
+        if (!button) return;
+
+        button.disabled = !enabledFlags[index];
+        button.title = enabledFlags[index] ? '' : 'Pump disabled in operating settings';
+    });
+
+    const startButton = document.getElementById('startWateringButton');
+    if (startButton) {
+        startButton.disabled = !enabledFlags.some(Boolean);
+    }
+}
+
+function updatePumpAvailabilityFromState(data) {
+    updatePumpAvailabilityFromFlags([
+        data?.['irrigation.pump1.enabled'],
+        data?.['irrigation.pump2.enabled'],
+        data?.['irrigation.pump3.enabled']
+    ]);
+}
 
 window.triggerPump10s = function (relayNo) {
     fetch(`/pump/${relayNo}/triggerPump10s`, { method: 'POST' })
@@ -1126,6 +1165,7 @@ async function startNewGrow(){
       const relayCount = Number(data['settings.active_relay_count']) || 4;
       RELAY_COUNT = relayCount;
       applyRelayVisibility(relayCount);
+      updatePumpAvailabilityFromState(data);
 
       if (getActivePageId() !== 'status') return;
 
@@ -2130,6 +2170,9 @@ window.saveRunsettingsAll = async function () {
       webTimePerTask: val("webTimePerTask"),
       webBetweenTasks: val("webBetweenTasks"),
       webIrrigation: val("webIrrigation"),
+      webPump1Enabled: checked("webPump1Enabled"),
+      webPump2Enabled: checked("webPump2Enabled"),
+      webPump3Enabled: checked("webPump3Enabled"),
       webMinTank: val("webMinTank"),
       webMaxTank: val("webMaxTank"),
 
@@ -2152,6 +2195,12 @@ window.saveRunsettingsAll = async function () {
       window.showToast("Failed to save operating settings.", "error");
       return;
     }
+
+    updatePumpAvailabilityFromFlags([
+      checked("webPump1Enabled"),
+      checked("webPump2Enabled"),
+      checked("webPump3Enabled")
+    ]);
 
     window.showToast("All operating settings saved.", "success");
   } catch (err) {

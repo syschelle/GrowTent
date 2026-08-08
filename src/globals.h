@@ -22,6 +22,11 @@
 #define MAX_RELAYS 8
 #define NUM_RELAYS MAX_RELAYS // keep compatibility in existing code
 
+// Irrigation pump mapping for the classic 8-relay GrowTent board.
+// The values are zero-based relay indices, so relay 6 is index 5.
+constexpr size_t IRRIGATION_PUMP_COUNT = 3;
+constexpr int IRRIGATION_PUMP_RELAY_INDEX[IRRIGATION_PUMP_COUNT] = {5, 6, 7};
+
 extern int activeRelayCount; // runtime: 4 or 8
 extern const char* KEY_RELAY_COUNT;
 extern SemaphoreHandle_t relayMutex;
@@ -146,13 +151,18 @@ struct Tank {
 };
 
 struct Irrigation {
-  float amount = 0.0f; 
+  float amount = 0.0f;
   int irrigationRuns = 0;
   int timePerTask = 0;
   int betweenTasks = 0;
   float amountOfWater = 0.0f;
   float tankLevelPercent = 0.0f;
   String wTimeLeft = "00:00";
+
+  // Each pump can be disabled independently when fewer pots are in use.
+  // Defaults remain enabled to preserve the behavior of existing installations.
+  bool pumpEnabled[IRRIGATION_PUMP_COUNT] = {true, true, true};
+
   Tank tank;
 };
 
@@ -328,6 +338,9 @@ extern const char* KEY_AMOUNTOFWATER;
 extern const char* KEY_IRRIGATION;
 extern const char* KEY_MINTANK;
 extern const char* KEY_MAXTANK;
+extern const char* KEY_PUMP1_ENABLED;
+extern const char* KEY_PUMP2_ENABLED;
+extern const char* KEY_PUMP3_ENABLED;
 
 // Notification keys
 extern const char* KEY_PUSHOVER;
