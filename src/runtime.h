@@ -145,10 +145,17 @@ void handleRoot() {
     html.replace("%PUMP2_ENABLED_CHECKED%", irrigation.pumpEnabled[1] ? "checked" : "");
     html.replace("%PUMP3_ENABLED_CHECKED%", irrigation.pumpEnabled[2] ? "checked" : "");
 
-    // Disabled pumps are also locked on the status page.
+    // Disabled pumps are locked and visually marked on the status page.
+    // Rendering the state here avoids a brief enabled-looking flash before the first API poll.
     html.replace("%PUMP1_BUTTON_DISABLED%", irrigation.pumpEnabled[0] ? "" : "disabled");
     html.replace("%PUMP2_BUTTON_DISABLED%", irrigation.pumpEnabled[1] ? "" : "disabled");
     html.replace("%PUMP3_BUTTON_DISABLED%", irrigation.pumpEnabled[2] ? "" : "disabled");
+    html.replace("%PUMP1_CARD_DISABLED_CLASS%", irrigation.pumpEnabled[0] ? "" : "pump-disabled");
+    html.replace("%PUMP2_CARD_DISABLED_CLASS%", irrigation.pumpEnabled[1] ? "" : "pump-disabled");
+    html.replace("%PUMP3_CARD_DISABLED_CLASS%", irrigation.pumpEnabled[2] ? "" : "pump-disabled");
+    html.replace("%PUMP1_DISABLED_HIDDEN%", irrigation.pumpEnabled[0] ? "hidden" : "");
+    html.replace("%PUMP2_DISABLED_HIDDEN%", irrigation.pumpEnabled[1] ? "hidden" : "");
+    html.replace("%PUMP3_DISABLED_HIDDEN%", irrigation.pumpEnabled[2] ? "hidden" : "");
 
     const bool anyPumpEnabled =
         irrigation.pumpEnabled[0] ||

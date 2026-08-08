@@ -240,6 +240,7 @@ Example (Arduino CLI):
 - `GET /api/state`
 Unified state payload for frontend and external integrations (recommended primary endpoint).
 Pump selection is exposed as `irrigation.pump1.enabled`, `irrigation.pump2.enabled` and `irrigation.pump3.enabled`.
+Disabled pumps are visibly marked in the status UI, and their manual 10-second test buttons cannot be operated.
 
 ### Control
 - `POST /relay/{1..5}/toggle`

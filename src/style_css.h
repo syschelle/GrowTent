@@ -379,6 +379,38 @@ const char cssContent[] PROGMEM = R"rawliteral(
     .relay-status.off {
       background: #dc3545;
     }
+
+    /* Disabled irrigation pumps stay visible but cannot be operated. */
+    .relay-card.irrigation.pump-disabled {
+      opacity: 0.58;
+      filter: grayscale(0.55);
+    }
+
+    .pump-disabled-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      align-self: flex-start;
+      margin-top: 0.15rem;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      background: #6c757d;
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .pump-disabled-badge[hidden] {
+      display: none;
+    }
+
+    .relay-card.irrigation .primary:disabled,
+    #startWateringButton:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
        
     .relay-scheduled-label{ flex: 0 0 auto; }
 
