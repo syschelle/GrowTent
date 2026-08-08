@@ -321,3 +321,9 @@ Contributions, bug reports and improvements welcome. Please open issues or pull 
 Add license information here (no license file present in the source snapshot). If you want to use a permissive license, consider adding an SPDX header and LICENSE file (MIT, Apache-2.0, etc.).
 
 ---
+
+
+### v0.2.21 UI robustness
+- Pump status rendering is now handled after `/api/state` is loaded, reducing server-side HTML processing.
+- Sensor rendering is isolated from pump UI updates so pump controls cannot suppress sensor values.
+- Static assets use a firmware-version query string to avoid stale browser cache after updates.

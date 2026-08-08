@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=0.2.21">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -187,28 +187,28 @@ const char* htmlPage = R"rawliteral(
       <div class="tile">
         <h2 data-i18n="status.irrigation">Irrigation</h2>
          <div class="relay-row" id="relayRow">
-          <div class="relay-card irrigation %PUMP1_CARD_DISABLED_CLASS%" data-relay="6" id="irrigationRelay6">
+          <div class="relay-card irrigation" data-relay="6" id="irrigationRelay6">
             <div class="relay-title" data-i18n="status.irrigationRelay6">Pumpe 1 Relay 6</div>
             <div class="relay-status" id="relay-Status6"></div>
-            <div class="pump-disabled-badge" id="pumpDisabled6" data-i18n="status.pumpDisabled" %PUMP1_DISABLED_HIDDEN%>Deaktiviert</div>
+            <div class="pump-disabled-badge" id="pumpDisabled6" data-i18n="status.pumpDisabled" hidden>Deaktiviert</div>
             <div class="spacer"></div>
-            <button type="button" class="primary" id="pumpButton6" data-i18n="status.togglePump10s" onclick="triggerPump10s(6)" %PUMP1_BUTTON_DISABLED%>Toggle</button>
+            <button type="button" class="primary" id="pumpButton6" data-i18n="status.togglePump10s" onclick="triggerPump10s(6)" disabled>Toggle</button>
           </div>
 
-          <div class="relay-card irrigation %PUMP2_CARD_DISABLED_CLASS%" data-relay="7" id="irrigationRelay7">
+          <div class="relay-card irrigation" data-relay="7" id="irrigationRelay7">
             <div class="relay-title" data-i18n="status.irrigationRelay7">Pumpe 2 Relay 7</div>
             <div class="relay-status" id="relay-Status7"></div>
-            <div class="pump-disabled-badge" id="pumpDisabled7" data-i18n="status.pumpDisabled" %PUMP2_DISABLED_HIDDEN%>Deaktiviert</div>
+            <div class="pump-disabled-badge" id="pumpDisabled7" data-i18n="status.pumpDisabled" hidden>Deaktiviert</div>
             <div class="spacer"></div>
-            <button type="button" class="primary" id="pumpButton7" data-i18n="status.togglePump10s" onclick="triggerPump10s(7)" %PUMP2_BUTTON_DISABLED%>Toggle</button>
+            <button type="button" class="primary" id="pumpButton7" data-i18n="status.togglePump10s" onclick="triggerPump10s(7)" disabled>Toggle</button>
           </div>
 
-          <div class="relay-card irrigation %PUMP3_CARD_DISABLED_CLASS%" data-relay="8" id="irrigationRelay8">
+          <div class="relay-card irrigation" data-relay="8" id="irrigationRelay8">
             <div class="relay-title" data-i18n="status.irrigationRelay8">Pumpe 3 Relay 8</div>
             <div class="relay-status" id="relay-Status8"></div>
-            <div class="pump-disabled-badge" id="pumpDisabled8" data-i18n="status.pumpDisabled" %PUMP3_DISABLED_HIDDEN%>Deaktiviert</div>
+            <div class="pump-disabled-badge" id="pumpDisabled8" data-i18n="status.pumpDisabled" hidden>Deaktiviert</div>
             <div class="spacer"></div>
-            <button type="button" class="primary" id="pumpButton8" data-i18n="status.togglePump10s" onclick="triggerPump10s(8)" %PUMP3_BUTTON_DISABLED%>Toggle</button>
+            <button type="button" class="primary" id="pumpButton8" data-i18n="status.togglePump10s" onclick="triggerPump10s(8)" disabled>Toggle</button>
           </div>
 
           <!-- watering section -->
@@ -221,7 +221,7 @@ const char* htmlPage = R"rawliteral(
               <span class="unit" data-i18n="status.endIn" >Ende in </span><span id="irTimeLeftSpan"  ></span>
             </div> 
             <div class="spacermini"></div>
-            <button class="primary" id="startWateringButton" onclick="startWatering()" %START_WATERING_DISABLED%>Toggle</button>
+            <button class="primary" id="startWateringButton" onclick="startWatering()" disabled>Toggle</button>
           </div>
           <div class="relay-card" data-relay="TankFilling">
             <div class="relay-title" data-i18n="status.tank">Tank Füllung</div>
@@ -1019,7 +1019,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js"></script>
+ <script src="/script.js?v=0.2.21"></script>
 </body>
 </html>
 )rawliteral";
@@ -1030,7 +1030,7 @@ const char* apPage = R"rawliteral(
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=0.2.21">
 </head>
 <body>
   <header class="header">
@@ -1066,7 +1066,7 @@ const char* apPage = R"rawliteral(
     </main>
   </div>
   
- <script src="/script.js"></script>
+ <script src="/script.js?v=0.2.21"></script>
 </body>
 </html>
 )rawliteral";
