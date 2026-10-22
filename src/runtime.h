@@ -561,7 +561,6 @@ String readSensorData() {
   json += "],\n";
   
   if (!shelly.main.values.ok) {
-    logPrint("[API] MAIN SWITCH request not ok");
     json += "\"shellyMainSwitchStatus\":false,\n";
     json += "\"shellyMainSwitchPower\":null,\n";
     json += "\"shellyMainSwitchTotalWh\":null,\n";
@@ -579,7 +578,6 @@ String readSensorData() {
   } 
 
   if (!shelly.light.values.ok) {
-    logPrint("[API] LIGHT request not ok");
     json += "\"shellyLightStatus\":false,\n";
     json += "\"shellyLightPower\":null,\n";
     json += "\"shellyLightTotalWh\":null,\n";

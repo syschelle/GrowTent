@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.2.24">
+  <link rel="stylesheet" href="/style.css?v=0.2.26">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -436,13 +436,20 @@ const char* htmlPage = R"rawliteral(
         <small data-i18n="shelly.floodTokenHint">Der Token bleibt ausschließlich im GrowTent-Controller und wird nicht über /api/state ausgegeben.</small>
       </div>
 
+      <h3 data-i18n="shelly.floodApiLinks">API Links für Shelly Actions</h3>
       <div class="form-group">
         <label for="floodAlarmUrl" data-i18n="shelly.floodAlarmUrl">URL für „Flood alarm“:</label>
-        <input id="floodAlarmUrl" class="control-sm" type="text" readonly style="width:100%;max-width:760px;">
+        <div class="twoinone-label">
+          <input id="floodAlarmUrl" class="control-sm" type="text" readonly style="width:100%;max-width:760px;">
+          <button type="button" class="primary" data-i18n="shelly.copyLink" onclick="copyFloodUrl('floodAlarmUrl')">Kopieren</button>
+        </div>
       </div>
       <div class="form-group">
         <label for="floodClearUrl" data-i18n="shelly.floodClearUrl">URL für „Flood alarm off“:</label>
-        <input id="floodClearUrl" class="control-sm" type="text" readonly style="width:100%;max-width:760px;">
+        <div class="twoinone-label">
+          <input id="floodClearUrl" class="control-sm" type="text" readonly style="width:100%;max-width:760px;">
+          <button type="button" class="primary" data-i18n="shelly.copyLink" onclick="copyFloodUrl('floodClearUrl')">Kopieren</button>
+        </div>
       </div>
       <div class="form-group">
         <small data-i18n="shelly.floodHint">Diese beiden URLs im Flood S Gen4 unter Actions hinterlegen. Der GrowTent-Controller pollt den Batteriesensor nicht.</small>
@@ -1048,7 +1055,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.2.24"></script>
+ <script src="/script.js?v=0.2.26"></script>
 </body>
 </html>
 )rawliteral";
@@ -1059,7 +1066,7 @@ const char* apPage = R"rawliteral(
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css?v=0.2.24">
+  <link rel="stylesheet" href="/style.css?v=0.2.26">
 </head>
 <body>
   <header class="header">
@@ -1095,7 +1102,7 @@ const char* apPage = R"rawliteral(
     </main>
   </div>
   
- <script src="/script.js?v=0.2.24"></script>
+ <script src="/script.js?v=0.2.26"></script>
 </body>
 </html>
 )rawliteral";

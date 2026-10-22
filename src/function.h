@@ -2153,6 +2153,9 @@ static bool readShellyScheduleList(ShellyDevice& dev, int switchId, int port) {
     return false;
   }
 
+  if (dev.ip.length() == 0) {
+    return false;
+  }
   if (!hasValidIPv4(dev.ip)) {
     logPrint("[SHELLY] Schedule.List skipped: invalid IP '" + dev.ip + "'");
     return false;
@@ -2340,7 +2343,12 @@ void handleRefreshShellyExhaustSchedule() {
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   ShellyValues v; // default ok=false
 
-  // Validate IP
+  // Empty IP means this Shelly slot is not configured. Do not poll and do not log an error.
+  if (dev.ip.length() == 0) {
+    return v;
+  }
+
+  // A non-empty but malformed address is still a configuration error.
   if (!hasValidIPv4(dev.ip)) {
     logPrint("[SHELLY] Invalid IP: '" + dev.ip + "'");
     return v;
@@ -2446,6 +2454,13 @@ static bool shellyResetEnergyCounters(ShellyDevice &dev, uint8_t switchId = 0, u
 // =======================
 static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t switchId = 0, uint16_t port = 80) {
   if (WiFi.status() != WL_CONNECTED) return false;
+  if (host.length() == 0) return false;
+
+  IPAddress parsedHost;
+  if (!parsedHost.fromString(host)) {
+    logPrint("[SHELLY] SET skipped: invalid IP '" + host + "'");
+    return false;
+  }
 
   String path;
   if (gen == 1) {

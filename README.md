@@ -354,3 +354,20 @@ Add license information here (no license file present in the source snapshot). I
 - Added a dedicated webhook token and generated Flood alarm / Flood alarm off URLs in Shelly settings.
 - Persisted the last known flood state across ESP restarts to support the sensor's sleep behavior.
 - Added `sensors.flood.*` fields to `/api/state` without exposing the Flood IP address or token.
+
+
+### v0.2.25 Shelly polling stability
+- Empty Shelly IP fields are treated as unconfigured and are not polled.
+- Empty Shelly slots no longer generate repeated `Invalid IP: ''` log messages.
+- Unreachable configured Shellys use a 30-second retry backoff after a failed status request, reducing network/task load.
+- Last known good Shelly values are preserved during transient failures.
+- Removed repetitive API-rendering log messages for unavailable main/light values; actual request failures remain logged by the polling layer.
+- Flood S Gen4 remains event-driven and unchanged.
+
+
+### v0.2.26 Flood webhook API link display
+
+- Added a dedicated **API Links for Shelly Actions** section to the Flood S Gen4 settings.
+- Shows the complete webhook URLs for `Flood alarm` and `Flood alarm off`.
+- Added Copy buttons for both webhook URLs.
+- The URLs continue to use the GrowTent controller address and the local Flood webhook token; neither is exposed through `/api/state`.

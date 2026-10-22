@@ -218,8 +218,10 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "shelly.floodToken": { de: "Webhook Token:", en: "Webhook token:" },
   "shelly.floodGenerateToken": { de: "Token erzeugen", en: "Generate token" },
   "shelly.floodTokenHint": { de: "Der Token bleibt ausschließlich im GrowTent-Controller und wird nicht über /api/state ausgegeben.", en: "The token remains exclusively in the GrowTent controller and is not exposed through /api/state." },
+  "shelly.floodApiLinks": { de: "API Links für Shelly Actions", en: "API links for Shelly Actions" },
   "shelly.floodAlarmUrl": { de: "URL für Flood alarm:", en: "URL for Flood alarm:" },
   "shelly.floodClearUrl": { de: "URL für Flood alarm off:", en: "URL for Flood alarm off:" },
+  "shelly.copyLink": { de: "Kopieren", en: "Copy" },
   "shelly.floodHint": { de: "Diese beiden URLs im Flood S Gen4 unter Actions hinterlegen. Der GrowTent-Controller pollt den Batteriesensor nicht.", en: "Configure these two URLs under Actions on the Flood S Gen4. The GrowTent controller does not poll the battery sensor." },
 
   /* -------------------- settings.* -------------------- */
@@ -1189,6 +1191,19 @@ async function startNewGrow(){
     tokenEl.value = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
     updateFloodWebhookPreview();
     tokenEl.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  window.copyFloodUrl = async function (id) {
+    const el = document.getElementById(id);
+    if (!el || !el.value) return;
+    try {
+      await navigator.clipboard.writeText(el.value);
+    } catch (_) {
+      el.focus();
+      el.select();
+      document.execCommand('copy');
+      el.setSelectionRange(0, 0);
+    }
   };
 
   document.addEventListener('DOMContentLoaded', updateFloodWebhookPreview);
