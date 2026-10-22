@@ -82,13 +82,22 @@ void taskShellyStatus(void *parameter){
       logPrint(String(buf));
     }
 
-    pollDevice(settings.shelly.main,       shelly.main,       mainState);
-    pollDevice(settings.shelly.light,      shelly.light,      lightState);
-    pollDevice(settings.shelly.humidifier, shelly.humidifier, humidifierState);
-    pollDevice(settings.shelly.heater,     shelly.heater,     heaterState);
-    pollDevice(settings.shelly.fan,        shelly.fan,        fanState);
-    pollDevice(settings.shelly.exhaust,    shelly.exhaust,    exhaustState);
+    // Poll exactly one Shelly per step instead of all configured devices back-to-back.
+    // This keeps an unreachable device from creating a multi-second burst of
+    // consecutive network timeouts that can make the web UI feel unresponsive.
+    static uint8_t pollIndex = 0;
+    switch (pollIndex) {
+      case 0: pollDevice(settings.shelly.main,       shelly.main,       mainState); break;
+      case 1: pollDevice(settings.shelly.light,      shelly.light,      lightState); break;
+      case 2: pollDevice(settings.shelly.humidifier, shelly.humidifier, humidifierState); break;
+      case 3: pollDevice(settings.shelly.heater,     shelly.heater,     heaterState); break;
+      case 4: pollDevice(settings.shelly.fan,        shelly.fan,        fanState); break;
+      default: pollDevice(settings.shelly.exhaust,   shelly.exhaust,    exhaustState); break;
+    }
+    pollIndex = (pollIndex + 1) % 6;
 
-    vTaskDelay(pdMS_TO_TICKS(10000));
+    // Six steps at 1.5 s keep the normal per-device refresh close to the
+    // previous ~10 s cadence while avoiding a burst of six HTTP operations.
+    vTaskDelay(pdMS_TO_TICKS(1500));
   }
 }

@@ -371,3 +371,13 @@ Add license information here (no license file present in the source snapshot). I
 - Shows the complete webhook URLs for `Flood alarm` and `Flood alarm off`.
 - Added Copy buttons for both webhook URLs.
 - The URLs continue to use the GrowTent controller address and the local Flood webhook token; neither is exposed through `/api/state`.
+
+### v0.2.27 Web UI heap stability
+
+- The main web interface is no longer assembled as one >52 KB Arduino `String` in heap.
+- HTML is rendered and sent in newline-aligned chunks of about 4 KB.
+- Dynamic placeholders are still resolved server-side for every chunk.
+- This avoids requiring one very large contiguous heap block when opening `/`.
+- The change is intended to keep the web UI available even when free heap is fragmented and the largest free block is around 50–60 KB.
+- Flood S Gen4 behavior, sensor tasks, Shelly control logic, irrigation and VPD control are unchanged.
+- Shelly status polling is now staggered: one Shelly is checked per step instead of all six back-to-back, avoiding multi-second timeout bursts when devices are offline.
