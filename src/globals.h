@@ -147,6 +147,7 @@ struct FloodSettings {
 struct FloodState {
   bool known = false;
   bool alarm = false;
+  int batteryPct = -1;  // -1 = no battery value received yet
   String lastSeen;
 };
 
@@ -327,6 +328,7 @@ extern const char* KEY_FLOOD_ENABLED;
 extern const char* KEY_FLOOD_TOKEN;
 extern const char* KEY_FLOOD_KNOWN;
 extern const char* KEY_FLOOD_ALARM;
+extern const char* KEY_FLOOD_BATTERY;
 extern const char* KEY_FLOOD_LAST_SEEN;
 extern const char* KEY_POWER_PRICE_KWH;
 extern float powerPriceKwhEur;

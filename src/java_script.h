@@ -1178,8 +1178,14 @@ async function startNewGrow(){
     const token = tokenEl.value.trim();
     const base = `${window.location.protocol}//${window.location.host}/api/flood/event`;
     const encoded = encodeURIComponent(token);
-    alarmEl.value = token ? `${base}?token=${encoded}&alarm=1` : '';
-    clearEl.value = token ? `${base}?token=${encoded}&alarm=0` : '';
+    // Shelly evaluates these ${...} expressions immediately before invoking
+    // the webhook. This lets the sleeping Flood report battery and event time
+    // without the GrowTent controller ever polling the device.
+    const batteryExpr = '${status["devicepower:0"].battery.percent}';
+    const timeExpr = '${status.sys.unixtime}';
+    const telemetry = `&battery=${batteryExpr}&ts=${timeExpr}`;
+    alarmEl.value = token ? `${base}?token=${encoded}&alarm=1${telemetry}` : '';
+    clearEl.value = token ? `${base}?token=${encoded}&alarm=0${telemetry}` : '';
   };
 
   window.generateFloodToken = function () {
@@ -1232,6 +1238,58 @@ async function startNewGrow(){
       return (v === null || v === undefined || v === '') ? fallback : String(v);
     }
 
+    function formatFloodLastSeen(value) {
+      if (!value) return '';
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return '';
+      const locale = (currentLang === 'de') ? 'de-DE' : 'en-US';
+      const now = new Date();
+      const sameDay = dt.getFullYear() === now.getFullYear()
+        && dt.getMonth() === now.getMonth()
+        && dt.getDate() === now.getDate();
+      const time = dt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+      if (sameDay) return time;
+      const date = dt.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
+      return `${date} ${time}`;
+    }
+
+    function updateFloodHeader(data) {
+      const box = document.getElementById('headerFloodStatus');
+      const main = document.getElementById('headerFloodMain');
+      const meta = document.getElementById('headerFloodMeta');
+      if (!box || !main || !meta) return;
+
+      const configured = data['sensors.flood.configured'] === true;
+      if (!configured) {
+        box.hidden = true;
+        return;
+      }
+
+      const status = String(data['sensors.flood.status'] || 'unknown');
+      const battery = Number(data['sensors.flood.batteryPct']);
+      const seen = formatFloodLastSeen(data['sensors.flood.lastSeen']);
+      const de = currentLang === 'de';
+
+      box.hidden = false;
+      box.classList.remove('flood-ok', 'flood-alarm', 'flood-unknown');
+      if (status === 'alarm') {
+        box.classList.add('flood-alarm');
+        main.textContent = de ? '⚠ Flood: WASSER' : '⚠ Flood: WATER';
+      } else if (status === 'ok') {
+        box.classList.add('flood-ok');
+        main.textContent = de ? '✓ Flood: trocken' : '✓ Flood: dry';
+      } else {
+        box.classList.add('flood-unknown');
+        main.textContent = de ? 'Flood: unbekannt' : 'Flood: unknown';
+      }
+
+      const parts = [];
+      if (Number.isFinite(battery) && battery >= 0 && battery <= 100) parts.push(`🔋 ${Math.round(battery)}%`);
+      if (seen) parts.push(`${de ? 'zuletzt' : 'last'} ${seen}`);
+      meta.textContent = parts.join(' · ');
+      box.title = meta.textContent ? `${main.textContent} · ${meta.textContent}` : main.textContent;
+    }
+
     function buildRelayArrayFromApiState(data, maxRelays) {
       const relays = [];
 
@@ -1282,6 +1340,9 @@ async function startNewGrow(){
       } catch (uiError) {
         console.warn('Relay visibility update failed:', uiError);
       }
+
+      // Header Flood status is global and must update on every page.
+      updateFloodHeader(data);
 
       if (getActivePageId() !== 'status') return;
 

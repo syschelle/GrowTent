@@ -737,18 +737,20 @@ static bool isValidFloodWebhookToken(const String& token) {
   return true;
 }
 
-static String floodTimestampNow() {
-  time_t now = time(nullptr);
-  if (now < 1609459200) return ""; // clock not valid yet (before 2021)
+static String floodTimestampFromEpoch(time_t epoch) {
+  if (epoch < 1609459200) return ""; // before 2021 = invalid clock
 
+  // Store Flood timestamps in unambiguous UTC ISO-8601. The web UI formats
+  // this value in the browser's local timezone (e.g. Europe/Berlin).
   struct tm t {};
-  localtime_r(&now, &t);
-  char buf[40] = {0};
-  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", &t);
-  String out(buf);
-  // Convert +0200 to ISO-8601 +02:00.
-  if (out.length() >= 5) out = out.substring(0, out.length() - 2) + ":" + out.substring(out.length() - 2);
-  return out;
+  gmtime_r(&epoch, &t);
+  char buf[32] = {0};
+  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &t);
+  return String(buf);
+}
+
+static String floodTimestampNow() {
+  return floodTimestampFromEpoch(time(nullptr));
 }
 
 void handleFloodEvent() {
@@ -784,29 +786,62 @@ void handleFloodEvent() {
     return;
   }
 
+  int reportedBatteryPct = -1;
+  if (server.hasArg("battery")) {
+    String batteryArg = server.arg("battery");
+    batteryArg.trim();
+    if (batteryArg.length() > 0 && batteryArg != "null") {
+      char* endPtr = nullptr;
+      const long parsed = strtol(batteryArg.c_str(), &endPtr, 10);
+      if (endPtr != batteryArg.c_str() && *endPtr == '\0' && parsed >= 0 && parsed <= 100) {
+        reportedBatteryPct = (int)parsed;
+      }
+    }
+  }
+
+  time_t eventEpoch = time(nullptr);
+  if (server.hasArg("ts")) {
+    String tsArg = server.arg("ts");
+    tsArg.trim();
+    if (tsArg.length() > 0 && tsArg != "null") {
+      char* endPtr = nullptr;
+      const long long parsed = strtoll(tsArg.c_str(), &endPtr, 10);
+      if (endPtr != tsArg.c_str() && *endPtr == '\0' && parsed >= 1609459200LL) {
+        eventEpoch = (time_t)parsed;
+      }
+    }
+  }
+
   const bool changed = !floodState.known || floodState.alarm != alarm;
+  const bool batteryChanged = reportedBatteryPct >= 0 && floodState.batteryPct != reportedBatteryPct;
   floodState.known = true;
   floodState.alarm = alarm;
-  const String timestamp = floodTimestampNow();
+  if (reportedBatteryPct >= 0) floodState.batteryPct = reportedBatteryPct;
+
+  const String timestamp = floodTimestampFromEpoch(eventEpoch);
   if (!timestamp.isEmpty()) floodState.lastSeen = timestamp;
 
-  // Persist only real state transitions. In alarm modes the Flood S Gen4 can
-  // report repeatedly; avoiding NVS writes for confirmations keeps flash wear
-  // and handler latency negligible.
-  if (changed) {
+  // Persist state transitions and actual battery changes. Repeated confirmations
+  // with identical state/battery remain RAM-only to avoid unnecessary NVS writes.
+  if (changed || batteryChanged) {
     Preferences floodPrefs;
     if (floodPrefs.begin(PREF_NS, false)) {
       floodPrefs.putBool(KEY_FLOOD_KNOWN, floodState.known);
       floodPrefs.putBool(KEY_FLOOD_ALARM, floodState.alarm);
+      if (floodState.batteryPct >= 0) floodPrefs.putInt(KEY_FLOOD_BATTERY, floodState.batteryPct);
       if (!floodState.lastSeen.isEmpty()) floodPrefs.putString(KEY_FLOOD_LAST_SEEN, floodState.lastSeen);
       floodPrefs.end();
     } else {
       logPrint("[FLOOD][WARN] state could not be persisted");
     }
-    logPrint(String("[FLOOD] state changed: ") + (alarm ? "ALARM" : "DRY"));
+    if (changed) logPrint(String("[FLOOD] state changed: ") + (alarm ? "ALARM" : "DRY"));
+    if (batteryChanged) logPrint(String("[FLOOD] battery: ") + String(floodState.batteryPct) + "%");
   }
 
-  server.send(200, "application/json", String("{\"ok\":true,\"alarm\":") + (alarm ? "true" : "false") + "}");
+  String response = String("{\"ok\":true,\"alarm\":") + (alarm ? "true" : "false");
+  if (floodState.batteryPct >= 0) response += String(",\"batteryPct\":") + String(floodState.batteryPct);
+  response += "}";
+  server.send(200, "application/json", response);
 }
 
 void handleSaveShellySettings() {

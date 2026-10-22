@@ -40,12 +40,16 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.2.29">
+  <link rel="stylesheet" href="/style.css?v=0.2.30">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
     <div class="title" data-i18n="app.title">%CONTROLLERNAME%</div>
     <span id="unsavedHint" class="dirty-hint" hidden data-i18n="settings.unsaved"></span>
+    <div id="headerFloodStatus" class="flood-header-status flood-unknown" hidden title="Flood S Gen4">
+      <span id="headerFloodMain">Flood: –</span>
+      <span id="headerFloodMeta" class="flood-header-meta"></span>
+    </div>
     <div class='grow-info'>%CURRENTGROW%<BR>%CURRENTPHASE%</div>
     <div id="grow-line" data-i18n-key="info.growLine"></div>
     <div class="datetime">
@@ -1055,7 +1059,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.2.29"></script>
+ <script src="/script.js?v=0.2.30"></script>
 </body>
 </html>
 )rawliteral";
@@ -1066,7 +1070,7 @@ const char* apPage = R"rawliteral(
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css?v=0.2.29">
+  <link rel="stylesheet" href="/style.css?v=0.2.30">
 </head>
 <body>
   <header class="header">
@@ -1102,7 +1106,7 @@ const char* apPage = R"rawliteral(
     </main>
   </div>
   
- <script src="/script.js?v=0.2.29"></script>
+ <script src="/script.js?v=0.2.30"></script>
 </body>
 </html>
 )rawliteral";

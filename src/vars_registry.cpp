@@ -135,6 +135,10 @@ static String g_flood_status() {
   if (!floodState.known) return jStr("unknown");
   return jStr(floodState.alarm ? "alarm" : "ok");
 }
+static String g_flood_batteryPct() {
+  if (!settings.flood.enabled || floodState.batteryPct < 0 || floodState.batteryPct > 100) return String("null");
+  return String(floodState.batteryPct);
+}
 static String g_flood_lastSeen() {
   if (!settings.flood.enabled || floodState.lastSeen.isEmpty()) return String("null");
   return jStr(floodState.lastSeen);
@@ -326,6 +330,7 @@ const VarItem VARS[] = {
   {"sensors.flood.configured", g_flood_configured, false, "sensors"},
   {"sensors.flood.alarm", g_flood_alarm, false, "sensors"},
   {"sensors.flood.status", g_flood_status, false, "sensors"},
+  {"sensors.flood.batteryPct", g_flood_batteryPct, false, "sensors"},
   {"sensors.flood.lastSeen", g_flood_lastSeen, false, "sensors"},
 
   // --- settings.ui ---

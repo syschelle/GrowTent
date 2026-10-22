@@ -419,6 +419,7 @@ void readPreferences() {
   loadPrefString(KEY_FLOOD_TOKEN, settings.flood.webhookToken, "", false, "Flood webhook token");
   loadPrefBool(KEY_FLOOD_KNOWN, floodState.known, false, true, "Flood state known");
   loadPrefBool(KEY_FLOOD_ALARM, floodState.alarm, false, true, "Flood alarm");
+  loadPrefInt(KEY_FLOOD_BATTERY, floodState.batteryPct, -1, true, "Flood battery percent");
   loadPrefString(KEY_FLOOD_LAST_SEEN, floodState.lastSeen, "", true, "Flood last seen");
 
   // Power price

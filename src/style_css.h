@@ -31,6 +31,31 @@ const char cssContent[] PROGMEM = R"rawliteral(
     .title{font-weight:600;font-size:clamp(1rem,.6vw+.9rem,1.2rem)}
     .datetime{display:flex;flex-direction:column;align-items:flex-end;font-size:.85rem;line-height:1.2}
 
+    .flood-header-status{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      min-width:118px;
+      max-width:260px;
+      padding:4px 10px;
+      border-radius:9px;
+      font-size:.78rem;
+      font-weight:700;
+      line-height:1.15;
+      white-space:nowrap;
+      box-shadow:0 1px 3px rgba(0,0,0,.18);
+    }
+    .flood-header-status[hidden]{display:none}
+    .flood-header-status.flood-ok{background:#1f8f4e;color:#fff}
+    .flood-header-status.flood-alarm{background:#c62828;color:#fff}
+    .flood-header-status.flood-unknown{background:#6c757d;color:#fff}
+    .flood-header-meta{font-size:.68rem;font-weight:600;opacity:.96;margin-top:1px}
+    @media (max-width:900px){
+      .flood-header-meta{display:none}
+      .flood-header-status{min-width:auto;padding:4px 7px}
+    }
+
     .dirty-hint{
       margin-left:8px;
       background:#ffdf91;

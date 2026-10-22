@@ -391,6 +391,14 @@ Add license information here (no license file present in the source snapshot). I
 - Keeps slow sensor/network initialization in the deferred initialization task.
 - No changes to Flood S Gen4 polling policy, irrigation control, VPD control, or relay scheduling.
 
+### v0.2.30 Flood header status, battery telemetry and time formatting
+
+- Shows the Flood S Gen4 state in the header whenever Flood integration is enabled.
+- Adds `sensors.flood.batteryPct` to `/api/state`.
+- Adds Shelly webhook token replacement for battery percentage and device Unix time.
+- Stores Flood event timestamps as UTC ISO-8601 and formats them locally in the browser.
+- Keeps the integration event-driven: the GrowTent controller still never polls the Flood S Gen4.
+
 ### v0.2.29 Flood webhook URL restore fix
 
 - Fixed Flood S Gen4 webhook URLs remaining blank after an ESP restart or normal browser reload.

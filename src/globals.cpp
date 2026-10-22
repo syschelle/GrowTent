@@ -85,6 +85,7 @@ const char* KEY_FLOOD_ENABLED = "floodEnabled";
 const char* KEY_FLOOD_TOKEN = "floodToken";
 const char* KEY_FLOOD_KNOWN = "floodKnown";
 const char* KEY_FLOOD_ALARM = "floodAlarm";
+const char* KEY_FLOOD_BATTERY = "floodBattery";
 const char* KEY_FLOOD_LAST_SEEN = "floodLastSeen";
 
 // Irrigation keys
