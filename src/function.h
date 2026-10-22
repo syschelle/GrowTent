@@ -692,13 +692,13 @@ void handleNewGrow() {
 }
 
 static String generateFloodWebhookToken() {
-  static const char HEX[] = "0123456789abcdef";
+  static const char HEX_CHARS[] = "0123456789abcdef";
   String token;
   token.reserve(32);
   for (int i = 0; i < 4; ++i) {
     uint32_t r = esp_random();
     for (int shift = 28; shift >= 0; shift -= 4) {
-      token += HEX[(r >> shift) & 0x0F];
+      token += HEX_CHARS[(r >> shift) & 0x0F];
     }
   }
   return token;

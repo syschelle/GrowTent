@@ -346,7 +346,10 @@ Add license information here (no license file present in the source snapshot). I
 - The manual 10-second test button is only visible for enabled pumps.
 
 
-### v0.2.23 Flood S Gen4 integration
+### v0.2.24 Flood S Gen4 integration
+
+> Build fix: the internal Flood token generator now uses `HEX_CHARS` instead of `HEX` to avoid a collision with the Arduino `HEX` macro.
+
 - Added event-driven Shelly Flood S Gen4 integration without a polling task.
 - Added a dedicated webhook token and generated Flood alarm / Flood alarm off URLs in Shelly settings.
 - Persisted the last known flood state across ESP restarts to support the sensor's sleep behavior.
