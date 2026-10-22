@@ -213,6 +213,14 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "shelly.refreshSchedule": { de: "Schedule neu einlesen", en: "Refresh schedule" },
   "shelly.refreshScheduleOk": { de: "Shelly Schedule aktualisiert.", en: "Shelly schedule refreshed." },
   "shelly.refreshScheduleError": { de: "Shelly Schedule konnte nicht gelesen werden.", en: "Failed to refresh Shelly schedule." },
+  "shelly.floodTitle": { de: "Flood S Gen4", en: "Flood S Gen4" },
+  "shelly.floodEnabled": { de: "Flood S Gen4 Webhook aktivieren", en: "Enable Flood S Gen4 webhook" },
+  "shelly.floodToken": { de: "Webhook Token:", en: "Webhook token:" },
+  "shelly.floodGenerateToken": { de: "Token erzeugen", en: "Generate token" },
+  "shelly.floodTokenHint": { de: "Der Token bleibt ausschließlich im GrowTent-Controller und wird nicht über /api/state ausgegeben.", en: "The token remains exclusively in the GrowTent controller and is not exposed through /api/state." },
+  "shelly.floodAlarmUrl": { de: "URL für Flood alarm:", en: "URL for Flood alarm:" },
+  "shelly.floodClearUrl": { de: "URL für Flood alarm off:", en: "URL for Flood alarm off:" },
+  "shelly.floodHint": { de: "Diese beiden URLs im Flood S Gen4 unter Actions hinterlegen. Der GrowTent-Controller pollt den Batteriesensor nicht.", en: "Configure these two URLs under Actions on the Flood S Gen4. The GrowTent controller does not poll the battery sensor." },
 
   /* -------------------- settings.* -------------------- */
   "settings.title": { de: "Systemeinstellungen", en: "Settings" },
@@ -1157,6 +1165,33 @@ async function startNewGrow(){
     const el = document.getElementById(id);
     if (el) el.textContent = value;
   }
+
+  // ---------- Flood S Gen4 webhook configuration ----------
+  window.updateFloodWebhookPreview = function () {
+    const tokenEl = document.getElementById('floodToken');
+    const alarmEl = document.getElementById('floodAlarmUrl');
+    const clearEl = document.getElementById('floodClearUrl');
+    if (!tokenEl || !alarmEl || !clearEl) return;
+
+    const token = tokenEl.value.trim();
+    const base = `${window.location.protocol}//${window.location.host}/api/flood/event`;
+    const encoded = encodeURIComponent(token);
+    alarmEl.value = token ? `${base}?token=${encoded}&alarm=1` : '';
+    clearEl.value = token ? `${base}?token=${encoded}&alarm=0` : '';
+  };
+
+  window.generateFloodToken = function () {
+    const tokenEl = document.getElementById('floodToken');
+    if (!tokenEl) return;
+
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    tokenEl.value = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    updateFloodWebhookPreview();
+    tokenEl.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  document.addEventListener('DOMContentLoaded', updateFloodWebhookPreview);
 
   // ---------- Sensor fetch (/api/state) ----------
   let sensorFetchInFlight = false;

@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.2.22">
+  <link rel="stylesheet" href="/style.css?v=0.2.23">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -417,6 +417,35 @@ const char* htmlPage = R"rawliteral(
             <option value="3" %SHEXHAUSTKIND3%>Gen3</option>
           </select>
         </div>
+      </div>
+
+      <h2 data-i18n="shelly.floodTitle">Flood S Gen4</h2>
+      <div class="form-group">
+        <label>
+          <input name="webFloodEnabled" id="floodEnabled" type="checkbox" %FLOOD_ENABLED_CHECKED% onchange="updateFloodWebhookPreview()">
+          <span data-i18n="shelly.floodEnabled">Flood S Gen4 Webhook aktivieren</span>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label for="floodToken" data-i18n="shelly.floodToken">Webhook Token:</label>
+        <div class="twoinone-label">
+          <input name="webFloodToken" id="floodToken" class="control-sm" style="width:320px;max-width:100%;" type="text" maxlength="64" autocomplete="off" value="%FLOOD_TOKEN%" oninput="updateFloodWebhookPreview()">
+          <button type="button" class="primary" data-i18n="shelly.floodGenerateToken" onclick="generateFloodToken()">Token erzeugen</button>
+        </div>
+        <small data-i18n="shelly.floodTokenHint">Der Token bleibt ausschließlich im GrowTent-Controller und wird nicht über /api/state ausgegeben.</small>
+      </div>
+
+      <div class="form-group">
+        <label for="floodAlarmUrl" data-i18n="shelly.floodAlarmUrl">URL für „Flood alarm“:</label>
+        <input id="floodAlarmUrl" class="control-sm" type="text" readonly style="width:100%;max-width:760px;">
+      </div>
+      <div class="form-group">
+        <label for="floodClearUrl" data-i18n="shelly.floodClearUrl">URL für „Flood alarm off“:</label>
+        <input id="floodClearUrl" class="control-sm" type="text" readonly style="width:100%;max-width:760px;">
+      </div>
+      <div class="form-group">
+        <small data-i18n="shelly.floodHint">Diese beiden URLs im Flood S Gen4 unter Actions hinterlegen. Der GrowTent-Controller pollt den Batteriesensor nicht.</small>
       </div>
 
       <h2 data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
@@ -1019,7 +1048,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.2.22"></script>
+ <script src="/script.js?v=0.2.23"></script>
 </body>
 </html>
 )rawliteral";
@@ -1030,7 +1059,7 @@ const char* apPage = R"rawliteral(
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css?v=0.2.22">
+  <link rel="stylesheet" href="/style.css?v=0.2.23">
 </head>
 <body>
   <header class="header">
@@ -1066,7 +1095,7 @@ const char* apPage = R"rawliteral(
     </main>
   </div>
   
- <script src="/script.js?v=0.2.22"></script>
+ <script src="/script.js?v=0.2.23"></script>
 </body>
 </html>
 )rawliteral";

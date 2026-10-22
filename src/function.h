@@ -12,6 +12,7 @@
 #include <IPAddress.h>
 #include <HTTPClient.h>
 #include <mbedtls/md.h>
+#include <esp_system.h>
 // Base64 (for Basic auth) via mbedTLS (available in ESP32 Arduino core)
 #include <mbedtls/base64.h>
 
@@ -690,6 +691,100 @@ void handleNewGrow() {
   server.send(200, "application/json; charset=utf-8", resp);
 }
 
+static String generateFloodWebhookToken() {
+  static const char HEX[] = "0123456789abcdef";
+  String token;
+  token.reserve(32);
+  for (int i = 0; i < 4; ++i) {
+    uint32_t r = esp_random();
+    for (int shift = 28; shift >= 0; shift -= 4) {
+      token += HEX[(r >> shift) & 0x0F];
+    }
+  }
+  return token;
+}
+
+static bool isValidFloodWebhookToken(const String& token) {
+  if (token.length() < 16 || token.length() > 64) return false;
+  for (size_t i = 0; i < token.length(); ++i) {
+    const char c = token[i];
+    if (!isAlphaNumeric(c) && c != '-' && c != '_') return false;
+  }
+  return true;
+}
+
+static String floodTimestampNow() {
+  time_t now = time(nullptr);
+  if (now < 1609459200) return ""; // clock not valid yet (before 2021)
+
+  struct tm t {};
+  localtime_r(&now, &t);
+  char buf[40] = {0};
+  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S%z", &t);
+  String out(buf);
+  // Convert +0200 to ISO-8601 +02:00.
+  if (out.length() >= 5) out = out.substring(0, out.length() - 2) + ":" + out.substring(out.length() - 2);
+  return out;
+}
+
+void handleFloodEvent() {
+  // The Flood S Gen4 is intentionally not polled. This handler only consumes
+  // the two URL actions configured on the battery-powered sensor.
+  if (!settings.flood.enabled || settings.flood.webhookToken.isEmpty()) {
+    server.send(404, "application/json", "{\"ok\":false,\"error\":\"disabled\"}");
+    return;
+  }
+
+  if (!server.hasArg("token") || server.arg("token") != settings.flood.webhookToken) {
+    logPrint("[FLOOD] rejected webhook: invalid token");
+    server.send(403, "application/json", "{\"ok\":false,\"error\":\"forbidden\"}");
+    return;
+  }
+
+  if (!server.hasArg("alarm")) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing_alarm\"}");
+    return;
+  }
+
+  String alarmArg = server.arg("alarm");
+  alarmArg.trim();
+  alarmArg.toLowerCase();
+
+  bool alarm = false;
+  if (alarmArg == "1" || alarmArg == "true" || alarmArg == "on" || alarmArg == "flood") {
+    alarm = true;
+  } else if (alarmArg == "0" || alarmArg == "false" || alarmArg == "off" || alarmArg == "dry") {
+    alarm = false;
+  } else {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid_alarm\"}");
+    return;
+  }
+
+  const bool changed = !floodState.known || floodState.alarm != alarm;
+  floodState.known = true;
+  floodState.alarm = alarm;
+  const String timestamp = floodTimestampNow();
+  if (!timestamp.isEmpty()) floodState.lastSeen = timestamp;
+
+  // Persist only real state transitions. In alarm modes the Flood S Gen4 can
+  // report repeatedly; avoiding NVS writes for confirmations keeps flash wear
+  // and handler latency negligible.
+  if (changed) {
+    Preferences floodPrefs;
+    if (floodPrefs.begin(PREF_NS, false)) {
+      floodPrefs.putBool(KEY_FLOOD_KNOWN, floodState.known);
+      floodPrefs.putBool(KEY_FLOOD_ALARM, floodState.alarm);
+      if (!floodState.lastSeen.isEmpty()) floodPrefs.putString(KEY_FLOOD_LAST_SEEN, floodState.lastSeen);
+      floodPrefs.end();
+    } else {
+      logPrint("[FLOOD][WARN] state could not be persisted");
+    }
+    logPrint(String("[FLOOD] state changed: ") + (alarm ? "ALARM" : "DRY"));
+  }
+
+  server.send(200, "application/json", String("{\"ok\":true,\"alarm\":") + (alarm ? "true" : "false") + "}");
+}
+
 void handleSaveShellySettings() {
     if (!preferences.begin(PREF_NS, false)) {
         server.send(500, "text/plain", "Failed to open Preferences");
@@ -867,6 +962,24 @@ void handleSaveShellySettings() {
         KEY_SHELLYEXHAUSTGEN,
         "Exhaust Gen"
     );
+
+    // Flood S Gen4 webhook settings. The Flood IP is deliberately not stored.
+    settings.flood.enabled = server.hasArg("webFloodEnabled");
+    if (server.hasArg("webFloodToken")) {
+        String token = server.arg("webFloodToken");
+        token.trim();
+        if (token.isEmpty() && settings.flood.enabled) token = generateFloodWebhookToken();
+        if (!token.isEmpty() && !isValidFloodWebhookToken(token)) {
+            server.send(400, "text/plain", "Invalid Flood webhook token");
+            return;
+        }
+        settings.flood.webhookToken = token;
+    }
+    if (settings.flood.enabled && settings.flood.webhookToken.isEmpty()) {
+        settings.flood.webhookToken = generateFloodWebhookToken();
+    }
+    preferences.putBool(KEY_FLOOD_ENABLED, settings.flood.enabled);
+    preferences.putString(KEY_FLOOD_TOKEN, settings.flood.webhookToken);
 
     // Other settings
     saveGrowLightSettings();

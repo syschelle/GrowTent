@@ -990,6 +990,10 @@ void setup() {
   // full state / variables (debug page)
   server.on("/api/state", HTTP_GET, handleApiState);
 
+  // Shelly Flood S Gen4 URL actions. Event-driven only; no polling task is created.
+  server.on("/api/flood/event", HTTP_GET, handleFloodEvent);
+  server.on("/api/flood/event", HTTP_POST, handleFloodEvent);
+
   // relay toggle
   server.on("/relay/1/toggle", HTTP_POST, []() { handleRelayToggleIdx(0); });
   server.on("/relay/2/toggle", HTTP_POST, []() { handleRelayToggleIdx(1); });

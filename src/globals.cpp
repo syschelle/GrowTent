@@ -80,6 +80,13 @@ const char* KEY_SHELLYEXHAUSTOFF = "shExhaustOff";
 const char* KEY_SHELLYUSERNAME = "shUser";
 const char* KEY_SHELLYPASSWORD = "shPass";
 
+// Flood S Gen4 webhook settings/state. No Flood IP is stored or exposed.
+const char* KEY_FLOOD_ENABLED = "floodEnabled";
+const char* KEY_FLOOD_TOKEN = "floodToken";
+const char* KEY_FLOOD_KNOWN = "floodKnown";
+const char* KEY_FLOOD_ALARM = "floodAlarm";
+const char* KEY_FLOOD_LAST_SEEN = "floodLastSeen";
+
 // Irrigation keys
 const char* KEY_TIMEPERTASK = "timePerTask";
 const char* KEY_BETWEENTASKS = "betweenTasks";
@@ -121,6 +128,7 @@ const char* KEY_GOTIFYTOKEN = "gotifyToken";
 
 // Global variables
 bool debugLog;
+FloodState floodState;
 
 // NTP/time globals
 int lastSyncDay = -1;

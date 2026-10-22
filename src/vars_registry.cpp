@@ -123,6 +123,23 @@ static String g_vpd_raw() { return jNumOrNull(cur.vpdRawKpa, 2); }
 static String g_reffetiveAlfaTemp() { return jNumOrNull(cur.alphaTempEffective, 2); }
 static String g_reffetiveAlfaHum() { return jNumOrNull(cur.alphaHumidityEffective, 2); }
 
+static String g_flood_configured() {
+  return jBool(settings.flood.enabled && !settings.flood.webhookToken.isEmpty());
+}
+static String g_flood_alarm() {
+  if (!settings.flood.enabled || !floodState.known) return String("null");
+  return jBool(floodState.alarm);
+}
+static String g_flood_status() {
+  if (!settings.flood.enabled) return jStr("disabled");
+  if (!floodState.known) return jStr("unknown");
+  return jStr(floodState.alarm ? "alarm" : "ok");
+}
+static String g_flood_lastSeen() {
+  if (!settings.flood.enabled || floodState.lastSeen.isEmpty()) return String("null");
+  return jStr(floodState.lastSeen);
+}
+
 static String g_avgTemp() { return jNumOrNull(avgTemp(), 1); }
 static String g_avgHum() { return jNumOrNull(avgHum(), 1); }
 static String g_avgVpd() { return jNumOrNull(avgVPD(), 2); }
@@ -305,6 +322,11 @@ const VarItem VARS[] = {
   
   {"sensors.cur.effectiveAlfaTempC", g_reffetiveAlfaTemp, false, "sensors"},
   {"sensors.cur.effectiveAlfaHumPct", g_reffetiveAlfaHum, false, "sensors"},
+
+  {"sensors.flood.configured", g_flood_configured, false, "sensors"},
+  {"sensors.flood.alarm", g_flood_alarm, false, "sensors"},
+  {"sensors.flood.status", g_flood_status, false, "sensors"},
+  {"sensors.flood.lastSeen", g_flood_lastSeen, false, "sensors"},
 
   // --- settings.ui ---
   {"settings.ui.boxName", g_ui_box, false, "settings.ui"},

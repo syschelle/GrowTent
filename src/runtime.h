@@ -236,6 +236,9 @@ void handleRoot() {
     html.replace("%SHUSER%", settings.shelly.username);
     html.replace("%SHPASSWORD%", settings.shelly.password);
 
+    html.replace("%FLOOD_ENABLED_CHECKED%", settings.flood.enabled ? "checked" : "");
+    html.replace("%FLOOD_TOKEN%", settings.flood.webhookToken);
+
     html.replace("%RELAYCOUNT4_SEL%", activeRelayCount == 4 ? "selected" : "");
     html.replace("%RELAYCOUNT8_SEL%", activeRelayCount == 8 ? "selected" : "");
 
@@ -365,6 +368,13 @@ void readPreferences() {
   // Shelly credentials (optional Basic Auth)
   loadPrefString(KEY_SHELLYUSERNAME, settings.shelly.username, "", true, "Shelly Username");
   loadPrefString(KEY_SHELLYPASSWORD, settings.shelly.password, "", false, "Shelly Password");
+
+  // Flood S Gen4 is event-driven. Only configuration and the last reported state are restored.
+  loadPrefBool(KEY_FLOOD_ENABLED, settings.flood.enabled, false, true, "Flood webhook enabled");
+  loadPrefString(KEY_FLOOD_TOKEN, settings.flood.webhookToken, "", false, "Flood webhook token");
+  loadPrefBool(KEY_FLOOD_KNOWN, floodState.known, false, true, "Flood state known");
+  loadPrefBool(KEY_FLOOD_ALARM, floodState.alarm, false, true, "Flood alarm");
+  loadPrefString(KEY_FLOOD_LAST_SEEN, floodState.lastSeen, "", true, "Flood last seen");
 
   // Power price
   loadPrefFloat(KEY_POWER_PRICE_KWH, powerPriceKwhEur, 0.30f, true, "powerPriceKwhEur", 3);

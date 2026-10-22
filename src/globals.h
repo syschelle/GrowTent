@@ -139,6 +139,17 @@ struct DebugGroup {
   bool enabled = false;
 };
 
+struct FloodSettings {
+  bool enabled = false;
+  String webhookToken;
+};
+
+struct FloodState {
+  bool known = false;
+  bool alarm = false;
+  String lastSeen;
+};
+
 struct HeatingGroup {
 int sourceType = 0; // 0=disabled, 1=ESP relay, 2=Shelly plug
 int Relay = 0; // used only when sourceType == 1
@@ -174,6 +185,7 @@ struct Settings {
   ShellySettings shelly;
   UIGroup ui;
   NotifyGroup notify;
+  FloodSettings flood;
 
   // Pump labels for relay 6..8
   String pump1 = "Pump 1";
@@ -229,6 +241,7 @@ struct AvgAccumulator {
 // Debug
 extern const char* KEY_DEBUG_ENABLED;
 extern bool debugLog;
+extern FloodState floodState;
 
 // request restart (handled in loop)
 extern volatile bool g_restartRequested;
@@ -308,6 +321,13 @@ extern const char* KEY_SHELLYEXHAUSTOFF;
 extern const char* KEY_SHELLYUSERNAME;
 extern const char* KEY_SHELLYUSERNAME;
 extern const char* KEY_SHELLYPASSWORD;
+
+// Flood S Gen4 webhook settings/state keys
+extern const char* KEY_FLOOD_ENABLED;
+extern const char* KEY_FLOOD_TOKEN;
+extern const char* KEY_FLOOD_KNOWN;
+extern const char* KEY_FLOOD_ALARM;
+extern const char* KEY_FLOOD_LAST_SEEN;
 extern const char* KEY_POWER_PRICE_KWH;
 extern float powerPriceKwhEur;
 

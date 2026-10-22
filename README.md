@@ -242,6 +242,14 @@ Unified state payload for frontend and external integrations (recommended primar
 Pump selection is exposed as `irrigation.pump1.enabled`, `irrigation.pump2.enabled` and `irrigation.pump3.enabled`.
 Disabled pumps are visibly marked in the status UI, and their manual 10-second test buttons cannot be operated.
 
+Shelly Flood S Gen4 state is exposed event-driven as:
+- `sensors.flood.configured`
+- `sensors.flood.alarm` (`null` until the first valid event)
+- `sensors.flood.status` (`disabled`, `unknown`, `ok`, `alarm`)
+- `sensors.flood.lastSeen`
+
+The Flood sensor IP address and webhook token are intentionally **not** exposed through `/api/state`. The battery-powered sensor is never polled by GrowTent.
+
 ### Control
 - `POST /relay/{1..5}/toggle`
 - `POST /pump/6/triggerPump10s`
@@ -258,6 +266,10 @@ Disabled pumps are visibly marked in the status UI, and their manual 10-second t
 - `POST /shelly/humidifier/toggle`
 - `POST /shelly/heater/toggle`
 - `POST /api/shelly/reset-energy`
+- `GET|POST /api/flood/event?token=<token>&alarm=0|1`
+  - event receiver for Shelly Flood S Gen4 URL actions
+  - authenticated with a dedicated per-controller token
+  - persists the last known flood state across ESP restarts
 
 ### Scheduling / Settings
 - `POST /api/relay/schedule/save-all`
@@ -332,3 +344,10 @@ Add license information here (no license file present in the source snapshot). I
 ### v0.2.22 pump status UI
 - Disabled pumps now show a translated text label instead of a grey disabled test button.
 - The manual 10-second test button is only visible for enabled pumps.
+
+
+### v0.2.23 Flood S Gen4 integration
+- Added event-driven Shelly Flood S Gen4 integration without a polling task.
+- Added a dedicated webhook token and generated Flood alarm / Flood alarm off URLs in Shelly settings.
+- Persisted the last known flood state across ESP restarts to support the sensor's sleep behavior.
+- Added `sensors.flood.*` fields to `/api/state` without exposing the Flood IP address or token.
