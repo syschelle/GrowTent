@@ -795,8 +795,8 @@ void handleApiState() {
 
 // -------------------- Deferred init task (moves slow stuff out of setup) --------------------
 static void taskDeferredInit(void* /*pv*/) {
-  // Read full preferences (relays, run settings, shelly, notifications, etc.)
-  readPreferences();
+  // Persistent settings are loaded synchronously in setup() before the web server starts.
+  // Keep slow hardware/network initialization in this deferred task.
 
   // DS18B20 init (quick)
   sensors.begin();
@@ -896,6 +896,12 @@ void setup() {
   loadPrefInt(KEY_RELAYCOUNT, activeRelayCount, 4, true, "activeRelayCount");
   activeRelayCount = (activeRelayCount == 8) ? 8 : 4;
   preferences.end();
+
+  // Load ALL persistent runtime settings before any HTTP route can be served.
+  // This prevents a boot-time race where the UI could render empty/default grow dates
+  // and write them back before the deferred initialization task restored NVS values.
+  readPreferences();
+  logPrint("[BOOT] Persistent settings loaded before web server start");
   
   // Initialize relay outputs ASAP (prevent random toggles)
   for (int i = 0; i < activeRelayCount; i++) {

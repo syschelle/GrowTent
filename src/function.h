@@ -488,7 +488,31 @@ void handleSaveRunsettings() {
   // -----------------------------
   // Runsettings - grow settings
   // -----------------------------
-  saveStringJson("webGrowStart",       KEY_STARTDATE,     startDate,                    "Grow Start Date");
+  // Never overwrite an existing grow start date with an empty or malformed value.
+  // This is a safety net in addition to loading Preferences before the web server starts.
+  if (!doc["webGrowStart"].isNull()) {
+    String requestedGrowStart = String(doc["webGrowStart"].as<const char*>());
+    requestedGrowStart.trim();
+
+    int y = 0, m = 0, d = 0;
+    const bool formatOk =
+      requestedGrowStart.length() == 10 &&
+      requestedGrowStart.charAt(4) == '-' &&
+      requestedGrowStart.charAt(7) == '-' &&
+      sscanf(requestedGrowStart.c_str(), "%d-%d-%d", &y, &m, &d) == 3 &&
+      y >= 2020 && y <= 2100 &&
+      m >= 1 && m <= 12 &&
+      d >= 1 && d <= 31;
+
+    if (formatOk) {
+      startDate = requestedGrowStart;
+      preferences.putString(KEY_STARTDATE, startDate);
+      logPrint("[PREFERENCES SAVE] Grow Start Date written = " + startDate);
+    } else {
+      logPrint("[PREFERENCES SAVE] Grow Start Date ignored: empty or invalid value");
+    }
+  }
+
   saveStringJson("webFloweringStart",  KEY_FLOWERDATE,    startFlowering,               "Flowering Start Date");
   saveStringJson("webDryingStart",     KEY_DRYINGDATE,    startDrying,                  "Drying Start Date");
 

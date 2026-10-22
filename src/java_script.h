@@ -1206,7 +1206,12 @@ async function startNewGrow(){
     }
   };
 
-  document.addEventListener('DOMContentLoaded', updateFloodWebhookPreview);
+  // We are already inside the main DOMContentLoaded handler here.
+  // Calling another DOMContentLoaded listener at this point would never fire
+  // after a normal ESP/browser reload. Build the persisted webhook URLs now
+  // and refresh them again when the page is restored from the browser cache.
+  updateFloodWebhookPreview();
+  window.addEventListener('pageshow', updateFloodWebhookPreview);
 
   // ---------- Sensor fetch (/api/state) ----------
   let sensorFetchInFlight = false;

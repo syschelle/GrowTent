@@ -381,3 +381,20 @@ Add license information here (no license file present in the source snapshot). I
 - The change is intended to keep the web UI available even when free heap is fragmented and the largest free block is around 50–60 KB.
 - Flood S Gen4 behavior, sensor tasks, Shelly control logic, irrigation and VPD control are unchanged.
 - Shelly status polling is now staggered: one Shelly is checked per step instead of all six back-to-back, avoiding multi-second timeout bursts when devices are offline.
+
+
+### v0.2.28 Grow date persistence hardening
+
+- Loads all persistent runtime Preferences before the HTTP server is started.
+- Removes the boot-time race where the web UI could temporarily render empty/default grow values before NVS was restored.
+- Protects `webGrowStart` from being overwritten by an empty or malformed value.
+- Keeps slow sensor/network initialization in the deferred initialization task.
+- No changes to Flood S Gen4 polling policy, irrigation control, VPD control, or relay scheduling.
+
+### v0.2.29 Flood webhook URL restore fix
+
+- Fixed Flood S Gen4 webhook URLs remaining blank after an ESP restart or normal browser reload.
+- The persisted Flood token is now converted into both complete Shelly Action URLs immediately when the web UI initializes.
+- Webhook URL previews are also refreshed on `pageshow` so browser back/forward cache restores remain correct.
+- No changes to Flood event handling, Shelly polling, VPD control, irrigation, relay scheduling, or FreeRTOS task layout.
+
