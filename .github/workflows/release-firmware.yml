@@ -51,7 +51,28 @@ jobs:
             printf 'ESP32 firmware %s\n' "${GITHUB_REF_NAME}" > release_notes.md
           fi
 
-      - name: Create GitHub Release and upload firmware.bin
+      - name: Prepare OTA manifest
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          notes = Path("release_notes.md").read_text(encoding="utf-8")
+          manifest = {
+              "version": tag,
+              "firmwareUrl": "https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin",
+              "changelog": notes,
+          }
+          Path("manifest.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, separators=(",", ":")),
+              encoding="utf-8",
+          )
+          PY
+          cat manifest.json
+
+      - name: Create GitHub Release and upload OTA assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -59,9 +80,9 @@ jobs:
             gh release edit "${GITHUB_REF_NAME}" \
               --title "${GITHUB_REF_NAME}" \
               --notes-file release_notes.md
-            gh release upload "${GITHUB_REF_NAME}" firmware.bin --clobber
+            gh release upload "${GITHUB_REF_NAME}" firmware.bin manifest.json --clobber
           else
-            gh release create "${GITHUB_REF_NAME}" firmware.bin \
+            gh release create "${GITHUB_REF_NAME}" firmware.bin manifest.json \
               --title "${GITHUB_REF_NAME}" \
               --notes-file release_notes.md \
               --verify-tag

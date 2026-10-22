@@ -2481,9 +2481,15 @@ async function checkForOtaUpdate() {
 
   try {
     const r = await fetch('/api/ota/check', { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
+    const raw = await r.text();
+    let d = null;
+    try { d = raw ? JSON.parse(raw) : null; } catch (_) {}
 
+    if (!r.ok) {
+      const detail = d && d.error ? ': ' + d.error : (raw ? ': ' + raw.substring(0, 120) : '');
+      throw new Error('HTTP ' + r.status + detail);
+    }
+    if (!d) throw new Error('Ungültige Antwort vom Controller');
     if (!d.ok) throw new Error(d.error || 'Check failed');
 
     ver.textContent = `Installiert: ${d.currentVersion} | Neueste: ${d.latestVersion}`;

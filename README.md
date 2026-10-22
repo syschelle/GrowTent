@@ -399,6 +399,16 @@ Add license information here (no license file present in the source snapshot). I
 - Stores Flood event timestamps as UTC ISO-8601 and formats them locally in the browser.
 - Keeps the integration event-driven: the GrowTent controller still never polls the Flood S Gen4.
 
+
+### v0.2.31 OTA manifest reliability
+
+- OTA update checks now use a small `manifest.json` release asset instead of parsing GitHub's complete latest-release API response on the ESP32.
+- The release workflow publishes `manifest.json` together with `firmware.bin`.
+- OTA checking uses forced redirect following and HTTP/1.0 connection-close responses to reduce buffering and heap pressure.
+- OTA check diagnostics now report HTTP status, content length, free heap and largest allocatable heap block on Serial.
+- The web UI now displays the controller's detailed OTA error reason instead of only a generic HTTP status.
+- Firmware download and installation continue to use the existing `firmware.bin` latest-release URL.
+
 ### v0.2.29 Flood webhook URL restore fix
 
 - Fixed Flood S Gen4 webhook URLs remaining blank after an ESP restart or normal browser reload.

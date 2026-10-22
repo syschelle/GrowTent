@@ -76,87 +76,89 @@ void handleOtaCheck() {
     return;
   }
 
-  const String apiUrl =
-      String("https://api.github.com/repos/") +
-      GITHUB_OWNER + "/" + GITHUB_REPO + "/releases/latest";
+  // Since v0.2.31 the release workflow publishes a tiny manifest.json next to
+  // firmware.bin.  Reading this small file is much cheaper and more robust on
+  // the ESP32 than parsing GitHub's full /releases/latest API response.
+  const String manifestUrl =
+      String("https://github.com/") + GITHUB_OWNER + "/" + GITHUB_REPO +
+      "/releases/latest/download/manifest.json";
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setTimeout(10);
 
   HTTPClient http;
-  http.setTimeout(12000);
+  http.setConnectTimeout(6000);
+  http.setTimeout(8000);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+  http.useHTTP10(true);  // connection-close response; avoids chunked buffering surprises
 
-  if (!http.begin(client, apiUrl)) {
+  Serial.println("[OTA CHECK] begin");
+  Serial.print("[OTA CHECK] freeHeap=");
+  Serial.print(ESP.getFreeHeap());
+  Serial.print(" largestBlock=");
+  Serial.println(ESP.getMaxAllocHeap());
+
+  if (!http.begin(client, manifestUrl)) {
+    Serial.println("[OTA CHECK] http.begin failed");
     server.send(500, "application/json; charset=utf-8",
                 "{\"ok\":false,\"error\":\"http_begin_failed\"}");
     return;
   }
 
   http.addHeader("User-Agent", "GrowTent-ESP32");
-  http.addHeader("Accept", "application/vnd.github+json");
-
   const int code = http.GET();
-  if (code != 200) {
-    String err = String("{\"ok\":false,\"error\":\"github_http_") + code + "\"}";
+
+  Serial.print("[OTA CHECK] HTTP=");
+  Serial.print(code);
+  Serial.print(" contentLength=");
+  Serial.println(http.getSize());
+
+  if (code != HTTP_CODE_OK) {
+    String err = String("{\"ok\":false,\"error\":\"manifest_http_") + code + "\"}";
     http.end();
     server.send(502, "application/json; charset=utf-8", err);
     return;
   }
 
   JsonDocument filter;
-  filter["tag_name"] = true;
-  filter["body"] = true;
-  filter["assets"][0]["name"] = true;
-  filter["assets"][0]["browser_download_url"] = true;
+  filter["version"] = true;
+  filter["changelog"] = true;
+  filter["firmwareUrl"] = true;
 
   JsonDocument doc;
   DeserializationError jerr =
-    deserializeJson(doc, http.getStream(),
-                  DeserializationOption::Filter(filter));
+      deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
 
   http.end();
 
   if (jerr) {
-    server.send(500, "application/json; charset=utf-8",
-                "{\"ok\":false,\"error\":\"json_parse_failed\"}");
+    Serial.print("[OTA CHECK] JSON parse failed: ");
+    Serial.println(jerr.c_str());
+    String err = "{\"ok\":false,\"error\":\"json_parse_failed:";
+    err += jerr.c_str();
+    err += "\"}";
+    server.send(502, "application/json; charset=utf-8", err);
     return;
   }
 
-  String latestTag = doc["tag_name"] | "";
-  String changelog = doc["body"] | "";
-  String firmwareUrl = "";
+  const String latestTag = doc["version"] | "";
+  const String changelog = doc["changelog"] | "";
+  String firmwareUrl = doc["firmwareUrl"] | "";
 
-  JsonVariant assetsVar = doc["assets"];
-  if (assetsVar.is<JsonArray>()) {
-    JsonArray assets = assetsVar.as<JsonArray>();
-
-    for (JsonObject asset : assets) {
-      String name = asset["name"] | "";
-      String url  = asset["browser_download_url"] | "";
-
-      if (name.equalsIgnoreCase(OTA_ASSET_NAME)) {
-        firmwareUrl = url;
-        break;
-      }
-    }
-
-    if (firmwareUrl.isEmpty()) {
-      for (JsonObject asset : assets) {
-        String name = asset["name"] | "";
-        String url  = asset["browser_download_url"] | "";
-
-        if (name.endsWith(".bin")) {
-          firmwareUrl = url;
-          break;
-        }
-      }
-    }
+  if (latestTag.isEmpty()) {
+    Serial.println("[OTA CHECK] manifest missing version");
+    server.send(502, "application/json; charset=utf-8",
+                "{\"ok\":false,\"error\":\"manifest_missing_version\"}");
+    return;
   }
 
-  bool updateAvailable = false;
-  if (!latestTag.isEmpty()) {
-    updateAvailable = (compareSemver(String(FW_VERSION), latestTag) < 0);
+  if (firmwareUrl.isEmpty()) {
+    firmwareUrl = String("https://github.com/") + GITHUB_OWNER + "/" + GITHUB_REPO +
+                  "/releases/latest/download/firmware.bin";
   }
+
+  const bool updateAvailable = (compareSemver(String(FW_VERSION), latestTag) < 0);
 
   JsonDocument out;
   out["ok"] = true;
@@ -168,6 +170,13 @@ void handleOtaCheck() {
 
   String resp;
   serializeJson(out, resp);
+
+  Serial.print("[OTA CHECK] current=");
+  Serial.print(FW_VERSION);
+  Serial.print(" latest=");
+  Serial.print(latestTag);
+  Serial.print(" updateAvailable=");
+  Serial.println(updateAvailable ? "true" : "false");
 
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json; charset=utf-8", resp);
