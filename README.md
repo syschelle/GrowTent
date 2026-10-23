@@ -439,3 +439,13 @@ Add license information here (no license file present in the source snapshot). I
 - OTA manifests now use the version-specific `RELEASE_NOTES_<version>.md` file.
 - GitHub Release notes and the OTA changelog are generated from the same source.
 - Annotated tag text is only used as a fallback when no release-notes file exists.
+
+
+### v0.2.35 Firmware version in header
+
+The installed firmware version is shown directly below the tent/controller name in the top-left header. The value comes from the same `FW_VERSION` generated from the release tag.
+
+
+### v0.2.36 Header version label cleanup
+
+The top-left header now shows only the installed version (for example `v0.2.36`) below the tent/controller name, without the `Firmware:` prefix.

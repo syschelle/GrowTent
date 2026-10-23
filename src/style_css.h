@@ -28,7 +28,9 @@ const char cssContent[] PROGMEM = R"rawliteral(
     }
     .hamburger{inline-size:40px;block-size:40px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:0;color:inherit;cursor:pointer;border-radius:var(--radius);font-size:22px}
     .hamburger:focus-visible{outline:2px solid #fff;outline-offset:2px}
+    .title-stack{display:flex;flex-direction:column;justify-content:center;line-height:1.05;min-width:0}
     .title{font-weight:600;font-size:clamp(1rem,.6vw+.9rem,1.2rem)}
+    .firmware-version{font-size:.68rem;font-weight:500;opacity:.72;margin-top:3px;white-space:nowrap}
     .datetime{display:flex;flex-direction:column;align-items:flex-end;font-size:.85rem;line-height:1.2}
 
     .flood-header-status{

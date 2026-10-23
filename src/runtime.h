@@ -8,6 +8,14 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+#if __has_include("build_version.h")
+#include "build_version.h"
+#endif
+
+#ifndef FW_VERSION
+#define FW_VERSION "dev"
+#endif
+
 // Include global definitions and functions
 #include <globals.h>
 #include <globals.h>
@@ -108,6 +116,7 @@ static void applyMainPageReplacements(String& html) {
   }
 
   html.replace("%CONTROLLERNAME%", settings.ui.boxName);
+  html.replace("%FWVERSION%", String(FW_VERSION));
 
   // Replace placeholders in index_html.h
   html.replace("%TARGETTEMPERATURE%", String(settings.grow.targetTemperature, 1));
@@ -301,6 +310,7 @@ void handleRoot() {
     String html = FPSTR(apPage);
     html.replace("%CONTROLLERNAME%", settings.ui.boxName);
     html.replace("%CONTENTCONTROLLERNAME%", settings.ui.boxName);
+    html.replace("%FWVERSION%", String(FW_VERSION));
     server.send(200, "text/html; charset=utf-8", html);
     return;
   }
