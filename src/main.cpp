@@ -782,7 +782,8 @@ static void buildApiStateJson(String& json) {
 
 // -------------------- State/Variables API (registry -> JSON) --------------------
 void handleApiState() {
-  uint32_t now = millis();
+  const uint32_t startedMs = millis();
+  const uint32_t now = startedMs;
 
   if (g_apiStateCache.length() == 0 || (now - g_apiStateCacheMs) > API_STATE_CACHE_TTL_MS) {
     buildApiStateJson(g_apiStateCache);
@@ -791,6 +792,14 @@ void handleApiState() {
 
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json; charset=utf-8", g_apiStateCache);
+
+  const uint32_t durationMs = (uint32_t)(millis() - startedMs);
+  if (durationMs >= 250UL) {
+    logPrint("[API] /api/state slow durationMs=" + String(durationMs) +
+             " size=" + String(g_apiStateCache.length()) +
+             " wifiStatus=" + String((int)WiFi.status()) +
+             " freeHeap=" + String(ESP.getFreeHeap()));
+  }
 }
 
 // -------------------- Deferred init task (moves slow stuff out of setup) --------------------
@@ -1146,6 +1155,55 @@ void setup() {
 
 // -------------------- loop --------------------
 void loop() {
+  // Web/API responsiveness watchdog. A long gap means the synchronous WebServer
+  // could not service backend requests during that interval. Log only abnormal gaps.
+  static uint32_t lastLoopEntryMs = 0;
+  static uint32_t lastLoopGapLogMs = 0;
+  const uint32_t loopNowMs = millis();
+  if (lastLoopEntryMs != 0) {
+    const uint32_t loopGapMs = (uint32_t)(loopNowMs - lastLoopEntryMs);
+    if (loopGapMs >= 1000UL &&
+        (lastLoopGapLogMs == 0 || (uint32_t)(loopNowMs - lastLoopGapLogMs) >= 5000UL)) {
+      lastLoopGapLogMs = loopNowMs;
+      logPrint("[WEB] main loop gap=" + String(loopGapMs) +
+               "ms wifiStatus=" + String((int)WiFi.status()) +
+               " freeHeap=" + String(ESP.getFreeHeap()) +
+               " maxAlloc=" + String(ESP.getMaxAllocHeap()));
+    }
+  }
+  lastLoopEntryMs = loopNowMs;
+
+  // Observe WiFi link state once per second so even short disconnects become visible
+  // in the system log. This is intentionally separate from the slower reconnect policy.
+  static uint32_t lastWifiObserveMs = 0;
+  static wl_status_t lastObservedWifiStatus = WL_NO_SHIELD;
+  static uint32_t wifiLostAtMs = 0;
+  static uint32_t wifiDisconnectCount = 0;
+
+  if ((uint32_t)(loopNowMs - lastWifiObserveMs) >= 1000UL) {
+    lastWifiObserveMs = loopNowMs;
+    const wl_status_t observed = WiFi.status();
+
+    if (lastObservedWifiStatus == WL_NO_SHIELD) {
+      lastObservedWifiStatus = observed;
+    } else if (observed != lastObservedWifiStatus) {
+      if (lastObservedWifiStatus == WL_CONNECTED && observed != WL_CONNECTED) {
+        wifiLostAtMs = loopNowMs;
+        wifiDisconnectCount++;
+        logPrint("[WIFI] link lost status=" + String((int)observed) +
+                 " disconnects=" + String(wifiDisconnectCount));
+      } else if (observed == WL_CONNECTED) {
+        const uint32_t downtimeMs = wifiLostAtMs ? (uint32_t)(loopNowMs - wifiLostAtMs) : 0UL;
+        logPrint("[WIFI] link restored ip=" + WiFi.localIP().toString() +
+                 " rssi=" + String(WiFi.RSSI()) +
+                 " downtimeMs=" + String(downtimeMs) +
+                 " disconnects=" + String(wifiDisconnectCount));
+        wifiLostAtMs = 0;
+      }
+      lastObservedWifiStatus = observed;
+    }
+  }
+
   // WiFi reconnect policy:
   // - check every 10s
   // - gentle reconnect only every 15s
@@ -1194,6 +1252,7 @@ void loop() {
                (uint32_t)(millis() - lastWifiReconnectAttempt) >= WIFI_RECONNECT_RETRY_MS)) {
 
             lastWifiReconnectAttempt = millis();
+            logPrint("[WIFI] reconnect attempt status=" + String((int)st));
             WiFi.reconnect();
           }
         } else {
@@ -1201,6 +1260,8 @@ void loop() {
               (uint32_t)(millis() - lastWifiHardResetAttempt) >= WIFI_HARD_RESET_RETRY_MS) {
 
             lastWifiHardResetAttempt = millis();
+            logPrint("[WIFI] hard reconnect after offlineMs=" +
+                     String((uint32_t)(millis() - wifiDownSince)));
 
             // Important: do NOT erase saved WiFi/AP config
             WiFi.disconnect(false, false);

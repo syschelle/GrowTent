@@ -416,3 +416,13 @@ Add license information here (no license file present in the source snapshot). I
 - Webhook URL previews are also refreshed on `pageshow` so browser back/forward cache restores remain correct.
 - No changes to Flood event handling, Shelly polling, VPD control, irrigation, relay scheduling, or FreeRTOS task layout.
 
+
+
+### v0.2.32 Wi-Fi / backend connectivity diagnostics
+
+- Pins PlatformIO to `espressif32@6.11.0` so local and GitHub release builds use the same ESP32/Arduino runtime.
+- Logs Wi-Fi link loss and restoration, including downtime, RSSI and reconnect attempts.
+- Logs main-loop stalls of at least one second because they can delay the synchronous web server and `/api/state`.
+- Logs `/api/state` responses that take at least 250 ms without logging every normal backend poll.
+- Replaces ambiguous Shelly `EmptyInput` JSON errors with explicit empty-response diagnostics.
+- Does not change grow control, irrigation, Flood S Gen4 handling or relay scheduling.

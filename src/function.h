@@ -2241,6 +2241,12 @@ static bool readShellyScheduleList(ShellyDevice& dev, int switchId, int port) {
     return false;
   }
 
+  if (sbody.length() == 0) {
+    logPrint("[SHELLY] Schedule.List empty response body gen=" + String(dev.gen) +
+             " HTTP=" + String(scode) + " " + dev.ip + ":" + String(port));
+    return false;
+  }
+
   JsonDocument sdoc;
   DeserializationError serr = deserializeJson(sdoc, sbody);
   if (serr) {
@@ -2435,6 +2441,12 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
     logPrint("[SHELLY] request failed gen=" + String(dev.gen) +
              " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path);
     if (body.length()) logPrint("[SHELLY] body(first200): " + body.substring(0, 200));
+    return v;
+  }
+
+  if (body.length() == 0) {
+    logPrint("[SHELLY] empty response body gen=" + String(dev.gen) +
+             " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path);
     return v;
   }
 
