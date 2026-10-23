@@ -426,3 +426,10 @@ Add license information here (no license file present in the source snapshot). I
 - Logs `/api/state` responses that take at least 250 ms without logging every normal backend poll.
 - Replaces ambiguous Shelly `EmptyInput` JSON errors with explicit empty-response diagnostics.
 - Does not change grow control, irrigation, Flood S Gen4 handling or relay scheduling.
+
+### v0.2.33 OTA progress feedback
+
+- Adds a real-time progress bar for online OTA firmware installation.
+- Shows actual transfer percentage and transferred/total firmware bytes from the ESP32 `HTTPUpdate` progress callback.
+- Displays immediate start feedback, successful completion/restart state, and detailed OTA errors in the web UI.
+- Streams compact progress events over the existing OTA request without adding another FreeRTOS task.

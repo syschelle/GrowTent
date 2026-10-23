@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.2.32">
+  <link rel="stylesheet" href="/style.css?v=0.2.33">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -1042,8 +1042,17 @@ const char* htmlPage = R"rawliteral(
       <div id="otaVersion"></div>
       <pre id="otaChangelog" style="white-space:pre-wrap;"></pre>
 
+      <div id="otaProgressPanel" class="ota-progress hidden" aria-live="polite">
+        <div class="ota-progress-head">
+          <span id="otaProgressLabel">OTA Update</span>
+          <strong id="otaProgressPercent">0%</strong>
+        </div>
+        <progress id="otaProgressBar" max="100" value="0">0%</progress>
+        <div id="otaProgressDetail" class="muted">Bereit.</div>
+      </div>
+
       <div class="spacer"></div>
-        <button type="button" class="primary" onclick="checkForOtaUpdate()">Auf Update prüfen</button>
+        <button type="button" class="primary" id="otaCheckBtn" onclick="checkForOtaUpdate()">Auf Update prüfen</button>
       <div class="spacer"></div>
         <button type="button" class="primary" id="otaInstallBtn" onclick="startOtaUpdate()" disabled>Update installieren</button>
     </section>
@@ -1059,7 +1068,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.2.32"></script>
+ <script src="/script.js?v=0.2.33"></script>
 </body>
 </html>
 )rawliteral";
@@ -1070,7 +1079,7 @@ const char* apPage = R"rawliteral(
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css?v=0.2.32">
+  <link rel="stylesheet" href="/style.css?v=0.2.33">
 </head>
 <body>
   <header class="header">
@@ -1106,7 +1115,7 @@ const char* apPage = R"rawliteral(
     </main>
   </div>
   
- <script src="/script.js?v=0.2.32"></script>
+ <script src="/script.js?v=0.2.33"></script>
 </body>
 </html>
 )rawliteral";

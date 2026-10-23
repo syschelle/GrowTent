@@ -770,4 +770,25 @@ const char cssContent[] PROGMEM = R"rawliteral(
     min-width:140px;
 }
 
+
+    .ota-progress{
+      margin-top:14px;
+      padding:12px;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      background:var(--muted);
+    }
+    .ota-progress-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:8px;
+    }
+    .ota-progress progress{
+      width:100%;
+      height:20px;
+      display:block;
+    }
+    #otaProgressDetail{margin-top:6px;font-size:.9rem}
 )rawliteral";

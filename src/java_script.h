@@ -2395,23 +2395,156 @@ window.saveRunsettingsAll = async function () {
 };
 
 window.startOtaUpdate = async function () {
-    try {
-        const res = await fetch("/api/ota/update", {
-            method: "POST",
-            cache: "no-store"
-        });
+  const status = document.getElementById('otaStatus');
+  const panel = document.getElementById('otaProgressPanel');
+  const bar = document.getElementById('otaProgressBar');
+  const percentEl = document.getElementById('otaProgressPercent');
+  const label = document.getElementById('otaProgressLabel');
+  const detail = document.getElementById('otaProgressDetail');
+  const installBtn = document.getElementById('otaInstallBtn');
+  const checkBtn = document.getElementById('otaCheckBtn');
 
-        if (!res.ok) {
-            alert("OTA update failed.");
-            return;
-        }
+  const formatBytes = (n) => {
+    const v = Number(n);
+    if (!Number.isFinite(v) || v < 0) return '—';
+    if (v >= 1024 * 1024) return (v / (1024 * 1024)).toFixed(2) + ' MB';
+    if (v >= 1024) return (v / 1024).toFixed(0) + ' KB';
+    return v + ' B';
+  };
 
-        alert("OTA update started. Device will reboot if successful.");
-    } 
-    catch (err) {
-        console.error("[OTA] request failed:", err);
-        alert("OTA request failed.");
+  const setProgress = (percent, text, subtext) => {
+    const p = Math.max(0, Math.min(100, Number(percent) || 0));
+    panel.classList.remove('hidden');
+    bar.value = p;
+    bar.textContent = p + '%';
+    percentEl.textContent = p + '%';
+    if (text) label.textContent = text;
+    if (subtext !== undefined) detail.textContent = subtext;
+  };
+
+  setProgress(0, 'OTA Update', 'Update wird gestartet…');
+  status.textContent = 'OTA Update wird gestartet…';
+  installBtn.disabled = true;
+  if (checkBtn) checkBtn.disabled = true;
+
+  let completed = false;
+  let failed = false;
+
+  const handleEvent = (evt) => {
+    if (!evt || typeof evt !== 'object') return;
+
+    if (evt.type === 'accepted') {
+      setProgress(0, 'OTA Update', 'Verbindung zum Firmware-Download wird aufgebaut…');
+      return;
     }
+
+    if (evt.type === 'start') {
+      status.textContent = 'Firmware wird heruntergeladen und installiert…';
+      setProgress(0, 'Firmware-Update läuft', 'Download gestartet.');
+      return;
+    }
+
+    if (evt.type === 'progress') {
+      const current = Number(evt.current) || 0;
+      const total = Number(evt.total) || 0;
+      const p = Number(evt.percent) || 0;
+      const bytes = total > 0 ? `${formatBytes(current)} / ${formatBytes(total)}` : formatBytes(current);
+      setProgress(p, 'Firmware-Update läuft', bytes);
+      return;
+    }
+
+    if (evt.type === 'download_complete') {
+      setProgress(100, 'Firmware übertragen', 'Update wird abgeschlossen…');
+      return;
+    }
+
+    if (evt.type === 'result') {
+      completed = true;
+      if (evt.message === 'updated_restarting') {
+        setProgress(100, 'Update erfolgreich', 'ESP wird neu gestartet…');
+        status.textContent = 'Update erfolgreich ✅ – ESP startet neu.';
+      } else if (evt.message === 'no_update') {
+        setProgress(100, 'Kein Update erforderlich', 'Die installierte Firmware ist bereits aktuell.');
+        status.textContent = 'Kein Update erforderlich.';
+      }
+      return;
+    }
+
+    if (evt.type === 'error') {
+      failed = true;
+      completed = true;
+      const msg = evt.message || 'Unbekannter OTA-Fehler';
+      label.textContent = 'OTA Update fehlgeschlagen';
+      detail.textContent = msg;
+      status.textContent = 'OTA-Fehler: ' + msg;
+    }
+  };
+
+  try {
+    const res = await fetch('/api/ota/update', {
+      method: 'POST',
+      cache: 'no-store'
+    });
+
+    if (!res.ok) {
+      const raw = await res.text();
+      let d = null;
+      try { d = raw ? JSON.parse(raw) : null; } catch (_) {}
+      const msg = d && d.error ? d.error : (raw || ('HTTP ' + res.status));
+      throw new Error(msg);
+    }
+
+    if (!res.body || typeof res.body.getReader !== 'function') {
+      throw new Error('Browser unterstützt keinen OTA-Fortschrittsstream.');
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (value) buffer += decoder.decode(value, { stream: !done });
+
+      let nl;
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        try { handleEvent(JSON.parse(line)); }
+        catch (parseErr) { console.warn('[OTA] invalid progress event:', line, parseErr); }
+      }
+
+      if (done) break;
+    }
+
+    const tail = buffer.trim();
+    if (tail) {
+      try { handleEvent(JSON.parse(tail)); }
+      catch (parseErr) { console.warn('[OTA] invalid final event:', tail, parseErr); }
+    }
+
+    if (!completed && !failed) {
+      throw new Error('OTA-Verbindung wurde ohne Abschlussmeldung beendet.');
+    }
+  } catch (err) {
+    // A reboot can close the HTTP connection immediately after the success
+    // event.  Do not overwrite the successful 100% state in that case.
+    if (!completed) {
+      failed = true;
+      const msg = err && err.message ? err.message : String(err);
+      label.textContent = 'OTA Update fehlgeschlagen';
+      detail.textContent = msg;
+      status.textContent = 'OTA-Fehler: ' + msg;
+      console.error('[OTA] request failed:', err);
+    }
+  } finally {
+    if (failed) installBtn.disabled = false;
+    if (checkBtn && (failed || !completed)) checkBtn.disabled = false;
+    if (completed && !failed && status.textContent === 'Kein Update erforderlich.') {
+      if (checkBtn) checkBtn.disabled = false;
+    }
+  }
 };
 
 window.resetShellyEnergy = async function (buttonEl) {

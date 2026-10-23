@@ -182,6 +182,22 @@ void handleOtaCheck() {
   server.send(200, "application/json; charset=utf-8", resp);
 }
 
+static String otaJsonEscape(String value) {
+  value.replace("\\", "\\\\");
+  value.replace("\"", "\\\"");
+  value.replace("\r", "\\r");
+  value.replace("\n", "\\n");
+  return value;
+}
+
+static void sendOtaStreamEvent(const String& jsonLine) {
+  // The OTA request itself stays open while HTTPUpdate downloads/flashes the
+  // image.  Chunked NDJSON lets the browser receive progress from the existing
+  // HTTPUpdate callbacks without creating another FreeRTOS task.
+  if (!server.client().connected()) return;
+  server.sendContent(jsonLine + "\n");
+}
+
 void handleOtaUpdate() {
   if (WiFi.status() != WL_CONNECTED) {
     server.send(503, "application/json; charset=utf-8",
@@ -199,6 +215,13 @@ void handleOtaUpdate() {
   Serial.print("[OTA] URL: ");
   Serial.println(firmwareUrl);
 
+  // Send the response headers immediately.  The body stays open and receives
+  // one compact JSON object per line as the update progresses.
+  server.sendHeader("Cache-Control", "no-store");
+  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  server.send(200, "application/x-ndjson; charset=utf-8", "");
+  sendOtaStreamEvent("{\"type\":\"accepted\",\"percent\":0,\"message\":\"starting\"}");
+
   WiFiClientSecure client;
   client.setInsecure();
   client.setTimeout(30);
@@ -207,19 +230,46 @@ void handleOtaUpdate() {
   otaUpdater.rebootOnUpdate(false);
   otaUpdater.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
-  otaUpdater.onStart([]() {
+  int lastPercentSent = -1;
+
+  otaUpdater.onStart([&]() {
     Serial.println("[OTA] Start");
+    sendOtaStreamEvent("{\"type\":\"start\",\"percent\":0,\"message\":\"download_started\"}");
   });
 
-  otaUpdater.onProgress([](int current, int total) {
-    Serial.printf("[OTA] Progress: %d / %d\n", current, total);
+  otaUpdater.onProgress([&](int current, int total) {
+    int percent = 0;
+    if (total > 0) {
+      percent = (int)((100LL * current) / total);
+      if (percent < 0) percent = 0;
+      if (percent > 100) percent = 100;
+    }
+
+    // Keep Serial useful without flooding it and only push a browser update
+    // when the visible percentage changes.
+    if (percent != lastPercentSent) {
+      lastPercentSent = percent;
+      Serial.printf("[OTA] Progress: %d%% (%d / %d)\n", percent, current, total);
+
+      String evt;
+      evt.reserve(112);
+      evt = "{\"type\":\"progress\",\"current\":";
+      evt += current;
+      evt += ",\"total\":";
+      evt += total;
+      evt += ",\"percent\":";
+      evt += percent;
+      evt += "}";
+      sendOtaStreamEvent(evt);
+    }
   });
 
-  otaUpdater.onEnd([]() {
+  otaUpdater.onEnd([&]() {
     Serial.println("[OTA] End");
+    sendOtaStreamEvent("{\"type\":\"download_complete\",\"percent\":100,\"message\":\"finalizing\"}");
   });
 
-  otaUpdater.onError([](int error) {
+  otaUpdater.onError([&](int error) {
     Serial.printf("[OTA] Error callback: %d\n", error);
   });
 
@@ -227,17 +277,17 @@ void handleOtaUpdate() {
 
   if (ret == HTTP_UPDATE_OK) {
     Serial.println("[OTA] Update OK, restarting...");
-    server.send(200, "application/json; charset=utf-8",
-                "{\"ok\":true,\"message\":\"updated_restarting\"}");
-    delay(1000);
+    sendOtaStreamEvent("{\"type\":\"result\",\"ok\":true,\"percent\":100,\"message\":\"updated_restarting\"}");
+    server.sendContent("");
+    delay(1200);
     ESP.restart();
     return;
   }
 
   if (ret == HTTP_UPDATE_NO_UPDATES) {
     Serial.println("[OTA] No updates");
-    server.send(200, "application/json; charset=utf-8",
-                "{\"ok\":true,\"message\":\"no_update\"}");
+    sendOtaStreamEvent("{\"type\":\"result\",\"ok\":true,\"percent\":100,\"message\":\"no_update\"}");
+    server.sendContent("");
     return;
   }
 
@@ -245,12 +295,8 @@ void handleOtaUpdate() {
   Serial.print("[OTA] Failed: ");
   Serial.println(err);
 
-  err.replace("\\", "\\\\");
-  err.replace("\"", "\\\"");
-
-  String json = "{\"ok\":false,\"error\":\"";
-  json += err;
-  json += "\"}";
-
-  server.send(500, "application/json; charset=utf-8", json);
+  const String escaped = otaJsonEscape(err);
+  sendOtaStreamEvent(String("{\"type\":\"error\",\"ok\":false,\"message\":\"") + escaped + "\"}");
+  server.sendContent("");
 }
+
