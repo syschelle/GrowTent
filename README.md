@@ -433,3 +433,9 @@ Add license information here (no license file present in the source snapshot). I
 - Shows actual transfer percentage and transferred/total firmware bytes from the ESP32 `HTTPUpdate` progress callback.
 - Displays immediate start feedback, successful completion/restart state, and detailed OTA errors in the web UI.
 - Streams compact progress events over the existing OTA request without adding another FreeRTOS task.
+
+### v0.2.34 OTA release information fix
+
+- OTA manifests now use the version-specific `RELEASE_NOTES_<version>.md` file.
+- GitHub Release notes and the OTA changelog are generated from the same source.
+- Annotated tag text is only used as a fallback when no release-notes file exists.
