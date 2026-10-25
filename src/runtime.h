@@ -425,6 +425,7 @@ void readPreferences() {
   loadPrefFloat(KEY_SHELLYEXHAUSTOFF, settings.shelly.exhaust.energyOffsetWh, 0.0f, true, "Shelly Exhaust Energy Offset");
   loadPrefString(KEY_SHELLYHEATMATIP, settings.shelly.heatmat.ip, "", true, "Shelly Heat Mat IP");
   loadPrefInt(KEY_SHELLYHEATMATGEN, settings.shelly.heatmat.gen, 0, true, "Shelly Heat Mat Generation");
+  loadPrefFloat(KEY_SHELLYHEATMATOFF, settings.shelly.heatmat.energyOffsetWh, 0.0f, true, "Shelly Heat Mat Energy Offset");
   loadPrefFloat(KEY_SHELLYFANOFF, settings.shelly.fan.energyOffsetWh, 0.0f, true, "Shelly Fan Energy Offset");
 
   // Shelly credentials (optional Basic Auth)

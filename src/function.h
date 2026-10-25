@@ -3035,6 +3035,7 @@ static void handleResetShellyEnergy() {
     const bool heaterResetOk = resetOne(settings.shelly.heater, KEY_SHELLYHEATEROFF);
     const bool fanResetOk = resetOne(settings.shelly.fan, KEY_SHELLYFANOFF);
     const bool exhaustResetOk = resetOne(settings.shelly.exhaust, KEY_SHELLYEXHAUSTOFF);
+    const bool heatmatResetOk = resetOne(settings.shelly.heatmat, KEY_SHELLYHEATMATOFF);
 
     preferences.end();
 
@@ -3047,6 +3048,12 @@ static void handleResetShellyEnergy() {
         (humidifierResetOk ? "true" : "false") +
         ",\"heater\":" +
         (heaterResetOk ? "true" : "false") +
+        ",\"fan\":" +
+        (fanResetOk ? "true" : "false") +
+        ",\"exhaust\":" +
+        (exhaustResetOk ? "true" : "false") +
+        ",\"heatmat\":" +
+        (heatmatResetOk ? "true" : "false") +
         "}";
 
     server.send(200, "application/json; charset=utf-8", response);

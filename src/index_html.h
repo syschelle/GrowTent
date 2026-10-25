@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.2.36">
+  <link rel="stylesheet" href="/style.css?v=0.2.38">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -289,6 +289,11 @@ const char* htmlPage = R"rawliteral(
         <div class="info" id="shellyExhaustInfo">—</div>
         <button class="primary" data-i18n="status.toggleRelay" onclick="toggleShellyRelay('exhaust')">Toggle</button>
         <button class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('exhaust', this)">Schedule neu einlesen</button>
+      </div>
+      <div class="relay-card" data-relay="shellyHeatMat" id="shellyHeatMatCard" style="display:none;">
+        <div class="relay-title" data-i18n="status.shellyHeatMat">Heizmatte</div>
+        <div id="shelly-heatmat-switch-state" class="shelly-status shelly-off"></div>
+        <div class="info" id="shellyHeatMatInfo">—</div>
       </div>
     </div>
     
@@ -1084,7 +1089,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.2.36"></script>
+ <script src="/script.js?v=0.2.38"></script>
 </body>
 </html>
 )rawliteral";
@@ -1095,7 +1100,7 @@ const char* apPage = R"rawliteral(
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css?v=0.2.36">
+  <link rel="stylesheet" href="/style.css?v=0.2.38">
 </head>
 <body>
   <header class="header">
@@ -1134,7 +1139,7 @@ const char* apPage = R"rawliteral(
     </main>
   </div>
   
- <script src="/script.js?v=0.2.36"></script>
+ <script src="/script.js?v=0.2.38"></script>
 </body>
 </html>
 )rawliteral";

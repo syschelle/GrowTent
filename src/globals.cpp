@@ -77,6 +77,7 @@ const char* KEY_SHELLYEXHAUSTGEN = "shExhaustGen";
 const char* KEY_SHELLYEXHAUSTOFF = "shExhaustOff";
 const char* KEY_SHELLYHEATMATIP = "shHeatMatIP";
 const char* KEY_SHELLYHEATMATGEN = "shHeatMatGen";
+const char* KEY_SHELLYHEATMATOFF = "shHeatMatOff";
 
 
 const char* KEY_SHELLYUSERNAME = "shUser";

@@ -123,6 +123,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "status.shellyLight": { de: "Pflanzlicht", en: "Grow Light" },
   "shelly.shellyIPExhaust": { de: "Shelly IP Adresse für Abluft:", en: "Shelly IP address for exhaust:" },
   "status.shellyExhaust": { de: "Abluft", en: "Exhaust" },
+  "status.shellyHeatMat": { de: "Heizmatte", en: "Heating Mat" },
   "shelly.shellyIPHeatMat": { de: "Shelly IP Adresse für Heizmatte:", en: "Shelly IP address for heating mat:" },
   "shelly.heatMatMonitorOnly": { de: "Nur Monitoring; die Heizmatte wird vom GrowTent nicht geschaltet.", en: "Monitoring only; GrowTent does not switch the heating mat." },
   
@@ -1107,7 +1108,8 @@ async function startNewGrow(){
     heater: ['shelly-heater-switch-state', 'shellyHeaterInfo', 'settings.shelly.heater'],
     humidifier: ['shelly-humidifier-switch-state', 'shellyHumidifierInfo', 'settings.shelly.humidifier'],
     fan: ['shelly-fan-switch-state', 'shellyFanInfo', 'settings.shelly.fan'],
-    exhaust: ['shelly-exhaust-switch-state', 'shellyExhaustInfo', 'settings.shelly.exhaust']
+    exhaust: ['shelly-exhaust-switch-state', 'shellyExhaustInfo', 'settings.shelly.exhaust'],
+    heatmat: ['shelly-heatmat-switch-state', 'shellyHeatMatInfo', 'settings.shelly.heatmat']
   };
 
   function fmtNum(value, digits, unit) {
@@ -1141,11 +1143,17 @@ async function startNewGrow(){
 
     if (infoEl && window._lastStateObj) {
         const s = window._lastStateObj;
-        infoEl.textContent =
-            `${s[`${prefix}.ip`] || '—'} | ` +
-            `Gen ${fmtStateValue(s[`${prefix}.gen`])} | ` +
-            `ON ${fmtStateValue(s[`${prefix}.on`])} | ` +
-            `OFF ${fmtStateValue(s[`${prefix}.off`])}`;
+        if (baseId === 'heatmat') {
+          infoEl.textContent =
+              `${s[`${prefix}.ip`] || '—'} | ` +
+              `Gen ${fmtStateValue(s[`${prefix}.gen`])}`;
+        } else {
+          infoEl.textContent =
+              `${s[`${prefix}.ip`] || '—'} | ` +
+              `Gen ${fmtStateValue(s[`${prefix}.gen`])} | ` +
+              `ON ${fmtStateValue(s[`${prefix}.on`])} | ` +
+              `OFF ${fmtStateValue(s[`${prefix}.off`])}`;
+        }
     }
   }  
 
@@ -1424,6 +1432,20 @@ async function startNewGrow(){
         data['cur.shelly.exhaust.Wh'],
         data['cur.shelly.exhaust.Cost']
       );
+
+      // Heating mat is monitoring-only and its card exists only while configured.
+      const heatMatIp = data['settings.shelly.heatmat.ip'];
+      const heatMatCard = document.getElementById('shellyHeatMatCard');
+      if (heatMatCard) heatMatCard.style.display = heatMatIp ? '' : 'none';
+      if (heatMatIp) {
+        setSwitchWithMetrics(
+          'heatmat',
+          data['cur.shelly.heatmat.isOn'],
+          data['cur.shelly.heatmat.Watt'],
+          data['cur.shelly.heatmat.Wh'],
+          data['cur.shelly.heatmat.Cost']
+        );
+      }
 
       // Relays
       const relays = buildRelayArrayFromApiState(data, relayCount);
@@ -2090,7 +2112,8 @@ function updateShellyInfoLinesFromState(s){
       { ids: ['shellyHumidifierInfo'],                   key: 'humidifier' },
       { ids: ['shellyHeaterInfo'],                       key: 'heater' },
       { ids: ['shellyFanInfo'],                          key: 'fan' },
-      { ids: ['shellyExhaustInfo'],                      key: 'exhaust' }
+      { ids: ['shellyExhaustInfo'],                      key: 'exhaust' },
+      { ids: ['shellyHeatMatInfo'],                      key: 'heatmat' }
     ];
 
     for (const it of map) {

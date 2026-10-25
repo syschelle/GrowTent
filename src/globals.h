@@ -321,6 +321,7 @@ extern const char* KEY_SHELLYEXHAUSTGEN;
 extern const char* KEY_SHELLYEXHAUSTOFF;
 extern const char* KEY_SHELLYHEATMATIP;
 extern const char* KEY_SHELLYHEATMATGEN;
+extern const char* KEY_SHELLYHEATMATOFF;
 
 extern const char* KEY_SHELLYUSERNAME;
 extern const char* KEY_SHELLYUSERNAME;

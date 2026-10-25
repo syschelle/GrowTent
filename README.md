@@ -450,3 +450,8 @@ The installed firmware version is shown directly below the tent/controller name 
 ### v0.2.36 Header version label cleanup
 
 The top-left header now shows only the installed version (for example `v0.2.36`) below the tent/controller name, without the `Firmware:` prefix.
+
+
+## v0.2.38
+
+Adds the optional heating-mat dashboard tile and includes its energy counter in the Shelly kWh reset action when configured.
