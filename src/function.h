@@ -1022,6 +1022,19 @@ void handleSaveShellySettings() {
         "Exhaust Gen"
     );
 
+    // Heating mat is monitoring-only. It is saved like a Shelly device but is never
+    // referenced by switch, schedule or control handlers.
+    saveShellyDevice(
+        settings.shelly.heatmat.ip,
+        settings.shelly.heatmat.gen,
+        "webShellyHeatMatIP",
+        KEY_SHELLYHEATMATIP,
+        "Heat Mat IP",
+        "webShellyHeatMatGen",
+        KEY_SHELLYHEATMATGEN,
+        "Heat Mat Gen"
+    );
+
     // Flood S Gen4 webhook settings. The Flood IP is deliberately not stored.
     settings.flood.enabled = server.hasArg("webFloodEnabled");
     if (server.hasArg("webFloodToken")) {

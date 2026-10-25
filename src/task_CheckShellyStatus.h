@@ -22,6 +22,7 @@ void taskShellyStatus(void *parameter){
   static PollState heaterState;
   static PollState fanState;
   static PollState exhaustState;
+  static PollState heatmatState;
 
   constexpr uint32_t RETRY_BACKOFF_MS = 30000UL;
 
@@ -92,12 +93,14 @@ void taskShellyStatus(void *parameter){
       case 2: pollDevice(settings.shelly.humidifier, shelly.humidifier, humidifierState); break;
       case 3: pollDevice(settings.shelly.heater,     shelly.heater,     heaterState); break;
       case 4: pollDevice(settings.shelly.fan,        shelly.fan,        fanState); break;
-      default: pollDevice(settings.shelly.exhaust,   shelly.exhaust,    exhaustState); break;
+      case 5: pollDevice(settings.shelly.exhaust,    shelly.exhaust,    exhaustState); break;
+      default: pollDevice(settings.shelly.heatmat,   shelly.heatmat,    heatmatState); break;
     }
-    pollIndex = (pollIndex + 1) % 6;
+    pollIndex = (pollIndex + 1) % 7;
 
-    // Six steps at 1.5 s keep the normal per-device refresh close to the
-    // previous ~10 s cadence while avoiding a burst of six HTTP operations.
-    vTaskDelay(pdMS_TO_TICKS(1500));
+    // Seven steps at 1.4 s keep the per-device refresh close to the existing
+    // ~10 s cadence while avoiding a burst of consecutive HTTP operations.
+    // Empty IPs are skipped without any network request.
+    vTaskDelay(pdMS_TO_TICKS(1400));
   }
 }

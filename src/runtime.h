@@ -227,6 +227,11 @@ static void applyMainPageReplacements(String& html) {
   html.replace("%SHEXHAUSTKIND2%", settings.shelly.exhaust.gen == 2 ? "selected" : "");
   html.replace("%SHEXHAUSTKIND3%", settings.shelly.exhaust.gen == 3 ? "selected" : "");
 
+  html.replace("%SHELLYHEATMATIP%", settings.shelly.heatmat.ip);
+  html.replace("%SHHEATMATKIND1%", settings.shelly.heatmat.gen == 1 ? "selected" : "");
+  html.replace("%SHHEATMATKIND2%", settings.shelly.heatmat.gen == 2 ? "selected" : "");
+  html.replace("%SHHEATMATKIND3%", settings.shelly.heatmat.gen == 3 ? "selected" : "");
+
   html.replace("%POWERPRICEKWH%", String(powerPriceKwhEur, 2));
 
   html.replace("%SHUSER%", settings.shelly.username);
@@ -418,6 +423,8 @@ void readPreferences() {
   loadPrefString(KEY_SHELLYEXHAUSTIP, settings.shelly.exhaust.ip, "", true, "Shelly Exhaust IP");
   loadPrefInt(KEY_SHELLYEXHAUSTGEN, settings.shelly.exhaust.gen, 0, true, "Shelly Exhaust Generation");
   loadPrefFloat(KEY_SHELLYEXHAUSTOFF, settings.shelly.exhaust.energyOffsetWh, 0.0f, true, "Shelly Exhaust Energy Offset");
+  loadPrefString(KEY_SHELLYHEATMATIP, settings.shelly.heatmat.ip, "", true, "Shelly Heat Mat IP");
+  loadPrefInt(KEY_SHELLYHEATMATGEN, settings.shelly.heatmat.gen, 0, true, "Shelly Heat Mat Generation");
   loadPrefFloat(KEY_SHELLYFANOFF, settings.shelly.fan.energyOffsetWh, 0.0f, true, "Shelly Fan Energy Offset");
 
   // Shelly credentials (optional Basic Auth)

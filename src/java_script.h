@@ -123,6 +123,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "status.shellyLight": { de: "Pflanzlicht", en: "Grow Light" },
   "shelly.shellyIPExhaust": { de: "Shelly IP Adresse für Abluft:", en: "Shelly IP address for exhaust:" },
   "status.shellyExhaust": { de: "Abluft", en: "Exhaust" },
+  "shelly.shellyIPHeatMat": { de: "Shelly IP Adresse für Heizmatte:", en: "Shelly IP address for heating mat:" },
+  "shelly.heatMatMonitorOnly": { de: "Nur Monitoring; die Heizmatte wird vom GrowTent nicht geschaltet.", en: "Monitoring only; GrowTent does not switch the heating mat." },
   
   "status.shellyAuth": { de: "Authentifizierung", en: "Authentication" },
   "status.shellyDevices": { de: "Shelly Geräte", en: "Shelly Devices" },

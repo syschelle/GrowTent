@@ -426,6 +426,19 @@ const char* htmlPage = R"rawliteral(
         </div>
       </div>
 
+      <div class="form-group">
+        <label for="shellyHeatMatIP" data-i18n="shelly.shellyIPHeatMat">Shelly IP Adresse für Heizmatte:</label>
+        <div class="twoinone-label">
+          <input name="webShellyHeatMatIP" id="shellyHeatMatIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATMATIP%">
+          <select name="webShellyHeatMatGen" id="shellyHeatMatGen" class="control-sm shelly-other">
+            <option value="1" %SHHEATMATKIND1%>Gen1</option>
+            <option value="2" %SHHEATMATKIND2%>Gen2</option>
+            <option value="3" %SHHEATMATKIND3%>Gen3</option>
+          </select>
+        </div>
+        <small data-i18n="shelly.heatMatMonitorOnly">Nur Monitoring; die Heizmatte wird vom GrowTent nicht geschaltet.</small>
+      </div>
+
       <h2 data-i18n="shelly.floodTitle">Flood S Gen4</h2>
       <div class="form-group">
         <label>

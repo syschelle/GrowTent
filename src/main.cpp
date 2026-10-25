@@ -11,6 +11,7 @@
 #include <time.h>
 #include <LittleFS.h>
 #include <deque>
+#include <cstring>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <WiFiClientSecure.h>
@@ -764,14 +765,25 @@ static void buildApiStateJson(String& json) {
   json += "{";
   json += nl;
 
+  bool first = true;
   for (size_t i = 0; i < VARS_COUNT; i++) {
-    if (i) {
+    // Heating-mat telemetry is optional: do not expose any heatmat tags until
+    // an IP has actually been configured. This also keeps older backends clean.
+    const char* key = VARS[i].key;
+    if (settings.shelly.heatmat.ip.isEmpty() &&
+        (strncmp(key, "settings.shelly.heatmat.", 24) == 0 ||
+         strncmp(key, "cur.shelly.heatmat.", 19) == 0)) {
+      continue;
+    }
+
+    if (!first) {
       json += ",";
       json += nl;
     }
+    first = false;
     json += ind;
     json += "\"";
-    json += VARS[i].key;
+    json += key;
     json += "\": ";
     json += VARS[i].get();
   }

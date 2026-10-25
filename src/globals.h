@@ -69,6 +69,7 @@ struct ShellySettings {
   ShellyDevice heater;
   ShellyDevice fan;
   ShellyDevice exhaust;
+  ShellyDevice heatmat;   // passive monitoring only; never switched by GrowTent
 
   String username;
   String password;
@@ -318,6 +319,8 @@ extern const char* KEY_SHELLYFANOFF;
 extern const char* KEY_SHELLYEXHAUSTIP;
 extern const char* KEY_SHELLYEXHAUSTGEN;
 extern const char* KEY_SHELLYEXHAUSTOFF;
+extern const char* KEY_SHELLYHEATMATIP;
+extern const char* KEY_SHELLYHEATMATGEN;
 
 extern const char* KEY_SHELLYUSERNAME;
 extern const char* KEY_SHELLYUSERNAME;

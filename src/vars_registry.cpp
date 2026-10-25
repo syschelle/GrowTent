@@ -254,6 +254,19 @@ static String g_sh_exhaust_isOn() { return jBool(shelly.exhaust.values.isOn); }
 static String g_sh_exhaust_Watt() { return jNumOrNull(shelly.exhaust.values.powerW, 1); }
 static String g_sh_exhaust_Wh() { return jNumOrNull(shelly.exhaust.values.energyWh, 1); }
 static String g_sh_exhaust_Cost() { return jNumOrNull((shelly.exhaust.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+// Heating mat: monitoring only, no ON/OFF control or schedule is exposed.
+static String g_sh_heatmat_ip() { return jStr(settings.shelly.heatmat.ip); }
+static String g_sh_heatmat_gen() { return jInt(settings.shelly.heatmat.gen); }
+static String g_sh_heatmat_line() {
+  String line = settings.shelly.heatmat.ip;
+  line += " | Gen ";
+  line += String(settings.shelly.heatmat.gen);
+  return jStr(line);
+}
+static String g_sh_heatmat_isOn() { return jBool(shelly.heatmat.values.isOn); }
+static String g_sh_heatmat_Watt() { return jNumOrNull(shelly.heatmat.values.powerW, 1); }
+static String g_sh_heatmat_Wh() { return jNumOrNull(shelly.heatmat.values.energyWh, 1); }
+static String g_sh_heatmat_Cost() { return jNumOrNull((shelly.heatmat.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
 // For username/password we always return masked value
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
@@ -419,6 +432,13 @@ const VarItem VARS[] = {
   {"cur.shelly.exhaust.Watt", g_sh_exhaust_Watt, false, "settings.shelly"},
   {"cur.shelly.exhaust.Wh", g_sh_exhaust_Wh, false, "settings.shelly"},
   {"cur.shelly.exhaust.Cost", g_sh_exhaust_Cost, false, "settings.shelly"},
+  {"settings.shelly.heatmat.ip", g_sh_heatmat_ip, false, "settings.shelly"},
+  {"settings.shelly.heatmat.gen", g_sh_heatmat_gen, false, "settings.shelly"},
+  {"settings.shelly.heatmat.line", g_sh_heatmat_line, false, "settings.shelly"},
+  {"cur.shelly.heatmat.isOn", g_sh_heatmat_isOn, false, "settings.shelly"},
+  {"cur.shelly.heatmat.Watt", g_sh_heatmat_Watt, false, "settings.shelly"},
+  {"cur.shelly.heatmat.Wh", g_sh_heatmat_Wh, false, "settings.shelly"},
+  {"cur.shelly.heatmat.Cost", g_sh_heatmat_Cost, false, "settings.shelly"},
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 

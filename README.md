@@ -32,6 +32,7 @@ For centralized history, multi-tent management, irrigation control (if installed
   - Heater
   - Fan (only on 8x boards)
   - Exthaust (only on 8x boards)
+  - Heating mat (monitoring only; no switching or automation)
 - **Heater control by temperature**
   - ESP relay or Shelly device
 - **Irrigation support (only on 8x boards)**
