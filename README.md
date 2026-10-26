@@ -456,7 +456,7 @@ The top-left header now shows only the installed version (for example `v0.2.36`)
 
 Adds the optional heating-mat dashboard tile and includes its energy counter in the Shelly kWh reset action when configured.
 
-## v0.2.39 Irrigation dashboard stop/toggle fix
+## v0.2.40 Irrigation dashboard stop/toggle fix
 
 - The irrigation dashboard button is now a real start/stop control.
 - An active irrigation cycle can be stopped immediately from the dashboard.
@@ -464,3 +464,7 @@ Adds the optional heating-mat dashboard tile and includes its energy counter in 
 - Pump runtime and between-run waits are interruptible so the watering task does not continue after a stop request.
 - The button label changes between **Bewässerung starten** and **Bewässerung beenden** according to `irrigation.runsLeft`.
 - The existing `/startWatering` endpoint remains available; the dashboard uses the new `POST /toggleWatering` endpoint.
+
+## v0.2.40
+
+Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal `/api/state` rendering. No sensor, relay, irrigation, Shelly or Flood backend logic was changed.

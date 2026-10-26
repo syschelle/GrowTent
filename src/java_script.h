@@ -604,27 +604,6 @@ function updatePumpAvailabilityFromFlags(flags, force = false) {
     }
 }
 
-function updateWateringToggleFromState(data) {
-    const button = document.getElementById('startWateringButton');
-    if (!button || !data || typeof data !== 'object') return;
-
-    const runsLeft = Number(data['irrigation.runsLeft']) || 0;
-    const running = runsLeft > 0;
-
-    button.dataset.running = running ? 'true' : 'false';
-    button.textContent = running
-        ? (I18N['status.stopWatering'] || 'Bewässerung beenden')
-        : (I18N['status.startWatering'] || 'Bewässerung starten');
-
-    const anyPumpEnabled = [
-        data['irrigation.pump1.enabled'],
-        data['irrigation.pump2.enabled'],
-        data['irrigation.pump3.enabled']
-    ].some(v => v === true);
-
-    button.disabled = running ? false : !anyPumpEnabled;
-}
-
 function updatePumpAvailabilityFromState(data, force = false) {
     if (!data || typeof data !== 'object') {
         return;
@@ -1254,6 +1233,31 @@ async function startNewGrow(){
   // and refresh them again when the page is restored from the browser cache.
   updateFloodWebhookPreview();
   window.addEventListener('pageshow', updateFloodWebhookPreview);
+
+  // Watering button state belongs inside this DOMContentLoaded scope so it
+  // can safely use the localized I18N table declared above.  In v0.2.39 this
+  // function was accidentally global while I18N is block-scoped here, which
+  // caused a ReferenceError during every /api/state render on the status page.
+  function updateWateringToggleFromState(data) {
+    const button = document.getElementById('startWateringButton');
+    if (!button || !data || typeof data !== 'object') return;
+
+    const runsLeft = Number(data['irrigation.runsLeft']) || 0;
+    const running = runsLeft > 0;
+
+    button.dataset.running = running ? 'true' : 'false';
+    button.textContent = running
+      ? (I18N['status.stopWatering'] || 'Bewässerung beenden')
+      : (I18N['status.startWatering'] || 'Bewässerung starten');
+
+    const anyPumpEnabled = [
+      data['irrigation.pump1.enabled'],
+      data['irrigation.pump2.enabled'],
+      data['irrigation.pump3.enabled']
+    ].some(v => v === true);
+
+    button.disabled = running ? false : !anyPumpEnabled;
+  }
 
   // ---------- Sensor fetch (/api/state) ----------
   let sensorFetchInFlight = false;
