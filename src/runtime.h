@@ -140,6 +140,7 @@ static void applyMainPageReplacements(String& html) {
   html.replace("%PUMP1_ENABLED_CHECKED%", irrigation.pumpEnabled[0] ? "checked" : "");
   html.replace("%PUMP2_ENABLED_CHECKED%", irrigation.pumpEnabled[1] ? "checked" : "");
   html.replace("%PUMP3_ENABLED_CHECKED%", irrigation.pumpEnabled[2] ? "checked" : "");
+  html.replace("%IRRIGATION_STOP_ON_FLOOD_CHECKED%", irrigation.stopOnFloodAlarm ? "checked" : "");
 
   // Pump status controls are intentionally rendered fail-safe in index_html.h.
   // JavaScript enables them only after /api/state has been loaded successfully.
@@ -464,6 +465,7 @@ void readPreferences() {
   loadPrefBool(KEY_PUMP1_ENABLED, irrigation.pumpEnabled[0], true, true, "pump1Enabled");
   loadPrefBool(KEY_PUMP2_ENABLED, irrigation.pumpEnabled[1], true, true, "pump2Enabled");
   loadPrefBool(KEY_PUMP3_ENABLED, irrigation.pumpEnabled[2], true, true, "pump3Enabled");
+  loadPrefBool(KEY_IRRIGATION_STOP_ON_FLOOD, irrigation.stopOnFloodAlarm, false, true, "irrigationStopOnFlood");
 
   loadPrefFloat(KEY_MINTANK, irrigation.tank.min, 0.0f, true, "minTank");
   loadPrefFloat(KEY_MAXTANK, irrigation.tank.max, 0.0f, true, "maxTank");

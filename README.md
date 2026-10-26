@@ -468,3 +468,10 @@ Adds the optional heating-mat dashboard tile and includes its energy counter in 
 ## v0.2.40
 
 Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal `/api/state` rendering. No sensor, relay, irrigation, Shelly or Flood backend logic was changed.
+
+## v0.2.41 Flood alarm irrigation safety stop
+
+- Adds an optional checkbox under **Operating Settings → Irrigation settings** to stop an active automatic irrigation cycle when the configured Flood S Gen4 reports a Flood alarm.
+- The option is disabled by default and persisted in ESP32 Preferences.
+- The existing irrigation stop path is reused: pump relays are switched off immediately and the watering task aborts promptly.
+- Dry/clear Flood events and manual 10-second pump pulses are not affected.

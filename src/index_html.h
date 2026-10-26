@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.2.40">
+  <link rel="stylesheet" href="/style.css?v=0.2.41">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -573,6 +573,14 @@ const char* htmlPage = R"rawliteral(
 
         <div class="form-group checkbox">
           <label class="inline-checkbox">
+            <input type="checkbox" name="webIrrigationStopOnFlood" id="webIrrigationStopOnFlood" %IRRIGATION_STOP_ON_FLOOD_CHECKED%>
+            <span data-i18n="runsetting.stopOnFloodAlarm">Aktive Bewässerung bei Flood-Alarm abbrechen</span>
+          </label>
+          <small data-i18n="runsetting.stopOnFloodAlarmHint">Wirkt nur bei aktiviertem Flood S Gen4 und einer laufenden automatischen Bewässerung.</small>
+        </div>
+
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
             <input type="checkbox" name="webPump1Enabled" id="webPump1Enabled" %PUMP1_ENABLED_CHECKED%>
             <span data-i18n="runsetting.pump1Enabled">Pumpe 1 aktiv</span>
           </label>
@@ -1089,7 +1097,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.2.40"></script>
+ <script src="/script.js?v=0.2.41"></script>
 </body>
 </html>
 )rawliteral";
@@ -1100,7 +1108,7 @@ const char* apPage = R"rawliteral(
 <head>
   <title>%CONTENTCONTROLLERNAME%</title>
   <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css?v=0.2.40">
+  <link rel="stylesheet" href="/style.css?v=0.2.41">
 </head>
 <body>
   <header class="header">
@@ -1139,7 +1147,7 @@ const char* apPage = R"rawliteral(
     </main>
   </div>
   
- <script src="/script.js?v=0.2.40"></script>
+ <script src="/script.js?v=0.2.41"></script>
 </body>
 </html>
 )rawliteral";

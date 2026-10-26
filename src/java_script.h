@@ -167,6 +167,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "runsetting.hysteresis": { de: "Hysterese", en: "Hysteresis" },
 
   "runsetting.wateringSettings": { de: "Bewässerungseinstellung", en: "Irrigation settings" },
+  "runsetting.stopOnFloodAlarm": { de: "Aktive Bewässerung bei Flood-Alarm abbrechen", en: "Stop active irrigation on Flood alarm" },
+  "runsetting.stopOnFloodAlarmHint": { de: "Wirkt nur bei aktiviertem Flood S Gen4 und einer laufenden automatischen Bewässerung.", en: "Only applies when Flood S Gen4 is enabled and an automatic irrigation cycle is running." },
   "runsetting.pumpsHint": {
     de: "Nur Pumpen aktivieren, deren Töpfe tatsächlich verwendet werden.",
     en: "Enable only pumps whose pots are actually in use."
@@ -2414,6 +2416,7 @@ window.saveRunsettingsAll = async function () {
       webPump1Enabled: checked("webPump1Enabled"),
       webPump2Enabled: checked("webPump2Enabled"),
       webPump3Enabled: checked("webPump3Enabled"),
+      webIrrigationStopOnFlood: checked("webIrrigationStopOnFlood"),
       webMinTank: val("webMinTank"),
       webMaxTank: val("webMaxTank"),
 

@@ -560,6 +560,7 @@ void handleSaveRunsettings() {
   saveBoolJson("webPump1Enabled", KEY_PUMP1_ENABLED, irrigation.pumpEnabled[0], "Pump 1 Enabled");
   saveBoolJson("webPump2Enabled", KEY_PUMP2_ENABLED, irrigation.pumpEnabled[1], "Pump 2 Enabled");
   saveBoolJson("webPump3Enabled", KEY_PUMP3_ENABLED, irrigation.pumpEnabled[2], "Pump 3 Enabled");
+  saveBoolJson("webIrrigationStopOnFlood", KEY_IRRIGATION_STOP_ON_FLOOD, irrigation.stopOnFloodAlarm, "Irrigation Stop On Flood");
 
   saveFloatJson("webMinTank",          KEY_MINTANK,       irrigation.tank.min,          "Tank Min Level (cm)");
   saveFloatJson("webMaxTank",          KEY_MAXTANK,       irrigation.tank.max,          "Tank Max Level (cm)");
@@ -753,6 +754,10 @@ static String floodTimestampNow() {
   return floodTimestampFromEpoch(time(nullptr));
 }
 
+// Implemented in the irrigation section below. Reused by dashboard and Flood
+// safety interlock so there is one authoritative stop path.
+static void requestIrrigationStop(const char* source);
+
 void handleFloodEvent() {
   // The Flood S Gen4 is intentionally not polled. This handler only consumes
   // the two URL actions configured on the battery-powered sensor.
@@ -817,6 +822,14 @@ void handleFloodEvent() {
   floodState.known = true;
   floodState.alarm = alarm;
   if (reportedBatteryPct >= 0) floodState.batteryPct = reportedBatteryPct;
+
+  // Optional irrigation safety interlock. Only an actual ALARM event can stop
+  // a currently running automatic irrigation cycle. Dry/clear events do not
+  // affect irrigation, and manual 10-second pump pulses are intentionally not
+  // treated as an automatic irrigation cycle here.
+  if (alarm && irrigation.stopOnFloodAlarm && irrigation.irrigationRuns > 0) {
+    requestIrrigationStop("Flood alarm");
+  }
 
   const String timestamp = floodTimestampFromEpoch(eventEpoch);
   if (!timestamp.isEmpty()) floodState.lastSeen = timestamp;
@@ -3236,7 +3249,7 @@ static void stopAllIrrigationPumps() {
 // Requests an immediate irrigation stop. The HTTP handler switches the pumps
 // off right away; taskWatering also observes irrigationStopRequested so it
 // does not continue with the next pump/run after an interruptible wait.
-static void requestIrrigationStop(const char* source = "web") {
+static void requestIrrigationStop(const char* source) {
     irrigationStopRequested = true;
     irrigation.irrigationRuns = 0;
     irrigation.wTimeLeft = "00:00";

@@ -176,6 +176,10 @@ struct Irrigation {
   // Defaults remain enabled to preserve the behavior of existing installations.
   bool pumpEnabled[IRRIGATION_PUMP_COUNT] = {true, true, true};
 
+  // Optional safety interlock: an incoming Flood S Gen4 alarm can abort an
+  // active automatic irrigation cycle. Disabled by default for compatibility.
+  bool stopOnFloodAlarm = false;
+
   Tank tank;
 };
 
@@ -367,6 +371,7 @@ extern const char* KEY_MAXTANK;
 extern const char* KEY_PUMP1_ENABLED;
 extern const char* KEY_PUMP2_ENABLED;
 extern const char* KEY_PUMP3_ENABLED;
+extern const char* KEY_IRRIGATION_STOP_ON_FLOOD;
 
 // Notification keys
 extern const char* KEY_PUSHOVER;
