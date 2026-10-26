@@ -94,6 +94,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   /* Relay / Irrigation */
   "status.watering": { de: "Bewässerung", en: "Watering" },
   "status.wateringLeft": { de: " verbleibend", en: " remaining" },
+  "status.startWatering": { de: "Bewässerung starten", en: "Start watering" },
+  "status.stopWatering": { de: "Bewässerung beenden", en: "Stop watering" },
   "status.endIn": { de: "Ende in ", en: "End in " },
   "status.tank": { de: "Tank Füllung", en: "Tank Level" },
   "status.pingTank": { de: "Ping", en: "Ping" },
@@ -595,8 +597,32 @@ function updatePumpAvailabilityFromFlags(flags, force = false) {
 
     const startButton = document.getElementById('startWateringButton');
     if (startButton) {
-        startButton.disabled = !enabledFlags.some(Boolean);
+        const running = startButton.dataset.running === 'true';
+        // A running cycle must always remain stoppable, even if pump settings
+        // change while it is active.
+        startButton.disabled = running ? false : !enabledFlags.some(Boolean);
     }
+}
+
+function updateWateringToggleFromState(data) {
+    const button = document.getElementById('startWateringButton');
+    if (!button || !data || typeof data !== 'object') return;
+
+    const runsLeft = Number(data['irrigation.runsLeft']) || 0;
+    const running = runsLeft > 0;
+
+    button.dataset.running = running ? 'true' : 'false';
+    button.textContent = running
+        ? (I18N['status.stopWatering'] || 'Bewässerung beenden')
+        : (I18N['status.startWatering'] || 'Bewässerung starten');
+
+    const anyPumpEnabled = [
+        data['irrigation.pump1.enabled'],
+        data['irrigation.pump2.enabled'],
+        data['irrigation.pump3.enabled']
+    ].some(v => v === true);
+
+    button.disabled = running ? false : !anyPumpEnabled;
 }
 
 function updatePumpAvailabilityFromState(data, force = false) {
@@ -1365,6 +1391,7 @@ async function startNewGrow(){
       // Bewässerung
       setTextById('irrigationSpan', safeText(data['irrigation.runsLeft'], '0'));
       setTextById('irTimeLeftSpan', safeText(data['irrigation.timeLeft'], '00:00'));
+      updateWateringToggleFromState(data);
 
       const tankCm = data['irrigation.tankLevelCm'] ?? data['tankLevelCm'];
       setTextById('tankCMDistanceSpan', formatNum(tankCm, 1, '–'));
@@ -2599,16 +2626,33 @@ window.resetShellyEnergy = async function (buttonEl) {
     }
 };
 
-// ---------- start watering ----------
-function startWatering() {
-  fetch('/startWatering', { method: 'POST' })
-    .then(() => {
-      console.log('Irrigation started');
-    })
-    .catch(err => {
-      console.error('start watering failed:', err);
-    });
+// ---------- watering start / stop toggle ----------
+async function toggleWatering() {
+  const button = document.getElementById('startWateringButton');
+  if (button) button.disabled = true;
+
+  try {
+    const response = await fetch('/toggleWatering', { method: 'POST' });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    // Refresh immediately instead of waiting for the regular 10-second poll so
+    // the user sees start/stop state changes right away.
+    if (typeof window.updateSensorValues === 'function') {
+      setTimeout(() => window.updateSensorValues(), 150);
+    }
+  } catch (err) {
+    console.error('toggle watering failed:', err);
+    if (typeof window.showToast === 'function') {
+      window.showToast('Bewässerung konnte nicht umgeschaltet werden.', 'error');
+    }
+    if (button) button.disabled = false;
+  }
 }
+
+window.toggleWatering = toggleWatering;
 
 // ---------- ping tank level ----------
 function pingTank() {

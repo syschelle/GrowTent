@@ -1137,6 +1137,7 @@ void setup() {
 
   // Watering and tank level (used by pump toggle and tank level read buttons in UI)
   server.on("/startWatering", HTTP_POST, handleStartWatering);
+  server.on("/toggleWatering", HTTP_POST, handleToggleWatering);
   server.on("/pingTank", HTTP_POST, readTankLevel);
 
   // hint message

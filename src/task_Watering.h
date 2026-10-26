@@ -3,6 +3,35 @@
 #include "globals.h"
 #include "function.h"
 
+// Wait in short slices so a dashboard stop request can interrupt an active
+// pump pulse or the pause between irrigation runs promptly.
+static bool irrigationDelayInterruptible(uint32_t durationMs) {
+  const uint32_t startedAt = millis();
+
+  while ((uint32_t)(millis() - startedAt) < durationMs) {
+    if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+      return false;
+    }
+
+    const uint32_t elapsed = (uint32_t)(millis() - startedAt);
+    const uint32_t remaining = (elapsed < durationMs) ? (durationMs - elapsed) : 0;
+    const uint32_t sliceMs = (remaining > 100U) ? 100U : remaining;
+
+    if (sliceMs == 0U) break;
+    vTaskDelay(pdMS_TO_TICKS(sliceMs));
+  }
+
+  return !(irrigationStopRequested || irrigation.irrigationRuns <= 0);
+}
+
+static void acknowledgeIrrigationStop() {
+  stopAllIrrigationPumps();
+  irrigation.irrigationRuns = 0;
+  irrigation.wTimeLeft = "00:00";
+  irrigationStopRequested = false;
+  logPrint("[IRRIGATION] Stop acknowledged by watering task.");
+}
+
 void taskWatering(void *parameter) {
   static UBaseType_t minFree = UINT32_MAX;
 
@@ -32,7 +61,14 @@ void taskWatering(void *parameter) {
 
     if (irrigation.irrigationRuns <= 0) {
       irrigation.wTimeLeft = "00:00";
-      vTaskDelay(pdMS_TO_TICKS(10000));
+
+      if (irrigationStopRequested) {
+        acknowledgeIrrigationStop();
+      }
+
+      // Short idle sleep keeps start/stop response snappy without adding a
+      // busy loop or another task.
+      vTaskDelay(pdMS_TO_TICKS(500));
       continue;
     }
 
@@ -67,16 +103,35 @@ void taskWatering(void *parameter) {
 
       const int relayIndex = IRRIGATION_PUMP_RELAY_INDEX[pump];
 
+      if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+        break;
+      }
+
       setRelay(relayIndex, true);
-      vTaskDelay(pdMS_TO_TICKS(secondsToMilliseconds(irrigation.timePerTask)));
+
+      const bool pulseCompleted = irrigationDelayInterruptible(
+        secondsToMilliseconds(irrigation.timePerTask)
+      );
+
       setRelay(relayIndex, false);
+
+      if (!pulseCompleted) {
+        break;
+      }
 
       ++pumpsProcessed;
 
       // Keep the existing short gap, but only between pumps that will actually run.
       if (pumpsProcessed < activePumpCount) {
-        vTaskDelay(pdMS_TO_TICKS(250));
+        if (!irrigationDelayInterruptible(250)) {
+          break;
+        }
       }
+    }
+
+    if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+      acknowledgeIrrigationStop();
+      continue;
     }
 
     irrigation.irrigationRuns--;
@@ -105,6 +160,11 @@ void taskWatering(void *parameter) {
 
     logPrint("[IRRIGATION] Remaining irrigation runs: " + String(irrigation.irrigationRuns));
 
-    vTaskDelay(pdMS_TO_TICKS(minutesToMilliseconds(irrigation.betweenTasks)));
+    if (!irrigationDelayInterruptible(
+          minutesToMilliseconds(irrigation.betweenTasks)
+        )) {
+      acknowledgeIrrigationStop();
+      continue;
+    }
   }
 }

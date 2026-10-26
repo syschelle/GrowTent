@@ -160,6 +160,7 @@ String relayNames[NUM_RELAYS] = {"relay 1","relay 2","relay 3","relay 4,","relay
 
 // Irrigation
 Irrigation irrigation;
+volatile bool irrigationStopRequested = false;
 const char* KEY_IRRIGATION_TIME_PER_TASK = "irrTimeTask";
 const char* KEY_IRRIGATION_BETWEEN_TASKS = "irrBetween";
 

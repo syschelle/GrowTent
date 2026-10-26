@@ -3217,6 +3217,38 @@ static void processPumpAutoOff() {
   }
 }
 
+// Immediately turns off all irrigation pump relays and clears any manual
+// pump auto-off timers. Safe to call repeatedly.
+static void stopAllIrrigationPumps() {
+    for (size_t pump = 0; pump < IRRIGATION_PUMP_COUNT; ++pump) {
+        const int idx = IRRIGATION_PUMP_RELAY_INDEX[pump];
+
+        if (idx < 0 || idx >= activeRelayCount || relayPins[idx] < 0) {
+            continue;
+        }
+
+        setRelay(idx, false);
+        relayActive[idx] = false;
+        relayOffTime[idx] = 0;
+    }
+}
+
+// Requests an immediate irrigation stop. The HTTP handler switches the pumps
+// off right away; taskWatering also observes irrigationStopRequested so it
+// does not continue with the next pump/run after an interruptible wait.
+static void requestIrrigationStop(const char* source = "web") {
+    irrigationStopRequested = true;
+    irrigation.irrigationRuns = 0;
+    irrigation.wTimeLeft = "00:00";
+    stopAllIrrigationPumps();
+
+    logPrint(
+        String("[IRRIGATION] Stop requested by ") +
+        (source ? source : "unknown") +
+        ". All irrigation pumps OFF."
+    );
+}
+
 // Handles the /startWatering endpoint to initiate an irrigation cycle.
 void handleStartWatering() {
     // Do not start a new cycle while one is already running
@@ -3268,6 +3300,9 @@ void handleStartWatering() {
         return;
     }
 
+    // A new cycle explicitly clears a previous stop request.
+    irrigationStopRequested = false;
+
     // Number of tasks needed so that each pot reaches the configured target amount
     irrigation.irrigationRuns =
         (int)ceilf(irrigation.amount / mlPerTaskPerPot);
@@ -3313,6 +3348,24 @@ void handleStartWatering() {
 
     server.sendHeader("Location", "/");
     server.send(303);
+}
+
+// True dashboard toggle: stop an active watering cycle immediately, otherwise
+// start a new cycle using the existing start handler.
+void handleToggleWatering() {
+    if (irrigation.irrigationRuns > 0) {
+        requestIrrigationStop("dashboard");
+
+        server.send(
+            200,
+            "application/json",
+            "{\"ok\":true,\"action\":\"stopped\",\"running\":false}"
+        );
+        return;
+    }
+
+    // Preserve the existing start validation and notification behavior.
+    handleStartWatering();
 }
 
 // Calculates fill percentage from ultrasonic distance:

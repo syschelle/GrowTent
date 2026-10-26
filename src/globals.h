@@ -437,6 +437,7 @@ extern String DS18B20Name;
 
 //Irrigation
 extern Irrigation irrigation;
+extern volatile bool irrigationStopRequested;
 
  // to detect changes and update UI accordingly
 extern const char* KEY_IRRIGATION_TIME_PER_TASK;
