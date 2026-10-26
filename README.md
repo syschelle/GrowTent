@@ -483,3 +483,10 @@ Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal 
 - API-originated irrigation starts are identified explicitly in the Pushover notification and in the irrigation start log.
 - Dashboard-originated Pushover wording remains unchanged.
 - No changes were made to BME280, DS18B20, ultrasonic tank measurement, Shelly polling, Flood webhook transport, relay scheduling or irrigation volume calculations.
+
+## v0.2.43
+
+- Serializes GitHub firmware-release jobs per tag to prevent duplicate release creation races.
+- Adds a defensive retry/update path for HTTP 422 `Release.tag_name already exists`.
+- No ESP32 control logic changes.
+

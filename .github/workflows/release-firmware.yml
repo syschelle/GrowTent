@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# Serialize release jobs for the same ref so duplicate tag-push events cannot
+# race while creating/updating the same GitHub Release.
+concurrency:
+  group: firmware-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-release:
     runs-on: ubuntu-latest
@@ -83,14 +89,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+          update_release() {
             gh release edit "${GITHUB_REF_NAME}" \
               --title "${GITHUB_REF_NAME}" \
               --notes-file release_notes.md
             gh release upload "${GITHUB_REF_NAME}" firmware.bin manifest.json --clobber
+          }
+
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            update_release
           else
-            gh release create "${GITHUB_REF_NAME}" firmware.bin manifest.json \
+            if ! gh release create "${GITHUB_REF_NAME}" firmware.bin manifest.json \
               --title "${GITHUB_REF_NAME}" \
               --notes-file release_notes.md \
-              --verify-tag
+              --verify-tag; then
+              echo "Release creation raced with another run; retrying as update."
+              sleep 3
+              gh release view "${GITHUB_REF_NAME}" >/dev/null
+              update_release
+            fi
           fi
