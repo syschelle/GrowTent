@@ -3262,11 +3262,32 @@ static void requestIrrigationStop(const char* source) {
     );
 }
 
-// Handles the /startWatering endpoint to initiate an irrigation cycle.
-void handleStartWatering() {
+// Starts an irrigation cycle from either the API endpoint or the dashboard.
+// The source flag is used only for diagnostics/notifications; all safety and
+// configuration checks are shared so no start path can bypass them.
+static void handleStartWateringInternal(bool startedViaApi) {
     // Do not start a new cycle while one is already running
     if (irrigation.irrigationRuns > 0) {
         logPrint("[IRRIGATION] Already running. Start request ignored.");
+        server.sendHeader("Location", "/");
+        server.send(303);
+        return;
+    }
+
+    // When the optional Flood irrigation safety interlock is enabled, a known
+    // active Flood alarm blocks every automatic irrigation start path. The same
+    // condition already aborts a running cycle in the Flood webhook handler.
+    if (
+        irrigation.stopOnFloodAlarm &&
+        settings.flood.enabled &&
+        floodState.known &&
+        floodState.alarm
+    ) {
+        logPrint(
+            String("[IRRIGATION] Start blocked: Flood alarm is active. source=") +
+            (startedViaApi ? "api" : "dashboard")
+        );
+        irrigation.wTimeLeft = "00:00";
         server.sendHeader("Location", "/");
         server.send(303);
         return;
@@ -3336,35 +3357,55 @@ void handleStartWatering() {
         " ml, mlPerTaskPerPot=" + String(mlPerTaskPerPot, 1) +
         ", runs=" + String(irrigation.irrigationRuns) +
         ", activePumps=" + String(activePumpCount) +
-        ", plannedPerPot=" + String(irrigation.irrigationRuns * mlPerTaskPerPot, 1) + " ml"
+        ", plannedPerPot=" + String(irrigation.irrigationRuns * mlPerTaskPerPot, 1) + " ml" +
+        ", source=" + String(startedViaApi ? "api" : "dashboard")
     );
 
     if (language == "de") {
-        sendPushover(
-            boxName + "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
-            boxName + "Bewässerung startet."
-        );
+        if (startedViaApi) {
+            sendPushover(
+                boxName + "Bewässerung über API gestartet. Dauer: " + calculateEndtimeWatering(),
+                boxName + "Bewässerung über API gestartet."
+            );
+        } else {
+            sendPushover(
+                boxName + "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
+                boxName + "Bewässerung startet."
+            );
+        }
         sendGotify(
             boxName + "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
             boxName + "Bewässerung startet."
         );
     } else {
-        sendPushover(
-            boxName + "Irrigation started. Duration: " + calculateEndtimeWatering(),
-            boxName + "Irrigation started."
-        );
+        if (startedViaApi) {
+            sendPushover(
+                boxName + "Irrigation started via API. Duration: " + calculateEndtimeWatering(),
+                boxName + "Irrigation started via API."
+            );
+        } else {
+            sendPushover(
+                boxName + "Irrigation started. Duration: " + calculateEndtimeWatering(),
+                boxName + "Irrigation started."
+            );
+        }
         sendGotify(
             boxName + "Irrigation started. Duration: " + calculateEndtimeWatering(),
             boxName + "Irrigation started."
-        );  
+        );
     }
 
     server.sendHeader("Location", "/");
     server.send(303);
 }
 
+// Public API route handler. Calls the shared start path with an explicit API source.
+void handleStartWatering() {
+    handleStartWateringInternal(true);
+}
+
 // True dashboard toggle: stop an active watering cycle immediately, otherwise
-// start a new cycle using the existing start handler.
+// start a new cycle through the same validations/safety interlocks as the API.
 void handleToggleWatering() {
     if (irrigation.irrigationRuns > 0) {
         requestIrrigationStop("dashboard");
@@ -3377,8 +3418,7 @@ void handleToggleWatering() {
         return;
     }
 
-    // Preserve the existing start validation and notification behavior.
-    handleStartWatering();
+    handleStartWateringInternal(false);
 }
 
 // Calculates fill percentage from ultrasonic distance:

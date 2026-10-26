@@ -475,3 +475,11 @@ Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal 
 - The option is disabled by default and persisted in ESP32 Preferences.
 - The existing irrigation stop path is reused: pump relays are switched off immediately and the watering task aborts promptly.
 - Dry/clear Flood events and manual 10-second pump pulses are not affected.
+
+## v0.2.42 Flood start interlock and API start notification
+
+- Extends the optional Flood irrigation safety setting so a known active Flood alarm also blocks new automatic irrigation starts while the option is enabled.
+- The Flood start block is applied to both the dashboard start path and `POST /startWatering`, so the safety interlock cannot be bypassed through the API.
+- API-originated irrigation starts are identified explicitly in the Pushover notification and in the irrigation start log.
+- Dashboard-originated Pushover wording remains unchanged.
+- No changes were made to BME280, DS18B20, ultrasonic tank measurement, Shelly polling, Flood webhook transport, relay scheduling or irrigation volume calculations.
