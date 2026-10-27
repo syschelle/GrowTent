@@ -796,30 +796,20 @@ static void buildApiStateJson(String& json) {
 void handleApiState() {
   const uint32_t startedMs = millis();
   const uint32_t now = startedMs;
-  const String clientIp = server.client().remoteIP().toString();
 
-  uint32_t buildMs = 0;
   if (g_apiStateCache.length() == 0 || (now - g_apiStateCacheMs) > API_STATE_CACHE_TTL_MS) {
-    const uint32_t buildStartedMs = millis();
     buildApiStateJson(g_apiStateCache);
-    buildMs = (uint32_t)(millis() - buildStartedMs);
     g_apiStateCacheMs = now;
   }
 
-  const uint32_t sendStartedMs = millis();
   server.sendHeader("Cache-Control", "no-store");
   server.send(200, "application/json; charset=utf-8", g_apiStateCache);
-  const uint32_t sendMs = (uint32_t)(millis() - sendStartedMs);
 
   const uint32_t durationMs = (uint32_t)(millis() - startedMs);
   if (durationMs >= 250UL) {
     logPrint("[API] /api/state slow durationMs=" + String(durationMs) +
-             " buildMs=" + String(buildMs) +
-             " sendMs=" + String(sendMs) +
              " size=" + String(g_apiStateCache.length()) +
-             " client=" + clientIp +
              " wifiStatus=" + String((int)WiFi.status()) +
-             " rssi=" + String(WiFi.RSSI()) +
              " freeHeap=" + String(ESP.getFreeHeap()));
   }
 }
@@ -1190,7 +1180,6 @@ void loop() {
       lastLoopGapLogMs = loopNowMs;
       logPrint("[WEB] main loop gap=" + String(loopGapMs) +
                "ms wifiStatus=" + String((int)WiFi.status()) +
-               " rssi=" + String(WiFi.RSSI()) +
                " freeHeap=" + String(ESP.getFreeHeap()) +
                " maxAlloc=" + String(ESP.getMaxAllocHeap()));
     }
@@ -1299,17 +1288,7 @@ void loop() {
 
   processPumpAutoOff();
 
-  const uint32_t webHandleStartedMs = millis();
   server.handleClient();
-  const uint32_t webHandleDurationMs = (uint32_t)(millis() - webHandleStartedMs);
-  if (webHandleDurationMs >= 250UL) {
-    logPrint("[WEB] handleClient slow durationMs=" + String(webHandleDurationMs) +
-             " uri=" + server.uri() +
-             " method=" + String((int)server.method()) +
-             " wifiStatus=" + String((int)WiFi.status()) +
-             " rssi=" + String(WiFi.RSSI()) +
-             " freeHeap=" + String(ESP.getFreeHeap()));
-  }
   delay(1);
 
   dailyNtpTrigger();

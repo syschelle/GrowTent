@@ -512,3 +512,12 @@ Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal 
 - Keeps the v0.2.44 web-server timing diagnostics for continued investigation of long `server.handleClient()` stalls.
 - Keeps elapsed-time information in Shelly request-failure logs.
 - No changes to sensors, relay automation, irrigation, Flood handling, OTA, or stored settings.
+
+## v0.2.46
+
+### Rollback of v0.2.44/v0.2.45 network experiments
+- Restores the ESP32 runtime network behavior from v0.2.43.
+- Removes the exponential Shelly retry backoff so a recovered Shelly is retried after the established 30-second delay instead of potentially remaining stale for several minutes.
+- Removes the additional v0.2.44/v0.2.45 request timing instrumentation from the Shelly and synchronous WebServer paths.
+- Keeps all functional features through v0.2.43 unchanged.
+- The Arduino-ESP32 core remains pinned to 2.0.17; the upstream WebServer hang fix in newer cores will be evaluated separately.

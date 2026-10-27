@@ -2433,7 +2433,6 @@ void handleRefreshShellyExhaustSchedule() {
 
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   ShellyValues v; // default ok=false
-  const uint32_t requestStartedMs = millis();
 
   // Empty IP means this Shelly slot is not configured. Do not poll and do not log an error.
   if (dev.ip.length() == 0) {
@@ -2466,18 +2465,14 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
   if (!ok) {
     logPrint("[SHELLY] request failed gen=" + String(dev.gen) +
-             " HTTP=" + String(code) +
-             " elapsedMs=" + String((uint32_t)(millis() - requestStartedMs)) +
-             " " + dev.ip + ":" + String(port) + path);
+             " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path);
     if (body.length()) logPrint("[SHELLY] body(first200): " + body.substring(0, 200));
     return v;
   }
 
   if (body.length() == 0) {
     logPrint("[SHELLY] empty response body gen=" + String(dev.gen) +
-             " HTTP=" + String(code) +
-             " elapsedMs=" + String((uint32_t)(millis() - requestStartedMs)) +
-             " " + dev.ip + ":" + String(port) + path);
+             " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path);
     return v;
   }
 
