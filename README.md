@@ -490,3 +490,16 @@ Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal 
 - Adds a defensive retry/update path for HTTP 422 `Release.tag_name already exists`.
 - No ESP32 control logic changes.
 
+
+
+## v0.2.44
+
+### Shelly / web-network resilience
+- Reduced Shelly LAN connection and response timeouts so unreachable devices cannot occupy network resources for several seconds per request.
+- Gen2/Gen3 status polling now reuses the first successful HTTP response instead of issuing a redundant second GET when authentication is disabled.
+- Added exponential retry backoff for failing Shelly devices (30 s, 60 s, 120 s, 240 s; reset immediately after a successful poll).
+- Shelly polling is skipped while Wi-Fi is not connected.
+- Added elapsed-time information to Shelly request-failure logs.
+- Added detailed `/api/state` timing (`buildMs`, `sendMs`, client IP, RSSI) to distinguish JSON generation from a blocked network send.
+- Added slow `server.handleClient()` diagnostics with URI, method and RSSI.
+- No changes to grow automation, relay control, irrigation logic, Flood handling, sensor acquisition or OTA behavior.

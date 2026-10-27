@@ -14,6 +14,7 @@ void taskShellyStatus(void *parameter){
     ShellyValues lastGood;
     bool haveGood = false;
     uint32_t retryAfterMs = 0;
+    uint8_t consecutiveFailures = 0;
   };
 
   static PollState mainState;
@@ -24,7 +25,8 @@ void taskShellyStatus(void *parameter){
   static PollState exhaustState;
   static PollState heatmatState;
 
-  constexpr uint32_t RETRY_BACKOFF_MS = 30000UL;
+  constexpr uint32_t RETRY_BACKOFF_INITIAL_MS = 30000UL;
+  constexpr uint32_t RETRY_BACKOFF_MAX_MS = 300000UL;
 
   auto pollDevice = [&](ShellyDevice& configured, ShellyDevice& runtime, PollState& state) {
     // An empty IP means "not configured". Never poll it and never emit an error.
@@ -32,11 +34,17 @@ void taskShellyStatus(void *parameter){
       runtime.values = ShellyValues{};
       state.haveGood = false;
       state.retryAfterMs = 0;
+      state.consecutiveFailures = 0;
       return;
     }
 
     const uint32_t now = millis();
     if (state.retryAfterMs != 0 && (int32_t)(now - state.retryAfterMs) < 0) {
+      return;
+    }
+
+    // Do not start outbound LAN requests while the STA link is down.
+    if (WiFi.status() != WL_CONNECTED) {
       return;
     }
 
@@ -46,6 +54,7 @@ void taskShellyStatus(void *parameter){
       state.lastGood = current;
       state.haveGood = true;
       state.retryAfterMs = 0;
+      state.consecutiveFailures = 0;
       return;
     }
 
@@ -56,7 +65,19 @@ void taskShellyStatus(void *parameter){
     } else {
       runtime.values = ShellyValues{};
     }
-    state.retryAfterMs = now + RETRY_BACKOFF_MS;
+    state.consecutiveFailures++;
+    uint32_t backoffMs = RETRY_BACKOFF_INITIAL_MS;
+    uint8_t shift = (state.consecutiveFailures > 1) ? (state.consecutiveFailures - 1) : 0;
+    if (shift > 3) shift = 3;
+    backoffMs <<= shift; // 30s, 60s, 120s, 240s
+    if (backoffMs > RETRY_BACKOFF_MAX_MS) backoffMs = RETRY_BACKOFF_MAX_MS;
+    state.retryAfterMs = now + backoffMs;
+
+    if (debugLog) {
+      logPrint("[SHELLY] backoff ip=" + configured.ip +
+               " failures=" + String(state.consecutiveFailures) +
+               " retryMs=" + String(backoffMs));
+    }
   };
 
   for (;;) {
