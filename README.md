@@ -503,3 +503,12 @@ Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal 
 - Added detailed `/api/state` timing (`buildMs`, `sendMs`, client IP, RSSI) to distinguish JSON generation from a blocked network send.
 - Added slow `server.handleClient()` diagnostics with URI, method and RSSI.
 - No changes to grow automation, relay control, irrigation logic, Flood handling, sensor acquisition or OTA behavior.
+
+## v0.2.45
+
+### Shelly polling regression fix
+- Restores the proven Gen2/Gen3 Shelly HTTP transport path from v0.2.43 after the 1-second connection deadline introduced in v0.2.44 prevented valid local Shelly devices from returning status values.
+- Keeps the v0.2.44 exponential Shelly retry backoff and Wi-Fi-link guard.
+- Keeps the v0.2.44 web-server timing diagnostics for continued investigation of long `server.handleClient()` stalls.
+- Keeps elapsed-time information in Shelly request-failure logs.
+- No changes to sensors, relay automation, irrigation, Flood handling, OTA, or stored settings.

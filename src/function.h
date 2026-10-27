@@ -1848,32 +1848,20 @@ static String buildDigestAuth(const String& wwwAuth,
 // HTTP HELPERS
 // =======================
 
-// Shelly devices are local-LAN peers. Long TCP timeouts make the synchronous
-// WebServer appear offline whenever one or more Shellys are unreachable.
-// Keep outbound Shelly requests deliberately short; transient failures are
-// handled by the polling task's retry backoff.
-static constexpr uint32_t SHELLY_CONNECT_TIMEOUT_MS = 1000UL;
-static constexpr uint32_t SHELLY_HTTP_TIMEOUT_MS = 1500UL;
-static constexpr uint32_t SHELLY_FIRST_BYTE_TIMEOUT_MS = 1000UL;
-static constexpr uint32_t SHELLY_TOTAL_READ_TIMEOUT_MS = 1800UL;
-static constexpr uint32_t SHELLY_IDLE_READ_TIMEOUT_MS = 500UL;
-
 // Fetch WWW-Authenticate header using HTTPClient (no auth).
 // This is used to discover whether the device requires Digest or Basic.
 static bool fetchWwwAuthenticate(const String& url, String& outWwwAuth, int& outCode) {
   outWwwAuth = "";
   outCode = -1;
 
-  WiFiClient client;
   HTTPClient http;
-  http.setConnectTimeout(SHELLY_CONNECT_TIMEOUT_MS);
-  http.setTimeout(SHELLY_HTTP_TIMEOUT_MS);
+  http.setTimeout(1200);
   http.useHTTP10(true);
 
   const char* keys[] = {"WWW-Authenticate"};
   http.collectHeaders(keys, 1);
 
-  if (!http.begin(client, url)) return false;
+  if (!http.begin(url)) return false;
 
   int code = http.GET();
   outCode = code;
@@ -1886,50 +1874,24 @@ static bool fetchWwwAuthenticate(const String& url, String& outWwwAuth, int& out
   return true;
 }
 
-// Read the complete HTTP response (status line + headers + body) with bounded
-// first-byte, idle and total deadlines. Avoid Stream::readString(), because its
-// per-read timeout can extend a failed LAN request by several seconds.
+// Read the complete HTTP response (status line + headers + body)
 static bool readAllFromClient(WiFiClient& client, String& outRaw) {
   outRaw = "";
-  const uint32_t startedMs = millis();
+  unsigned long start = millis();
 
-  while (!client.available() &&
-         client.connected() &&
-         (uint32_t)(millis() - startedMs) < SHELLY_FIRST_BYTE_TIMEOUT_MS) {
-    delay(2);
+  // Wait for first bytes (up to 2s)
+  while (!client.available() && client.connected() && (millis() - start) < 2000) {
+    delay(5);
   }
 
-  if (!client.available()) {
-    return false;
-  }
-
-  uint32_t lastDataMs = millis();
-
-  while ((client.connected() || client.available()) &&
-         (uint32_t)(millis() - startedMs) < SHELLY_TOTAL_READ_TIMEOUT_MS) {
-    bool received = false;
-
+  // Read until connection closes or timeout (4s max)
+  start = millis();
+  while ((client.connected() || client.available()) && (millis() - start) < 4000) {
     while (client.available()) {
-      const int c = client.read();
-      if (c >= 0) {
-        outRaw += (char)c;
-        received = true;
-      }
+      outRaw += client.readString();
+      start = millis(); // reset timeout while data arrives
     }
-
-    if (received) {
-      lastDataMs = millis();
-    }
-
-    if (!client.connected() && !client.available()) {
-      break;
-    }
-
-    if ((uint32_t)(millis() - lastDataMs) >= SHELLY_IDLE_READ_TIMEOUT_MS) {
-      break;
-    }
-
-    delay(2);
+    delay(5);
   }
 
   return outRaw.length() > 0;
@@ -1974,11 +1936,11 @@ static bool rawHttpGet(const String& host, uint16_t port, const String& path,
   outBody = "";
 
   WiFiClient client;
+  client.setTimeout(4); // seconds
 
-  if (!client.connect(host.c_str(), port, SHELLY_CONNECT_TIMEOUT_MS)) {
+  if (!client.connect(host.c_str(), port)) {
     return false;
   }
-  client.setTimeout(2); // bounded socket read/write timeout after connect
 
   String p = path;
   if (!p.startsWith("/")) p = "/" + p;
@@ -2015,11 +1977,11 @@ static bool rawHttpRequest(const String& method,
   outBody = "";
 
   WiFiClient client;
+  client.setTimeout(6); // seconds
 
-  if (!client.connect(host.c_str(), port, SHELLY_CONNECT_TIMEOUT_MS)) {
+  if (!client.connect(host.c_str(), port)) {
     return false;
   }
-  client.setTimeout(2); // bounded socket read/write timeout after connect
 
   String p = path;
   if (!p.startsWith("/")) p = "/" + p;
@@ -2186,61 +2148,44 @@ static bool httpGetWithDigestAutoAuth(const String& host, uint16_t port, const S
   outCode = -1;
   outBody = "";
 
-  // First request also retrieves the response body. This avoids the previous
-  // double GET for open Shellys (one probe + one actual request).
-  WiFiClient probeClient;
-  HTTPClient http;
-  http.setConnectTimeout(SHELLY_CONNECT_TIMEOUT_MS);
-  http.setTimeout(SHELLY_HTTP_TIMEOUT_MS);
-  http.useHTTP10(true);
-
-  const char* keys[] = {"WWW-Authenticate"};
-  http.collectHeaders(keys, 1);
-
-  const String url = makeBaseUrl(host, port) + path;
-  if (!http.begin(probeClient, url)) {
-    return false;
-  }
-
-  const int firstCode = http.GET();
-  outCode = firstCode;
-
-  if (firstCode == 200) {
-    outBody = http.getString();
-    http.end();
-    return true;
-  }
-
+  // Discover auth scheme (no credentials sent here)
+  String url = makeBaseUrl(host, port) + path;
   String www;
-  if (firstCode == 401) {
-    www = http.header("WWW-Authenticate");
-  } else if (firstCode > 0) {
-    outBody = http.getString();
-  }
-  http.end();
+  int firstCode = -1;
 
-  if (firstCode != 401 || www.length() == 0) {
+  if (!fetchWwwAuthenticate(url, www, firstCode)) {
     return false;
   }
 
-  const String wwwLower = toLowerCopy(www);
-  String authLine;
+  // If endpoint is open (200), just request without auth
+  if (firstCode == 200) {
+    return rawHttpGet(host, port, path, "", outCode, outBody);
+  }
+
+  // If unauthorized, decide scheme
+  if (firstCode != 401) {
+    // Unexpected (404, 500, etc.). Still try without auth to get body.
+    return rawHttpGet(host, port, path, "", outCode, outBody);
+  }
+
+  String wwwLower = toLowerCopy(www);
 
   if (wwwLower.startsWith("digest")) {
-    authLine = buildDigestAuth(www, user, pass, "GET", path);
-  } else if (wwwLower.startsWith("basic")) {
-    authLine = buildBasicAuthHeaderLine(user, pass);
-  } else {
-    logPrint("[SHELLY][AUTH] Unsupported auth scheme for " + host);
+    // Build Digest Authorization header
+    String digestLine = buildDigestAuth(www, user, pass, "GET", path);
+    if (digestLine.length() == 0) return false;
+    return rawHttpGet(host, port, path, digestLine, outCode, outBody);
+  }
+
+  // Basic auth (rare with Shelly Gen2/3 but supported sometimes)
+  if (wwwLower.startsWith("basic")) {
+    // We'll avoid putting credentials in logs; we only build the header
+    // NOTE: If you need Basic, you can implement base64 header here.
+    // Many Shelly Gen2/3 use Digest, so this branch is typically not needed.
     return false;
   }
 
-  if (authLine.length() == 0) {
-    return false;
-  }
-
-  const bool transportOk = rawHttpGet(host, port, path, authLine, outCode, outBody);
-  return transportOk && outCode >= 200 && outCode < 300;
+  return false;
 }
 
 // =======================
@@ -2262,8 +2207,7 @@ static bool httpGetGen1(
   WiFiClient client;
   HTTPClient http;
 
-  http.setConnectTimeout(SHELLY_CONNECT_TIMEOUT_MS);
-  http.setTimeout(SHELLY_HTTP_TIMEOUT_MS);
+  http.setTimeout(2000); // Gen1 braucht manchmal etwas länger
   http.setReuse(false);
 
   String url = "http://" + host + ":" + String(port) + path;
