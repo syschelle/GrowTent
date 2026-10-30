@@ -1,13 +1,17 @@
-# GrowTent v0.4.1
+# GrowTent v0.4.2
 
 ## Release summary
 
-GrowTent v0.4.1 is the first official release based on the completed **ESPAsyncWebServer migration through Phase 32**. It consolidates the full staged migration and all hardware-validated corrective builds from the v0.2.47-v0.3.09 development line into one clean release baseline.
+GrowTent v0.4.2 is a maintenance release on top of the completed **ESPAsyncWebServer migration through Phase 32**. It keeps the full v0.4.x release baseline and fixes the real-device OTA firmware streaming path discovered while upgrading from v0.3.09.
 
 The permanent GrowTent dashboard and application API now run on **TCP/8080**. TCP/80 is no longer used during normal STA operation and is reserved exclusively for the asynchronous Wi-Fi captive portal while provisioning is active.
 
 ## Highlights
 
+- Fixed a real-device OTA firmware download stall that could stop after about 1% progress.
+- OTA progress callbacks are now lock-free and no longer take the OTA FreeRTOS mutex from inside `HTTPUpdate::update()`.
+- Shelly status polling is paused only while the firmware image is actively streamed, preventing competing outbound HTTP requests during flashing.
+- OTA HTTP read timeout is raised to 60 seconds for GitHub/CDN transfer pauses, with additional serial diagnostics around the update result.
 - Completed migration from the legacy synchronous `WebServer` application path to `ESPAsyncWebServer`.
 - Permanent dashboard and API endpoint on **TCP/8080**.
 - Normal STA operation has **no TCP/80 listener**.
@@ -24,6 +28,12 @@ The permanent GrowTent dashboard and application API now run on **TCP/8080**. TC
 - OTA dashboard actions use DOM event binding and remain independent of removed legacy WebServer handlers.
 - System Settings logging records actual value changes while same-value saves remain silent.
 - Factory-reset and Wi-Fi provisioning ownership are integrated into the final Async architecture.
+
+## v0.4.2 OTA streaming fix
+
+Hardware testing of the v0.3.09 → v0.4.1 upgrade showed that manifest discovery worked correctly, but the firmware transfer could start and then stall after roughly 1% progress. The OTA worker's progress callback was taking the same FreeRTOS mutex used by the status path while running inside `HTTPUpdate::update()`. v0.4.2 removes semaphore and `String` work from the streaming callbacks and publishes progress through simple scalar snapshots instead.
+
+During the firmware stream, only Shelly status polling is paused; sensor acquisition and watering/control tasks continue to run. The GitHub firmware transfer also uses a bounded 60-second HTTP read timeout and reports the final HTTPUpdate error/result explicitly in the serial log.
 
 ## AsyncWebServer migration history
 
@@ -120,7 +130,7 @@ The migration phase number stayed at 32 while hardware testing finalized the rel
 - **v0.3.08:** fixed OTA dashboard event binding/translation scope and removed the dependency on inline `onclick` handlers.
 - **v0.3.09:** fixed the boot-fallback AP lifecycle so captive DNS, TCP/80 and SoftAP are automatically stopped once stored STA credentials recover.
 
-These corrections are included in the v0.4.1 release baseline; they do not introduce a Phase 33.
+These corrections are included in the v0.4.2 release baseline; they do not introduce a Phase 33.
 
 ## Final network ownership
 
@@ -138,7 +148,7 @@ These corrections are included in the v0.4.1 release baseline; they do not intro
 
 ## Safety and ownership model
 
-A central migration rule is retained in v0.4.1:
+A central migration rule is retained in v0.4.2:
 
 > **Async HTTP callback = parse, validate, persist where safe, and queue**  
 > **Main loop / dedicated worker = runtime hardware, network, storage, restart or OTA action**
@@ -154,7 +164,7 @@ The GitHub release workflow builds `firmware.bin` from the tagged source and pub
 
 The manifest contains the release version, firmware URL and a compact release summary for the OTA dashboard.
 
-For the `v0.4.1` release, the workflow uses `RELEASE_NOTES_v0.4.1.md` as the full GitHub release text. To keep OTA checks reliable on already-installed firmware, only the release summary and highlights are embedded in `manifest.json`; the complete Phase 1-32 migration history remains in the GitHub release notes.
+For the `v0.4.2` release, the workflow uses `RELEASE_NOTES_v0.4.2.md` as the full GitHub release text. To keep OTA checks reliable on already-installed firmware, only the release summary and highlights are embedded in `manifest.json`; the complete Phase 1-32 migration history remains in the GitHub release notes.
 
 ## Release validation
 
@@ -168,7 +178,7 @@ chmod +x tests/test_async_webserver.sh
 The release candidate must report:
 
 ```text
-OVERALL v0.4.1 RELEASE GATE: PASS
+OVERALL v0.4.2 RELEASE GATE: PASS
 ```
 
 The test covers, among other checks:
@@ -190,6 +200,6 @@ The test covers, among other checks:
 
 ## Upgrade note
 
-v0.4.1 keeps the existing ESP32 persistent settings/NVS layout and the established GrowTent hardware-control behaviour. The release changes and finalizes the web-server architecture and network ownership; it does not intentionally reset configured grow, relay, irrigation or Shelly values.
+v0.4.2 keeps the existing ESP32 persistent settings/NVS layout and the established GrowTent hardware-control behaviour. The release changes and finalizes the web-server architecture and network ownership; it does not intentionally reset configured grow, relay, irrigation or Shelly values.
 
 After installation, the dashboard is expected on port `8080`.

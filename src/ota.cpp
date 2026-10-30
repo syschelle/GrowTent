@@ -56,6 +56,14 @@ static TaskHandle_t g_otaWorkerTask = nullptr;
 static volatile bool g_otaJobQueued = false;
 static uint32_t g_otaRestartAtMs = 0;
 
+// HTTPUpdate invokes progress callbacks from inside its blocking download/flash
+// path. Keep those callbacks lock-free: taking a FreeRTOS semaphore from the
+// same task can make HTTPUpdate stall or become extremely slow on ESP32.
+static volatile bool g_otaUpdateStreaming = false;
+static volatile int g_otaStreamPercent = 0;
+static volatile int g_otaStreamCurrent = 0;
+static volatile int g_otaStreamTotal = 0;
+
 static String otaJsonEscape(String value) {
   value.replace("\\", "\\\\");
   value.replace("\"", "\\\"");
@@ -348,42 +356,70 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
 
   const char* firmwareUrl = "https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin";
   Serial.println("[OTA] worker update requested");
+  Serial.printf("[OTA] preflight core=%d freeHeap=%u maxAlloc=%u stackHighWater=%u\n",
+                xPortGetCoreID(), ESP.getFreeHeap(), ESP.getMaxAllocHeap(),
+                uxTaskGetStackHighWaterMark(nullptr));
+
+  // Initialize the user-visible status before HTTPUpdate starts. From this point
+  // until update() returns, callbacks must not take g_otaMutex.
+  otaSetProgress(requestId, 0, 0, 0, "download_started");
+  g_otaStreamPercent = 0;
+  g_otaStreamCurrent = 0;
+  g_otaStreamTotal = 0;
+  g_otaUpdateStreaming = true;
 
   WiFiClientSecure client;
   client.setInsecure();
-  client.setTimeout(30);
+  client.setTimeout(60);
 
-  HTTPUpdate otaUpdater;
+  // The default HTTPUpdate client timeout is 8 s. GitHub release assets may
+  // occasionally pause between TLS/CDN chunks, so allow a bounded 60 s read
+  // timeout while keeping the actual progress callbacks lock-free.
+  HTTPUpdate otaUpdater(60000);
   otaUpdater.rebootOnUpdate(false);
   otaUpdater.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
   int lastPercentSent = -1;
   otaUpdater.onStart([&]() {
     Serial.println("[OTA] Start");
-    otaSetProgress(requestId, 0, 0, 0, "download_started");
   });
   otaUpdater.onProgress([&](int current, int total) {
     int percent = (total > 0) ? (int)((100LL * current) / total) : 0;
     percent = constrain(percent, 0, 100);
+
+    // IMPORTANT: no semaphore/mutex/String work here. This callback runs inside
+    // HTTPUpdate::update()/Update::writeStream(). Only aligned scalar values are
+    // published for the status endpoint to snapshot later.
+    g_otaStreamPercent = percent;
+    g_otaStreamCurrent = current;
+    g_otaStreamTotal = total;
+
     if (percent != lastPercentSent) {
       lastPercentSent = percent;
       Serial.printf("[OTA] Progress: %d%% (%d / %d)\n", percent, current, total);
-      otaSetProgress(requestId, percent, current, total, "downloading");
     }
   });
   otaUpdater.onEnd([&]() {
+    g_otaStreamPercent = 100;
+    if (g_otaStreamTotal > 0) g_otaStreamCurrent = g_otaStreamTotal;
     Serial.println("[OTA] download complete");
-    otaSetProgress(requestId, 100, 0, 0, "finalizing");
   });
   otaUpdater.onError([&](int error) {
     Serial.printf("[OTA] Error callback: %d\n", error);
   });
 
   const t_httpUpdate_return ret = otaUpdater.update(client, firmwareUrl);
+  g_otaUpdateStreaming = false;
+
+  Serial.printf("[OTA] update() returned=%d lastError=%d freeHeap=%u maxAlloc=%u\n",
+                (int)ret, otaUpdater.getLastError(), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+
   if (ret == HTTP_UPDATE_OK) {
     if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
       if (g_otaStatus.requestId == requestId) {
         g_otaStatus.percent = 100;
+        g_otaStatus.currentBytes = g_otaStreamTotal;
+        g_otaStatus.totalBytes = g_otaStreamTotal;
         g_otaStatus.message = "updated_restarting";
         g_otaStatus.state = OtaJobState::Done;
         g_otaRestartAtMs = millis() + 2500UL;
@@ -404,7 +440,9 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
     return true;
   }
 
-  otaSetFailure(requestId, otaUpdater.getLastErrorString());
+  const String error = otaUpdater.getLastErrorString();
+  Serial.printf("[OTA] FAILED: %s\n", error.c_str());
+  otaSetFailure(requestId, error.length() ? error : "ota_update_failed");
   return false;
 }
 
@@ -494,14 +532,24 @@ static String otaStatusJsonFor(OtaJobType expectedType, uint32_t requestId) {
     return "{\"ok\":false,\"error\":\"request_not_found\"}";
   }
 
+  int statusPercent = g_otaStatus.percent;
+  int statusCurrent = g_otaStatus.currentBytes;
+  int statusTotal = g_otaStatus.totalBytes;
+  if (expectedType == OtaJobType::Update &&
+      g_otaStatus.state == OtaJobState::Running && g_otaUpdateStreaming) {
+    statusPercent = g_otaStreamPercent;
+    statusCurrent = g_otaStreamCurrent;
+    statusTotal = g_otaStreamTotal;
+  }
+
   String json;
   json.reserve(768 + g_otaStatus.changelog.length());
   json = "{\"ok\":true,\"requestId\":" + String(g_otaStatus.requestId);
   json += ",\"state\":\"" + String(otaStateName(g_otaStatus.state)) + "\"";
   json += ",\"dryRun\":" + String(g_otaStatus.dryRun ? "true" : "false");
-  json += ",\"percent\":" + String(g_otaStatus.percent);
-  json += ",\"current\":" + String(g_otaStatus.currentBytes);
-  json += ",\"total\":" + String(g_otaStatus.totalBytes);
+  json += ",\"percent\":" + String(statusPercent);
+  json += ",\"current\":" + String(statusCurrent);
+  json += ",\"total\":" + String(statusTotal);
   if (expectedType == OtaJobType::Check) {
     json += ",\"attempt\":" + String(g_otaStatus.checkAttempt);
     json += ",\"manifestHttpCode\":" + String(g_otaStatus.manifestHttpCode);
@@ -528,6 +576,10 @@ String otaCheckStatusJson(uint32_t requestId) {
 
 String otaUpdateStatusJson(uint32_t requestId) {
   return otaStatusJsonFor(OtaJobType::Update, requestId);
+}
+
+bool otaIsUpdateInProgress() {
+  return g_otaUpdateStreaming;
 }
 
 void otaProcessQueue() {

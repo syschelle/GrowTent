@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include "globals.h"
+#include "ota.h"
 #include <cstdarg>
 
 extern Preferences preferences;
@@ -80,6 +81,14 @@ void taskShellyStatus(void *parameter){
         minFreeBytes
       );
       logPrint(String(buf));
+    }
+
+    // Do not start a second outbound HTTP transaction while the OTA worker is
+    // streaming the firmware from GitHub. Local sensor/watering control keeps
+    // running; only Shelly status polling is briefly paused.
+    if (otaIsUpdateInProgress()) {
+      vTaskDelay(pdMS_TO_TICKS(500));
+      continue;
     }
 
     // Poll exactly one Shelly per step instead of all configured devices back-to-back.

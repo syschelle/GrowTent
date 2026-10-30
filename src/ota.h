@@ -12,3 +12,7 @@ bool otaQueueUpdate(bool dryRun, uint32_t& requestId, String& errorOut);
 
 String otaCheckStatusJson(uint32_t requestId);
 String otaUpdateStatusJson(uint32_t requestId);
+
+// True only while the firmware image itself is being streamed/flashed.
+// Network polling tasks may use this to avoid competing outbound requests.
+bool otaIsUpdateInProgress();

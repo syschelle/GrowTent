@@ -7325,7 +7325,7 @@ static void startProvisioningPortalServer() {
   logPrint("[WIFI][PROVISION] Async captive portal started on " + WiFi.softAPIP().toString() + ":80");
 }
 
-// v0.4.1: If boot fell back to AP+STA only because the stored STA connection
+// v0.4.2: If boot fell back to AP+STA only because the stored STA connection
 // did not come up within the boot timeout, tear the captive portal back down as
 // soon as that same stored STA connection recovers. Manual/no-credential
 // provisioning deliberately keeps the AP alive so the success page remains
@@ -8444,7 +8444,7 @@ void loop() {
 
   processPumpAutoOff();
 
-  // v0.4.1: A boot-time fallback AP is temporary. Once the stored STA
+  // v0.4.2: A boot-time fallback AP is temporary. Once the stored STA
   // connection has recovered, release TCP/80/DNS and return to STA-only mode
   // before any further provisioning scan work can consume radio/network time.
   stopFallbackProvisioningPortalIfStaRecovered();
