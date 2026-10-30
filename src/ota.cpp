@@ -2,7 +2,10 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <Update.h>
+#include "esp_https_ota.h"
+#include "esp_http_client.h"
+#include "esp_crt_bundle.h"
+#include "esp_err.h"
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "freertos/FreeRTOS.h"
@@ -79,14 +82,17 @@ static TaskHandle_t g_otaWorkerTask = nullptr;
 static volatile bool g_otaJobQueued = false;
 static uint32_t g_otaRestartAtMs = 0;
 
-// HTTPUpdate invokes progress callbacks from inside its blocking download/flash
-// path. Keep those callbacks lock-free: taking a FreeRTOS semaphore from the
-// same task can make HTTPUpdate stall or become extremely slow on ESP32.
+// OTA progress is published as simple scalar snapshots. The native ESP-IDF
+// esp_https_ota_perform() API returns after each HTTP read, so status updates
+// and scheduler yields happen between transfer steps rather than inside a
+// blocking legacy Arduino stream callback.
 static volatile bool g_otaUpdateStreaming = false;
 static volatile int g_otaStreamPercent = 0;
 static volatile int g_otaStreamCurrent = 0;
 static volatile int g_otaStreamTotal = 0;
 static int g_otaKnownFirmwareSize = -1;
+static String g_otaKnownFirmwareUrl;
+static String g_otaKnownFirmwareVersion;
 static uint32_t g_otaKnownFirmwareSizeAtMs = 0;
 
 static void otaLogMemory(const char* stage) {
@@ -103,6 +109,19 @@ static void otaLogMemory(const char* stage) {
       internalFree,
       internalLargest,
       (unsigned)uxTaskGetStackHighWaterMark(nullptr));
+}
+
+static String otaEspError(const char* prefix, esp_err_t err) {
+  String out = prefix ? prefix : "esp_error";
+  out += "_";
+  const char* name = esp_err_to_name(err);
+  if (name && *name) {
+    out += name;
+  } else {
+    out += "0x";
+    out += String((uint32_t)err, HEX);
+  }
+  return out;
 }
 
 static String otaJsonEscape(String value) {
@@ -328,6 +347,13 @@ static bool runOtaCheck(uint32_t requestId, bool dryRun) {
     return false;
   }
 
+  // A real check owns the target selection. Clear any older cached target first
+  // so a failed check can never leave a stale firmware URL eligible for install.
+  g_otaKnownFirmwareSize = -1;
+  g_otaKnownFirmwareUrl = "";
+  g_otaKnownFirmwareVersion = "";
+  g_otaKnownFirmwareSizeAtMs = 0;
+
   const String manifestUrl = String("https://github.com/") + GITHUB_OWNER + "/" + GITHUB_REPO +
                              "/releases/latest/download/manifest.json";
   Serial.printf("[OTA CHECK] worker begin id=%lu installed=%s\n",
@@ -370,8 +396,10 @@ static bool runOtaCheck(uint32_t requestId, bool dryRun) {
       g_otaStatus.changelog = changelog;
       g_otaStatus.firmwareUrl = firmwareUrl;
       g_otaStatus.updateAvailable = updateAvailable;
-      if (firmwareSize > 0) {
+      if (firmwareSize > 0 && !firmwareUrl.isEmpty()) {
         g_otaKnownFirmwareSize = firmwareSize;
+        g_otaKnownFirmwareUrl = firmwareUrl;
+        g_otaKnownFirmwareVersion = latestTag;
         g_otaKnownFirmwareSizeAtMs = millis();
       }
       g_otaStatus.percent = 100;
@@ -404,210 +432,181 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
     return false;
   }
 
-  const String firmwareUrl =
-      String("https://github.com/") + GITHUB_OWNER + "/" + GITHUB_REPO +
-      "/releases/latest/download/firmware.bin";
+  // The dashboard performs a check before enabling Install/Reinstall. Require a
+  // recent successful check here as well so the update target is version-pinned
+  // and an older "latest" release can never silently downgrade a newer local
+  // firmware.
+  const uint32_t targetAgeMs = (uint32_t)(millis() - g_otaKnownFirmwareSizeAtMs);
+  if (g_otaKnownFirmwareSize <= 0 ||
+      g_otaKnownFirmwareUrl.isEmpty() ||
+      g_otaKnownFirmwareVersion.isEmpty() ||
+      g_otaKnownFirmwareSizeAtMs == 0 ||
+      targetAgeMs > 10UL * 60UL * 1000UL) {
+    otaSetFailure(requestId, "update_check_required");
+    return false;
+  }
 
-  Serial.println("[OTA] worker update requested");
-  Serial.printf("[OTA] preflight core=%d workerStack=%u\n",
-                xPortGetCoreID(), (unsigned)OTA_WORKER_STACK_BYTES);
-  otaLogMemory("preflight");
+  if (compareSemver(String(FW_VERSION), g_otaKnownFirmwareVersion) > 0) {
+    Serial.printf("[OTA] refused downgrade installed=%s target=%s\n",
+                  FW_VERSION, g_otaKnownFirmwareVersion.c_str());
+    otaSetFailure(requestId, "downgrade_refused");
+    return false;
+  }
 
-  otaSetProgress(requestId, 0, 0, 0, "probing_firmware");
+  const String firmwareUrl = g_otaKnownFirmwareUrl;
+  const String targetVersion = g_otaKnownFirmwareVersion;
+  const int expectedSize = g_otaKnownFirmwareSize;
+  const String userAgent = String("GrowTent-ESP32/") + FW_VERSION;
+
+  Serial.println("[OTA] native ESP-IDF HTTPS OTA requested");
+  Serial.printf("[OTA] target=%s expectedSize=%d workerStack=%u core=%d\n",
+                targetVersion.c_str(), expectedSize,
+                (unsigned)OTA_WORKER_STACK_BYTES, xPortGetCoreID());
+  otaLogMemory("native_preflight");
+
+  otaSetProgress(requestId, 0, 0, expectedSize, "connecting");
   g_otaStreamPercent = 0;
   g_otaStreamCurrent = 0;
-  g_otaStreamTotal = 0;
-
-  // Prefer the exact size from manifest.json. This lets Update.begin() reserve
-  // its 4 KiB flash buffer before any firmware HTTPS/TLS connection exists.
-  int firmwareSize = -1;
-  if (g_otaKnownFirmwareSize > 0 &&
-      (uint32_t)(millis() - g_otaKnownFirmwareSizeAtMs) <= 10UL * 60UL * 1000UL) {
-    firmwareSize = g_otaKnownFirmwareSize;
-  }
-
-  // Fallback for direct /api/ota/update calls without a preceding update check
-  // or for older manifests without firmwareSize: perform one metadata GET,
-  // close TLS completely, then reserve the Update buffer.
-  if (firmwareSize <= 0) {
-    Serial.println("[OTA] firmwareSize not cached; probing release asset");
-    {
-      WiFiClientSecure probeClient;
-      probeClient.setInsecure();
-      probeClient.setTimeout(60);
-
-      HTTPClient probe;
-      probe.setConnectTimeout(8000);
-      probe.setTimeout(60000);
-      probe.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-      probe.useHTTP10(true);
-
-      if (!probe.begin(probeClient, firmwareUrl)) {
-        otaSetFailure(requestId, "firmware_probe_begin_failed");
-        return false;
-      }
-
-      probe.addHeader("User-Agent", String("GrowTent-ESP32/") + FW_VERSION);
-      probe.addHeader("Accept", "application/octet-stream");
-      probe.addHeader("Accept-Encoding", "identity");
-      probe.addHeader("Connection", "close");
-
-      const int probeCode = probe.GET();
-      firmwareSize = probe.getSize();
-      Serial.printf("[OTA] probe HTTP=%d contentLength=%d\n", probeCode, firmwareSize);
-
-      if (probeCode <= 0) {
-        probe.end();
-        probeClient.stop();
-        otaSetFailure(requestId, String("firmware_probe_transport_") + probeCode);
-        return false;
-      }
-      if (probeCode != HTTP_CODE_OK) {
-        probe.end();
-        probeClient.stop();
-        otaSetFailure(requestId, String("firmware_probe_http_") + probeCode);
-        return false;
-      }
-      if (firmwareSize <= 0) {
-        probe.end();
-        probeClient.stop();
-        otaSetFailure(requestId, "firmware_probe_size_unknown");
-        return false;
-      }
-
-      probe.end();
-      probeClient.stop();
-    }
-
-    // Give the TLS/client destructors a scheduling point so freed heap blocks
-    // can coalesce before Update.begin() requests its 4 KiB sector buffer.
-    vTaskDelay(pdMS_TO_TICKS(20));
-    otaLogMemory("after_probe_close");
-  } else {
-    Serial.printf("[OTA] firmwareSize from manifest=%d\n", firmwareSize);
-  }
-
-  Serial.printf("[OTA] reserving Update buffer for %d bytes before TLS\n", firmwareSize);
-  if (!Update.begin((size_t)firmwareSize, U_FLASH)) {
-    const char* updateErr = Update.errorString();
-    Serial.printf("[OTA] Update.begin failed error=%u text=%s\n",
-                  (unsigned)Update.getError(),
-                  updateErr ? updateErr : "");
-    otaLogMemory("Update.begin_failed");
-    otaSetFailure(requestId,
-                  Update.getError() != UPDATE_ERROR_OK
-                      ? String("update_begin_") + (updateErr ? updateErr : "failed")
-                      : "update_begin_alloc_failed");
-    return false;
-  }
-
-  otaLogMemory("after_Update.begin");
-
-  int lastPercentLogged = -1;
-  Update.onProgress([&](size_t current, size_t total) {
-    const int percent =
-        total > 0 ? constrain((int)((100ULL * current) / total), 0, 100) : 0;
-
-    // Keep the flash-stream callback allocation- and mutex-free.
-    g_otaStreamPercent = percent;
-    g_otaStreamCurrent = (int)current;
-    g_otaStreamTotal = (int)total;
-
-    // Serial output is intentionally sparse to avoid slowing the flash stream.
-    if (percent == 100 || lastPercentLogged < 0 || percent >= lastPercentLogged + 5) {
-      lastPercentLogged = percent;
-      Serial.printf("[OTA] Progress: %d%% (%u / %u)\n",
-                    percent, (unsigned)current, (unsigned)total);
-    }
-  });
-
-  otaSetProgress(requestId, 0, 0, firmwareSize, "download_started");
-  g_otaStreamTotal = firmwareSize;
+  g_otaStreamTotal = expectedSize;
   g_otaUpdateStreaming = true;
 
-  bool updateOk = false;
-  String failureReason;
+  // ESP-IDF 4.4 native OTA:
+  // - verifies GitHub/redirect hosts with the built-in full CA bundle
+  // - follows redirects internally
+  // - writes through ESP-IDF esp_ota_write(), not the legacy Arduino stream path
+  // - esp_https_ota_perform() returns after every HTTP read operation
+  esp_http_client_config_t httpConfig = {};
+  httpConfig.url = firmwareUrl.c_str();
+  httpConfig.user_agent = userAgent.c_str();
+  httpConfig.timeout_ms = 30000;
+  httpConfig.disable_auto_redirect = false;
+  httpConfig.max_redirection_count = 8;
+  httpConfig.transport_type = HTTP_TRANSPORT_OVER_SSL;
+  httpConfig.buffer_size = 1024;
+  httpConfig.buffer_size_tx = 1024;
+  httpConfig.is_async = false;
+  httpConfig.use_global_ca_store = false;
+  httpConfig.skip_cert_common_name_check = false;
+  httpConfig.crt_bundle_attach = arduino_esp_crt_bundle_attach;
+  httpConfig.keep_alive_enable = false;
 
-  {
-    // Only now create the real HTTPS connection. The 4 KiB Update buffer is
-    // already allocated and can no longer be squeezed out by TLS fragmentation.
-    WiFiClientSecure client;
-    client.setInsecure();
-    client.setTimeout(60);
+  esp_https_ota_config_t otaConfig = {};
+  otaConfig.http_config = &httpConfig;
+  otaConfig.http_client_init_cb = nullptr;
+  otaConfig.bulk_flash_erase = false;
+  otaConfig.partial_http_download = false;
+  otaConfig.max_http_request_size = 0;
 
-    HTTPClient http;
-    http.setConnectTimeout(8000);
-    http.setTimeout(60000);
-    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    http.useHTTP10(true);
-
-    if (!http.begin(client, firmwareUrl)) {
-      failureReason = "firmware_http_begin_failed";
-    } else {
-      http.addHeader("User-Agent", String("GrowTent-ESP32/") + FW_VERSION);
-      http.addHeader("Accept", "application/octet-stream");
-      http.addHeader("Accept-Encoding", "identity");
-      http.addHeader("Connection", "close");
-
-      const int code = http.GET();
-      const int responseSize = http.getSize();
-      Serial.printf("[OTA] download HTTP=%d contentLength=%d expected=%d\n",
-                    code, responseSize, firmwareSize);
-      otaLogMemory("download_connected");
-
-      if (code <= 0) {
-        failureReason = String("firmware_transport_") + code;
-      } else if (code != HTTP_CODE_OK) {
-        failureReason = String("firmware_http_") + code;
-      } else if (responseSize > 0 && responseSize != firmwareSize) {
-        failureReason =
-            String("firmware_size_changed_") + responseSize + "_expected_" + firmwareSize;
-      } else {
-        WiFiClient* stream = http.getStreamPtr();
-        if (!stream) {
-          failureReason = "firmware_stream_unavailable";
-        } else {
-          const size_t written = Update.writeStream(*stream);
-          Serial.printf("[OTA] stream finished written=%u expected=%d updateError=%u\n",
-                        (unsigned)written, firmwareSize, (unsigned)Update.getError());
-
-          if (written != (size_t)firmwareSize) {
-            failureReason =
-                String("firmware_incomplete_") + (unsigned)written + "_of_" + firmwareSize;
-          } else if (Update.hasError()) {
-            failureReason = String("update_write_") + Update.errorString();
-          } else if (!Update.isFinished()) {
-            failureReason = "update_not_finished";
-          } else if (!Update.end()) {
-            failureReason = String("update_end_") + Update.errorString();
-          } else {
-            updateOk = true;
-          }
-        }
-      }
-
-      http.end();
-      client.stop();
-    }
-  }
-
-  g_otaUpdateStreaming = false;
-  otaLogMemory("after_update");
-
-  if (!updateOk) {
-    if (Update.isRunning()) Update.abort();
-    if (failureReason.isEmpty()) failureReason = "ota_update_failed";
-    Serial.printf("[OTA] FAILED: %s\n", failureReason.c_str());
-    otaSetFailure(requestId, failureReason);
+  esp_https_ota_handle_t handle = nullptr;
+  esp_err_t err = esp_https_ota_begin(&otaConfig, &handle);
+  if (err != ESP_OK || handle == nullptr) {
+    g_otaUpdateStreaming = false;
+    otaLogMemory("native_begin_failed");
+    const String reason = otaEspError("esp_https_ota_begin", err);
+    Serial.printf("[OTA] FAILED: %s\n", reason.c_str());
+    otaSetFailure(requestId, reason);
     return false;
   }
 
-  Serial.println("[OTA] firmware written successfully");
+  otaLogMemory("native_connected");
+
+  int imageSize = esp_https_ota_get_image_size(handle);
+  if (imageSize <= 0) imageSize = expectedSize;
+
+  Serial.printf("[OTA] native connection established imageSize=%d expected=%d\n",
+                imageSize, expectedSize);
+
+  if (imageSize > 0 && expectedSize > 0 && imageSize != expectedSize) {
+    Serial.printf("[OTA] size mismatch imageSize=%d expected=%d\n",
+                  imageSize, expectedSize);
+    esp_https_ota_abort(handle);
+    g_otaUpdateStreaming = false;
+    otaSetFailure(requestId,
+                  String("firmware_size_changed_") + imageSize +
+                  "_expected_" + expectedSize);
+    return false;
+  }
+
+  const int progressTotal = imageSize > 0 ? imageSize : expectedSize;
+  g_otaStreamTotal = progressTotal;
+  otaSetProgress(requestId, 0, 0, progressTotal, "download_started");
+
+  int lastPercentLogged = -1;
+  esp_err_t performResult = ESP_ERR_HTTPS_OTA_IN_PROGRESS;
+
+  while (performResult == ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
+    performResult = esp_https_ota_perform(handle);
+
+    int current = esp_https_ota_get_image_len_read(handle);
+    if (current < 0) current = 0;
+
+    int total = esp_https_ota_get_image_size(handle);
+    if (total <= 0) total = progressTotal;
+
+    int percent = 0;
+    if (total > 0) {
+      percent = constrain((int)((100LL * current) / total), 0, 100);
+    }
+
+    g_otaStreamPercent = percent;
+    g_otaStreamCurrent = current;
+    g_otaStreamTotal = total;
+
+    // We are between native HTTP read steps here, so it is safe to update the
+    // shared UI status and explicitly yield the worker task.
+    otaSetProgress(requestId, percent, current, total, "downloading");
+
+    if (lastPercentLogged < 0 || percent == 100 || percent >= lastPercentLogged + 5) {
+      lastPercentLogged = percent;
+      Serial.printf("[OTA] Progress: %d%% (%d / %d) perform=%s\n",
+                    percent, current, total, esp_err_to_name(performResult));
+    }
+
+    if (performResult == ESP_ERR_HTTPS_OTA_IN_PROGRESS) {
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+  }
+
+  if (performResult != ESP_OK) {
+    const String reason = otaEspError("esp_https_ota_perform", performResult);
+    Serial.printf("[OTA] FAILED during perform: %s\n", reason.c_str());
+    esp_https_ota_abort(handle);
+    g_otaUpdateStreaming = false;
+    otaLogMemory("native_perform_failed");
+    otaSetFailure(requestId, reason);
+    return false;
+  }
+
+  if (!esp_https_ota_is_complete_data_received(handle)) {
+    Serial.println("[OTA] FAILED: incomplete native OTA image");
+    esp_https_ota_abort(handle);
+    g_otaUpdateStreaming = false;
+    otaSetFailure(requestId, "esp_https_ota_incomplete_data");
+    return false;
+  }
+
+  otaSetProgress(requestId, 100, progressTotal, progressTotal, "finalizing");
+  err = esp_https_ota_finish(handle);
+  handle = nullptr;
+  g_otaUpdateStreaming = false;
+
+  if (err != ESP_OK) {
+    const String reason = otaEspError("esp_https_ota_finish", err);
+    Serial.printf("[OTA] FAILED during finish: %s\n", reason.c_str());
+    otaLogMemory("native_finish_failed");
+    otaSetFailure(requestId, reason);
+    return false;
+  }
+
+  otaLogMemory("native_success");
+  Serial.printf("[OTA] native ESP-IDF OTA complete target=%s bytes=%d\n",
+                targetVersion.c_str(), progressTotal);
+
   if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
     if (g_otaStatus.requestId == requestId) {
       g_otaStatus.percent = 100;
-      g_otaStatus.currentBytes = firmwareSize;
-      g_otaStatus.totalBytes = firmwareSize;
+      g_otaStatus.currentBytes = progressTotal;
+      g_otaStatus.totalBytes = progressTotal;
       g_otaStatus.message = "updated_restarting";
       g_otaStatus.state = OtaJobState::Done;
       g_otaRestartAtMs = millis() + 2500UL;

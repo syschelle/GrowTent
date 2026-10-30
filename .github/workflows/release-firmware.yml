@@ -40,14 +40,40 @@ jobs:
       - name: Build firmware
         run: pio run -e nodemcu-32s
 
-      - name: Verify firmware file
+      - name: Verify firmware files
         run: |
           ls -lh .pio/build/nodemcu-32s/
           test -f .pio/build/nodemcu-32s/firmware.bin
+          test -f .pio/build/nodemcu-32s/firmware.elf
 
       - name: Prepare release file
         run: |
           cp .pio/build/nodemcu-32s/firmware.bin firmware.bin
+
+      - name: Prepare debug symbols
+        run: |
+          cp .pio/build/nodemcu-32s/firmware.elf firmware.elf
+          {
+            echo "tag=${GITHUB_REF_NAME}"
+            echo "commit=${GITHUB_SHA}"
+            echo "runner=${RUNNER_OS}"
+            echo
+            pio --version
+            echo
+            pio pkg list -e nodemcu-32s || true
+          } > build-info.txt
+          sha256sum firmware.bin firmware.elf > build-sha256.txt
+
+      - name: Upload debug symbols artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: growtent-${{ github.ref_name }}-debug
+          path: |
+            firmware.elf
+            build-info.txt
+            build-sha256.txt
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Prepare release notes
         run: |
@@ -69,15 +95,30 @@ jobs:
           tag = os.environ["GITHUB_REF_NAME"]
           notes = Path("release_notes.md").read_text(encoding="utf-8")
 
-          # Keep the OTA manifest deliberately compact. The full release notes can
-          # be large (v0.4.x includes the complete AsyncWebServer migration
-          # history), while older installed firmware reads the manifest into a
-          # single String. Only the summary/highlights belong in the OTA payload;
-          # the complete notes stay attached to the GitHub Release.
-          marker = "## AsyncWebServer migration history"
-          ota_notes = notes.split(marker, 1)[0].rstrip()
-          if marker in notes:
-              ota_notes += "\n\nFull migration history: see the GitHub release notes.\n"
+          # Keep the OTA manifest deliberately compact. Extract ONLY the current
+          # Release summary and Highlights sections; historical fix sections and
+          # the complete migration history remain in the GitHub Release body.
+          import re
+
+          def section(title: str) -> str:
+              pattern = rf"(?ms)^## {re.escape(title)}\s*\n(.*?)(?=^## |\Z)"
+              match = re.search(pattern, notes)
+              return match.group(1).strip() if match else ""
+
+          summary = section("Release summary")
+          highlights = section("Highlights")
+          ota_notes = f"# GrowTent {tag}\n"
+          if summary:
+              ota_notes += f"\n## Release summary\n\n{summary}\n"
+          if highlights:
+              ota_notes += f"\n## Highlights\n\n{highlights}\n"
+          ota_notes += "\nFull details and migration history: see the GitHub release notes.\n"
+
+          # Hard safety ceiling for installed firmware that reads manifest.json
+          # into a single Arduino String.
+          if len(ota_notes.encode("utf-8")) > 4096:
+              ota_notes = ota_notes.encode("utf-8")[:3900].decode("utf-8", "ignore")
+              ota_notes += "\n\nFull details: see the GitHub release notes.\n"
 
           firmware_size = Path("firmware.bin").stat().st_size
           manifest = {

@@ -348,6 +348,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "ota.installButton": { de: "Update installieren", en: "Install update" },
   "ota.reinstallButton": { de: "Firmware erneut installieren", en: "Reinstall firmware" },
   "ota.currentReinstall": { de: "Kein neueres Update verfügbar. Die aktuelle Firmware kann erneut installiert werden.", en: "No newer update is available. The current firmware can be reinstalled." },
+  "ota.localNewer": { de: "Die installierte Firmware ist neuer als der aktuelle GitHub-Release. Ein Downgrade wird nicht angeboten.", en: "The installed firmware is newer than the current GitHub release. Downgrade is not offered." },
   "ota.checking": { de: "Prüfe GitHub Release…", en: "Checking GitHub release…" },
   "ota.available": { de: "Update verfügbar ✅", en: "Update available ✅" },
   "ota.none": { de: "Kein Update verfügbar.", en: "No update available." },
@@ -3147,15 +3148,21 @@ window.checkForOtaUpdate = async function () {
       otaInfo=d;
       btn.textContent=otaTr('ota.installButton','Install update');
       btn.disabled=false;
-    } else {
-      // v0.4.3: a successful check also permits an intentional same-version
-      // reinstall. The OTA worker downloads the current GitHub firmware image
-      // without passing a currentVersion constraint to HTTPUpdate.
+    } else if((d.currentVersion||'') === (d.latestVersion||'')){
+      // Same-version reinstall is intentional and supported.
       status.textContent=otaTr('ota.currentReinstall','No newer update is available. The current firmware can be reinstalled.');
       log.textContent=d.changelog||'';
       otaInfo=d;
       btn.textContent=otaTr('ota.reinstallButton','Reinstall firmware');
       btn.disabled=false;
+    } else {
+      // Safe default: if the locally installed build is newer than GitHub
+      // "latest" (for example a USB test build), never offer an implicit downgrade.
+      status.textContent=otaTr('ota.localNewer','The installed firmware is newer than the current GitHub release. Downgrade is not offered.');
+      log.textContent=d.changelog||'';
+      otaInfo=null;
+      btn.textContent=otaTr('ota.installButton','Install update');
+      btn.disabled=true;
     }
   }catch(e){const raw=e?.message||String(e);status.textContent=otaTr('ota.checkError','Update check failed: {error}').replace('{error}',raw);console.error('[OTA CHECK]',e);}
   finally{if(checkBtn)checkBtn.disabled=false;}
