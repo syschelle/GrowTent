@@ -1,17 +1,17 @@
-# GrowTent v0.4.8
+# GrowTent v0.4.9
 
 ## Release summary
 
-GrowTent v0.4.8 is a targeted correction to the native ESP-IDF HTTPS OTA transport introduced in v0.4.7. Hardware testing showed that the Arduino-specific certificate-bundle wrapper was selected instead of ESP-IDF's native bundle hook. The Arduino wrapper has no automatically initialized bundle in Arduino-ESP32 2.0.17, causing TLS to fail before the firmware transfer began. v0.4.8 binds the native ESP-IDF `esp_crt_bundle_attach()` implementation, which initializes the framework-embedded certificate bundle on first use.
+GrowTent v0.4.9 hardens the native ESP-IDF HTTPS OTA connection against GitHub Release Asset redirects. Hardware testing of v0.4.8 proved that TLS certificate verification now succeeds, but GitHub returned HTTP status 618 during the redirect chain before firmware download began. v0.4.9 increases the native ESP HTTP client RX/TX buffers to 8192 bytes, matching Espressif's recommendation for GitHub's long redirect headers, and adds one complete `esp_https_ota_begin()` retry so a failed redirect obtains a fresh signed URL.
 
 ## Highlights
 
-- Uses ESP-IDF 4.4's native `esp_crt_bundle_attach()` for HTTPS OTA certificate verification.
-- Avoids Arduino-ESP32 2.0.17's `arduino_esp_crt_bundle_attach()` wrapper, which requires an explicit user bundle.
-- Keeps the incremental `esp_https_ota_begin()` / `esp_https_ota_perform()` / `esp_https_ota_finish()` transport from v0.4.7 unchanged.
-- Keeps GitHub redirect support, version-pinned firmware URLs, downgrade protection and same-version reinstall support.
-- Keeps 90-day `firmware.elf` debug artifacts for exact future backtrace decoding.
-- Keeps the compact OTA manifest and v0.4.6 request-status lifecycle fix.
+- Native OTA HTTP RX buffer increased from 1024 to 8192 bytes.
+- Native OTA HTTP TX buffer increased from 1024 to 8192 bytes.
+- `esp_https_ota_begin()` may retry once after a failed GitHub redirect/connect attempt.
+- Each retry starts from the version-pinned GitHub release URL and therefore obtains a fresh signed release-asset URL.
+- Native ESP-IDF certificate-bundle verification from v0.4.8 is retained unchanged.
+- Incremental `esp_https_ota_perform()` flashing, downgrade protection, same-version reinstall and debug ELF retention remain unchanged.
 
 ## v0.4.6 OTA request-status lifecycle fix
 
@@ -25,6 +25,23 @@ v0.4.6 preserves the last terminal OTA check and update status before reusing th
 
 The Async release test now explicitly queues a second OTA job and then queries the previous completed request ID. The old request must remain `state:"done"` and may no longer regress to `request_not_found`.
 
+
+## v0.4.9 GitHub redirect / HTTP 618 hardening
+
+Hardware testing of v0.4.8 showed successful OTA manifest retrieval and successful TLS initialization, but `esp_https_ota_begin()` then failed while following GitHub's release-asset redirect:
+
+```text
+esp_https_ota: Server error (618)
+esp_https_ota: Failed to establish HTTP connection
+```
+
+The failure occurred only a few seconds after the OTA request began, so it was not consistent with a signed URL simply aging past GitHub's short expiration window. The running v0.4.8 configuration used only 1024-byte RX and TX buffers for the native ESP HTTP client.
+
+Espressif has documented the same GitHub `618` symptom and specifically recommends larger HTTP client RX/TX buffers because GitHub release downloads use long redirect headers and short-lived signed release-asset URLs.
+
+v0.4.9 therefore uses 8192-byte RX and TX buffers for the native OTA HTTP client. It also permits one complete `esp_https_ota_begin()` retry. A retry starts again from the stable, version-specific GitHub release URL, forcing GitHub to issue a fresh signed release-asset redirect instead of relying on connection state from the failed attempt.
+
+The actual OTA data path is unchanged: firmware is still written incrementally by ESP-IDF through `esp_https_ota_perform()` and finalized with `esp_https_ota_finish()`.
 
 ## v0.4.8 native IDF certificate-bundle correction
 

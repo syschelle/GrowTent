@@ -36,6 +36,9 @@ static constexpr uint16_t OTA_CHECK_CONNECT_TIMEOUT_MS = 8000;
 static constexpr uint16_t OTA_CHECK_RESPONSE_TIMEOUT_MS = 15000;
 static constexpr uint32_t OTA_WORKER_STACK_BYTES = 8192;
 static constexpr BaseType_t OTA_WORKER_CORE = 1;
+static constexpr int OTA_NATIVE_HTTP_BUFFER_BYTES = 8192;
+static constexpr int OTA_NATIVE_BEGIN_MAX_ATTEMPTS = 2;
+static constexpr uint32_t OTA_NATIVE_BEGIN_RETRY_DELAY_MS = 750;
 
 enum class OtaJobType : uint8_t { None, Check, Update };
 enum class OtaJobState : uint8_t { Idle, Queued, Running, Done, Failed };
@@ -489,8 +492,8 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   httpConfig.disable_auto_redirect = false;
   httpConfig.max_redirection_count = 8;
   httpConfig.transport_type = HTTP_TRANSPORT_OVER_SSL;
-  httpConfig.buffer_size = 1024;
-  httpConfig.buffer_size_tx = 1024;
+  httpConfig.buffer_size = OTA_NATIVE_HTTP_BUFFER_BYTES;
+  httpConfig.buffer_size_tx = OTA_NATIVE_HTTP_BUFFER_BYTES;
   httpConfig.is_async = false;
   httpConfig.use_global_ca_store = false;
   httpConfig.skip_cert_common_name_check = false;
@@ -505,7 +508,40 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   otaConfig.max_http_request_size = 0;
 
   esp_https_ota_handle_t handle = nullptr;
-  esp_err_t err = esp_https_ota_begin(&otaConfig, &handle);
+  esp_err_t err = ESP_FAIL;
+
+  // GitHub release downloads currently redirect to a long, short-lived signed
+  // release-assets URL. ESP-IDF/GitHub have documented HTTP 618 failures when
+  // redirect headers are handled with small client buffers. Use 8 KiB RX/TX
+  // buffers and allow one complete begin retry so a failed redirect always gets
+  // a freshly signed URL instead of reusing stale connection state.
+  for (int attempt = 1; attempt <= OTA_NATIVE_BEGIN_MAX_ATTEMPTS; ++attempt) {
+    handle = nullptr;
+    Serial.printf("[OTA] native begin attempt=%d/%d rxBuf=%d txBuf=%d\n",
+                  attempt, OTA_NATIVE_BEGIN_MAX_ATTEMPTS,
+                  httpConfig.buffer_size, httpConfig.buffer_size_tx);
+
+    err = esp_https_ota_begin(&otaConfig, &handle);
+    if (err == ESP_OK && handle != nullptr) {
+      break;
+    }
+
+    if (handle != nullptr) {
+      esp_https_ota_abort(handle);
+      handle = nullptr;
+    }
+
+    otaLogMemory("native_begin_attempt_failed");
+    Serial.printf("[OTA] native begin attempt=%d failed: %s\n",
+                  attempt, esp_err_to_name(err));
+
+    if (attempt < OTA_NATIVE_BEGIN_MAX_ATTEMPTS) {
+      Serial.printf("[OTA] retrying native begin with fresh GitHub redirect in %u ms\n",
+                    (unsigned)OTA_NATIVE_BEGIN_RETRY_DELAY_MS);
+      vTaskDelay(pdMS_TO_TICKS(OTA_NATIVE_BEGIN_RETRY_DELAY_MS));
+    }
+  }
+
   if (err != ESP_OK || handle == nullptr) {
     g_otaUpdateStreaming = false;
     otaLogMemory("native_begin_failed");
