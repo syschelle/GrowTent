@@ -61,6 +61,13 @@ void taskShellyStatus(void *parameter){
   };
 
   for (;;) {
+    if (otaMaintenanceRequested()) {
+      Serial.println("[OTA MAINT] Shelly task releasing stack");
+      otaNotifyMaintenanceTaskStopped(OTA_MAINT_TASK_SHELLY);
+      vTaskDelete(nullptr);
+      return;
+    }
+
     UBaseType_t freeBytes = uxTaskGetStackHighWaterMark(NULL);
     if (freeBytes < minFreeBytes) {
       minFreeBytes = freeBytes;

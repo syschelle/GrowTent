@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "globals.h"
 #include "function.h"
+#include "ota.h"
 
 // Wait in short slices so a dashboard stop request can interrupt an active
 // pump pulse or the pause between irrigation runs promptly.
@@ -37,6 +38,20 @@ void taskWatering(void *parameter) {
   static UBaseType_t minFreeBytes = UINT32_MAX;
 
   for (;;) {
+    if (otaMaintenanceRequested()) {
+      // Main-loop maintenance already forces all irrigation relays off before
+      // the OTA worker is allowed to connect externally.
+      stopAllIrrigationPumps();
+      irrigation.irrigationRuns = 0;
+      irrigation.wTimeLeft = "00:00";
+      irrigationStartNotifyPending = false;
+      irrigationStopRequested = false;
+      Serial.println("[OTA MAINT] Watering task releasing stack");
+      otaNotifyMaintenanceTaskStopped(OTA_MAINT_TASK_WATERING);
+      vTaskDelete(nullptr);
+      return;
+    }
+
     UBaseType_t freeBytes = uxTaskGetStackHighWaterMark(NULL);
 
     if (freeBytes < minFreeBytes) {

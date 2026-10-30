@@ -5,6 +5,7 @@
 #include <Preferences.h>
 #include <Adafruit_BME280.h>
 #include "globals.h"
+#include "ota.h"
 #include <cstdarg>
 
 extern Preferences preferences;
@@ -30,6 +31,13 @@ void taskCheckBMESensor(void *parameter) {
 
 
   for (;;) {
+    if (otaMaintenanceRequested()) {
+      Serial.println("[OTA MAINT] BME task releasing stack");
+      otaNotifyMaintenanceTaskStopped(OTA_MAINT_TASK_BME);
+      vTaskDelete(nullptr);
+      return;
+    }
+
     updateGrowTimeValues();
 
     // --- stack watermark logging (debug) ---

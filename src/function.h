@@ -20,6 +20,7 @@
 
 // global, functions, html code, js code and css code includes
 #include "globals.h"
+#include "ota.h"
 #include <runtime.h>
 
 // Include platform-specific headers for inet_ntoa
@@ -188,6 +189,13 @@ void sensorTask(void* pvParameters) {
     const uint32_t debugLogIntervalMs = 60000; // 60s
 
     for (;;) {
+        if (otaMaintenanceRequested()) {
+            Serial.println("[OTA MAINT] sensor task releasing stack");
+            otaNotifyMaintenanceTaskStopped(OTA_MAINT_TASK_SENSOR);
+            vTaskDelete(nullptr);
+            return;
+        }
+
         if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
             lastLogMs = millis();
 

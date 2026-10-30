@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.9 / phase 32 OTA request-status lifecycle fix
+# Test build: v0.4.11 / phase 32 OTA request-status lifecycle fix
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -153,7 +153,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.9 / Async phase 32 fallback-AP lifecycle fix"
+log "Test build target: v0.4.11 / Async phase 32 fallback-AP lifecycle fix"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -163,7 +163,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.9"
+EXPECTED_FW_VERSION="v0.4.11"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -231,7 +231,7 @@ for spec in "root|/|GET" "style|/style.css|GET" "script|/script.js|GET" "favicon
     LEGACY_UI_FAILURES=$((LEGACY_UI_FAILURES + 1))
   fi
 done
-# v0.4.9: when STA is connected, a boot-time fallback AP must already have
+# v0.4.11: when STA is connected, a boot-time fallback AP must already have
 # released DNS/TCP80 and returned to STA-only mode. This check catches the
 # v0.3.08 lifecycle bug directly instead of relying only on port probes.
 phase0a_health="$(curl -sS --http1.1 --max-time 5 "$BASE8080/api/async/health" 2>>"$LOGFILE" || true)"
@@ -3608,7 +3608,7 @@ if [[ "$phase32_html" == *'id="otaCheckBtn"'* && \
       "$phase32_html" != *'onclick="checkForOtaUpdate()"'* && \
       "$phase32_html" != *'onclick="startOtaUpdate()"'* && \
       "$phase32_html" == *'/script.js?v=0.4.6'* ]]; then
-  log "PASS OTA dashboard buttons use DOM event binding and v0.4.9 script cache-buster; no inline onclick dependency remains"
+  log "PASS OTA dashboard buttons use DOM event binding and v0.4.11 script cache-buster; no inline onclick dependency remains"
 else
   log "FAIL OTA dashboard button binding/cache-buster contract missing"
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
@@ -3721,7 +3721,7 @@ IFS=$'\t' read -r phase32_ota_real_http _ _ <<< "$phase32_ota_real_meta"
 phase32_ota_real_resp="$(cat "$phase32_ota_real_body" 2>/dev/null || true)"
 phase32_ota_real_id="$(json_uint_field "$phase32_ota_real_resp" requestId)"
 if [[ "$phase32_ota_real_rc" -eq 0 && "$phase32_ota_real_http" == "202" && -n "$phase32_ota_real_id" && "$phase32_ota_real_resp" == *'"dryRun":false'* ]]; then
-  # v0.4.9 regression: queueing a new OTA job must not invalidate the terminal
+  # v0.4.11 regression: queueing a new OTA job must not invalidate the terminal
   # requestId of the previous OTA check. The old dry-run request must remain
   # queryable instead of returning request_not_found.
   phase32_ota_archived_status="$(curl -sS --max-time 3 "$BASE8080/api/ota/check-status?requestId=${phase32_ota_check_id}" 2>>"$LOGFILE" || true)"
@@ -4381,6 +4381,19 @@ else
   log "tar not found; upload the .txt and requests.tsv files from $OUTDIR instead."
 fi
 
-# v0.4.9 OTA redirect hardening source guards
-grep -q 'OTA_NATIVE_HTTP_BUFFER_BYTES = 8192' "$PROJECT_DIR/src/ota.cpp" || fail "native OTA HTTP buffers are not 8192 bytes"
-grep -q 'OTA_NATIVE_BEGIN_MAX_ATTEMPTS = 2' "$PROJECT_DIR/src/ota.cpp" || fail "native OTA begin retry guard missing"
+# v0.4.11 OTA redirect hardening source guards
+grep -q 'OTA_NATIVE_HTTP_BUFFER_BYTES = 1024' "$PROJECT_DIR/src/ota.cpp" || fail "native OTA HTTP buffers are not 8192 bytes"
+
+
+# v0.4.11 exclusive OTA maintenance source contract
+TEST_REPO_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)"
+if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" ]]; then
+  grep -q 'OTA_EXCLUSIVE_QUIESCE_TIMEOUT_MS = 20000UL' "$TEST_REPO_ROOT/src/ota.cpp" || fail "exclusive OTA quiesce timeout missing"
+  grep -q 'otaRequestExclusiveMaintenance' "$TEST_REPO_ROOT/src/ota.cpp" || fail "exclusive OTA request missing"
+  grep -q 'otaMaintenanceAllTasksStopped' "$TEST_REPO_ROOT/src/ota.cpp" || fail "exclusive OTA task barrier missing"
+  if grep -q 'asyncServer.end();' "$TEST_REPO_ROOT/src/main.cpp"; then fail "exclusive OTA must retain TCP/8080 for live progress"; fi
+grep -q 'ota_in_progress' "$TEST_REPO_ROOT/src/main.cpp" || fail "OTA maintenance state/stats guard missing"
+  grep -q 'LittleFS.end();' "$TEST_REPO_ROOT/src/main.cpp" || fail "exclusive OTA LittleFS shutdown missing"
+  grep -q 'preferences.end();' "$TEST_REPO_ROOT/src/main.cpp" || fail "exclusive OTA Preferences shutdown missing"
+  grep -q 'Wire.end();' "$TEST_REPO_ROOT/src/main.cpp" || fail "exclusive OTA I2C shutdown missing"
+fi

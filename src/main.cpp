@@ -23,6 +23,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_heap_caps.h"
 
 // global, functions, html code, js code and css code includes
 #include "globals.h"
@@ -111,6 +112,9 @@ DallasTemperature sensors(&oneWire);
 
 // Task handle for sensor task
 TaskHandle_t sensorTaskHandle = nullptr;
+volatile bool g_deferredInitComplete = false;
+static bool g_otaExclusivePlatformShutdownStarted = false;
+static bool g_otaExclusivePlatformShutdownComplete = false;
 
 // Forward declarations
 bool startSoftAP();
@@ -1392,6 +1396,17 @@ static void expireAsyncStateCacheMetadata() {
 }
 
 static void handleAsyncStateResponse(AsyncWebServerRequest* request, bool isStats) {
+  if (otaMaintenanceRequested()) {
+    AsyncWebServerResponse* response =
+        request->beginResponse(503, "application/json",
+                               "{\"ok\":false,\"error\":\"ota_in_progress\"}");
+    addAsyncCommonHeaders(response, false);
+    response->addHeader("Connection", "close");
+    response->addHeader("Retry-After", "5");
+    response->addHeader("X-GrowTent-OTA-Maintenance", "1");
+    request->send(response);
+    return;
+  }
   if (!request) return;
 
   bool cacheHit = false;
@@ -8162,18 +8177,31 @@ static void taskDeferredInit(void* /*pv*/) {
     logPrint("[SENSOR] BME280 not found (will run without it)");
   }
 
-  // Start tasks (they should be written defensively: check wifiReady/bmeAvailable)
-  xTaskCreatePinnedToCore(sensorTask, "sensor", 2048, nullptr, 1, &sensorTaskHandle, 1);
+  // Start application tasks and register exactly those that exist so exclusive
+  // OTA can wait for every live application task to release its stack.
+  if (xTaskCreatePinnedToCore(sensorTask, "sensor", 2048, nullptr, 1, &sensorTaskHandle, 1) == pdPASS) {
+    otaRegisterMaintenanceTask(OTA_MAINT_TASK_SENSOR);
+  }
 
   if (bmeAvailable) {
-    xTaskCreatePinnedToCore(taskCheckBMESensor, "BME", 4096, nullptr, 1, nullptr, 1);
+    if (xTaskCreatePinnedToCore(taskCheckBMESensor, "BME", 4096, nullptr, 1, nullptr, 1) == pdPASS) {
+      otaRegisterMaintenanceTask(OTA_MAINT_TASK_BME);
+    }
   }
 
   // Shelly status task can run even if WiFi isn't ready yet; it should handle that.
-  xTaskCreatePinnedToCore(taskShellyStatus, "Shelly", 4096, nullptr, 1, nullptr, 1);
+  if (xTaskCreatePinnedToCore(taskShellyStatus, "Shelly", 4096, nullptr, 1, nullptr, 1) == pdPASS) {
+    otaRegisterMaintenanceTask(OTA_MAINT_TASK_SHELLY);
+  }
 
   // Watering task (relay control) can also run without WiFi, but should check activeRelayCount and handle it gracefully.
-  xTaskCreatePinnedToCore(taskWatering, "Watering", 4096, nullptr, 1, nullptr, 1);
+  if (xTaskCreatePinnedToCore(taskWatering, "Watering", 4096, nullptr, 1, nullptr, 1) == pdPASS) {
+    otaRegisterMaintenanceTask(OTA_MAINT_TASK_WATERING);
+  }
+
+  g_deferredInitComplete = true;
+  Serial.printf("[BOOT] application tasks ready OTA-maint-mask=0x%02X\n",
+                (unsigned)otaMaintenanceRegisteredMask());
 
   vTaskDelete(nullptr);
 }
@@ -8301,6 +8329,71 @@ void setup() {
   xTaskCreatePinnedToCore(taskDeferredInit, "deferredInit", 4096, nullptr, 1, nullptr, 0);
 }
 
+// -------------------- Exclusive OTA platform shutdown --------------------
+static bool processOtaExclusivePlatformShutdown() {
+  if (!otaMaintenanceRequested()) return false;
+
+  if (!g_otaExclusivePlatformShutdownStarted) {
+    g_otaExclusivePlatformShutdownStarted = true;
+
+    const uint32_t internalFree =
+        (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    const uint32_t internalLargest =
+        (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+
+    Serial.printf(
+        "[OTA MAINT] platform shutdown begin freeHeap=%u maxAlloc=%u internalFree=%u internalLargest=%u\n",
+        ESP.getFreeHeap(), ESP.getMaxAllocHeap(), internalFree, internalLargest);
+
+    // No actuator sequence is allowed to continue while the application runtime
+    // is being dismantled. Irrigation pumps are forced off immediately.
+    irrigationStopRequested = true;
+    stopAllIrrigationPumps();
+    irrigation.irrigationRuns = 0;
+    irrigation.wTimeLeft = "00:00";
+    irrigationStartNotifyPending = false;
+
+    // Keep TCP/8080 alive so the browser can continue polling
+    // /api/ota/update-status and show real OTA progress. Normal application
+    // state endpoints are reduced to a tiny ota_in_progress response below.
+    Serial.println("[OTA MAINT] application web server :8080 retained for OTA status");
+  }
+
+  // Application tasks self-delete at a safe point in their own loops. Do not
+  // delete them externally while they might own a mutex or be inside HTTP code.
+  if (!otaMaintenanceAllTasksStopped()) {
+    return true;
+  }
+
+  if (!g_otaExclusivePlatformShutdownComplete) {
+    // Nothing below is needed by the OTA worker. Releasing these services only
+    // happens after all application tasks have exited.
+    LittleFS.end();
+    preferences.end();
+    Wire.end();
+
+    // Keep the RAM log buffer allocated while :8080 remains alive; the
+    // log route may still be reached by an already-open browser tab. The browser
+    // stops log polling during OTA, so it does not create extra traffic.
+
+    g_otaExclusivePlatformShutdownComplete = true;
+    otaMarkPlatformMaintenanceReady();
+
+    const uint32_t internalFree =
+        (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    const uint32_t internalLargest =
+        (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+
+    Serial.printf(
+        "[OTA MAINT] platform ready stopped=0x%02X registered=0x%02X freeHeap=%u maxAlloc=%u internalFree=%u internalLargest=%u\n",
+        (unsigned)otaMaintenanceStoppedMask(),
+        (unsigned)otaMaintenanceRegisteredMask(),
+        ESP.getFreeHeap(), ESP.getMaxAllocHeap(), internalFree, internalLargest);
+  }
+
+  return true;
+}
+
 // -------------------- loop --------------------
 void loop() {
   // Web/API responsiveness watchdog. Phase 32 has only Async web servers:
@@ -8321,13 +8414,21 @@ void loop() {
   }
   lastLoopEntryMs = loopNowMs;
 
+  // OTA queue is checked first. A real install may switch the entire
+  // application into exclusive OTA mode; once requested, the normal runtime
+  // performs no further controller/network/storage work until reboot.
+  otaProcessQueue();
+  if (processOtaExclusivePlatformShutdown()) {
+    delay(1);
+    return;
+  }
+
   // Runtime handoffs: Async callbacks persist and queue validated settings,
   // while the normal loop owns all live controller mutations.
   processAsyncFactoryResetApply();
   processAsyncSystemRestartApply();
   processAsyncMessageSettingsApply();
   processAsyncNewGrowApply();
-  otaProcessQueue();
   processAsyncGrowTargetsApply();
   processAsyncHeatingTuningApply();
   processAsyncHeatingOutputApply();

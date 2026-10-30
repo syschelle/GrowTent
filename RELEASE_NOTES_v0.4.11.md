@@ -1,17 +1,20 @@
-# GrowTent v0.4.9
+# GrowTent v0.4.11
 
 ## Release summary
 
-GrowTent v0.4.9 hardens the native ESP-IDF HTTPS OTA connection against GitHub Release Asset redirects. Hardware testing of v0.4.8 proved that TLS certificate verification now succeeds, but GitHub returned HTTP status 618 during the redirect chain before firmware download began. v0.4.9 increases the native ESP HTTP client RX/TX buffers to 8192 bytes, matching Espressif's recommendation for GitHub's long redirect headers, and adds one complete `esp_https_ota_begin()` retry so a failed redirect obtains a fresh signed URL.
+GrowTent v0.4.11 adds an exclusive OTA maintenance mode. After the user explicitly starts Install update or Reinstall firmware, the ESP stops the normal application runtime and dedicates its resources to the native ESP-IDF HTTPS OTA worker. The change is intended to maximize contiguous internal RAM and eliminate competing application network activity while preserving all normal sensor/control tasks during ordinary operation.
 
 ## Highlights
 
-- Native OTA HTTP RX buffer increased from 1024 to 8192 bytes.
-- Native OTA HTTP TX buffer increased from 1024 to 8192 bytes.
-- `esp_https_ota_begin()` may retry once after a failed GitHub redirect/connect attempt.
-- Each retry starts from the version-pinned GitHub release URL and therefore obtains a fresh signed release-asset URL.
-- Native ESP-IDF certificate-bundle verification from v0.4.8 is retained unchanged.
-- Incremental `esp_https_ota_perform()` flashing, downgrade protection, same-version reinstall and debug ELF retention remain unchanged.
+- `sensorTask` remains active during normal operation and is stopped only for an explicitly started firmware installation.
+- Sensor/BME, Shelly and Watering tasks self-delete at safe loop boundaries, releasing 14 KiB of configured task stacks plus their TCBs.
+- Active irrigation is stopped immediately and pump relays are forced off before OTA networking begins.
+- TCP/8080 stays online specifically for `/api/ota/update-status`, so the browser retains live percentage/byte progress throughout the installation.
+- LittleFS, Preferences, I2C and the in-RAM web log buffer are released before `esp_https_ota_begin()`.
+- The Arduino main loop performs no normal controller, NTP, Wi-Fi policy, storage or runtime-handoff work while exclusive OTA mode is active.
+- The browser stops normal sensor/log polling but continues polling `/api/ota/update-status` every 500 ms until completion.
+- A failed OTA attempt also triggers a clean reboot into the existing firmware instead of trying to reconstruct deleted application tasks in-place.
+- v0.4.10 HTTP/TLS diagnostics and native ESP-IDF OTA transport are retained.
 
 ## v0.4.6 OTA request-status lifecycle fix
 
@@ -25,6 +28,28 @@ v0.4.6 preserves the last terminal OTA check and update status before reusing th
 
 The Async release test now explicitly queues a second OTA job and then queries the previous completed request ID. The old request must remain `state:"done"` and may no longer regress to `request_not_found`.
 
+
+## v0.4.11 exclusive OTA maintenance mode
+
+Normal GrowTent operation is unchanged. The sensor, BME/control, Shelly polling and Watering tasks remain active until the user explicitly starts a firmware installation.
+
+After the `/api/ota/update` POST has been acknowledged to the browser, the OTA worker waits one second and requests exclusive maintenance mode. The main loop immediately forces irrigation pumps off while keeping TCP/8080 available for the OTA status endpoint. Each application task then observes the maintenance flag from its own loop, acknowledges shutdown and calls `vTaskDelete(nullptr)` itself. This avoids externally deleting a task while it may own a mutex or be inside network code.
+
+The OTA worker does not open the GitHub firmware TLS connection until all registered application tasks have stopped and the main loop has additionally closed LittleFS, Preferences and I2C and released the in-memory log deque. Heap diagnostics are printed both before the shutdown and after the exclusive environment is ready.
+
+Once exclusive mode has begun, the normal application is intentionally not reconstructed in-place. A successful OTA ends in the normal firmware reboot. A failed OTA also schedules a reboot, which returns to the still-valid existing firmware partition and recreates the normal runtime through the standard boot path.
+
+The browser stops normal `/api/state` and web-log polling during installation but continues polling `/api/ota/update-status` every 500 ms. `/api/state` and `/api/stats` return a lightweight `503 ota_in_progress` response while maintenance mode is active, preventing normal dashboard/backend state generation from competing with OTA. After successful completion the ESP reboots and the page reloads.
+
+## v0.4.10 OTA transport diagnostics
+
+v0.4.9 did not establish that larger HTTP buffers solved GitHub HTTP 618. Its first native OTA begin attempt instead ran until the configured connection timeout and returned `ESP_ERR_HTTP_CONNECT`. The automatic second attempt then failed immediately in `mbedtls_ssl_setup()` with `-0x7F00`, which is `MBEDTLS_ERR_SSL_ALLOC_FAILED`.
+
+The exact Arduino-ESP32 2.0.17 ESP32 SDK configuration uses internal RAM for mbedTLS, a symmetric 16384-byte TLS content size, no asymmetric content lengths, and no dynamic TLS buffers. Increasing both ESP HTTP client buffers from 1024 to 8192 bytes also increases ESP HTTPS OTA's own upgrade buffer because that buffer is sized from `http_config->buffer_size`. The v0.4.9 change therefore materially increased peak internal-RAM demand before TLS setup.
+
+v0.4.10 deliberately does not introduce another transport fix. It restores the 1024-byte HTTP buffers and performs one native OTA begin attempt only. A dedicated HTTP event callback records which host was connected, which redirect host was announced, and the exact socket/TLS error details on disconnect. The signed redirect URL itself is never logged.
+
+This release exists to identify the first failing transport stage before any further OTA behavior change is made.
 
 ## v0.4.9 GitHub redirect / HTTP 618 hardening
 

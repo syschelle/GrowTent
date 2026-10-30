@@ -5,6 +5,9 @@
 #include "esp_https_ota.h"
 #include "esp_http_client.h"
 #include "esp_err.h"
+#include "esp_tls.h"
+#include <errno.h>
+#include <string.h>
 
 // Arduino-ESP32 2.0.17 also ships a WiFiClientSecure-local esp_crt_bundle.h
 // whose attach wrapper requires a user-supplied bundle to be
@@ -13,6 +16,7 @@
 // framework-embedded certificate bundle on first use. Declare that native C
 // symbol explicitly so the Arduino-local header cannot shadow it.
 extern "C" esp_err_t esp_crt_bundle_attach(void *conf);
+extern volatile bool g_deferredInitComplete;
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "freertos/FreeRTOS.h"
@@ -36,9 +40,9 @@ static constexpr uint16_t OTA_CHECK_CONNECT_TIMEOUT_MS = 8000;
 static constexpr uint16_t OTA_CHECK_RESPONSE_TIMEOUT_MS = 15000;
 static constexpr uint32_t OTA_WORKER_STACK_BYTES = 8192;
 static constexpr BaseType_t OTA_WORKER_CORE = 1;
-static constexpr int OTA_NATIVE_HTTP_BUFFER_BYTES = 8192;
-static constexpr int OTA_NATIVE_BEGIN_MAX_ATTEMPTS = 2;
-static constexpr uint32_t OTA_NATIVE_BEGIN_RETRY_DELAY_MS = 750;
+static constexpr uint32_t OTA_EXCLUSIVE_RESPONSE_GRACE_MS = 1000UL;
+static constexpr uint32_t OTA_EXCLUSIVE_QUIESCE_TIMEOUT_MS = 20000UL;
+static constexpr int OTA_NATIVE_HTTP_BUFFER_BYTES = 1024;
 
 enum class OtaJobType : uint8_t { None, Check, Update };
 enum class OtaJobState : uint8_t { Idle, Queued, Running, Done, Failed };
@@ -92,6 +96,15 @@ static TaskHandle_t g_otaWorkerTask = nullptr;
 static volatile bool g_otaJobQueued = false;
 static uint32_t g_otaRestartAtMs = 0;
 
+// Exclusive OTA maintenance state. Bitmasks are protected by a small critical
+// section because multiple application tasks may acknowledge shutdown at nearly
+// the same time on the two ESP32 cores.
+static volatile bool g_otaMaintenanceRequested = false;
+static volatile bool g_otaPlatformMaintenanceReady = false;
+static volatile uint32_t g_otaMaintenanceRegisteredMask = 0;
+static volatile uint32_t g_otaMaintenanceStoppedMask = 0;
+static portMUX_TYPE g_otaMaintenanceMux = portMUX_INITIALIZER_UNLOCKED;
+
 // OTA progress is published as simple scalar snapshots. The native ESP-IDF
 // esp_https_ota_perform() API returns after each HTTP read, so status updates
 // and scheduler yields happen between transfer steps rather than inside a
@@ -104,6 +117,127 @@ static int g_otaKnownFirmwareSize = -1;
 static String g_otaKnownFirmwareUrl;
 static String g_otaKnownFirmwareVersion;
 static uint32_t g_otaKnownFirmwareSizeAtMs = 0;
+
+
+static void otaSetFailure(uint32_t requestId, const String& error);
+static void otaSetProgress(uint32_t requestId, int percent, int current, int total, const char* message);
+static void otaLogMemory(const char* stage);
+
+void otaRegisterMaintenanceTask(uint32_t taskBit) {
+  portENTER_CRITICAL(&g_otaMaintenanceMux);
+  g_otaMaintenanceRegisteredMask |= taskBit;
+  portEXIT_CRITICAL(&g_otaMaintenanceMux);
+}
+
+bool otaMaintenanceRequested() {
+  return g_otaMaintenanceRequested;
+}
+
+void otaNotifyMaintenanceTaskStopped(uint32_t taskBit) {
+  portENTER_CRITICAL(&g_otaMaintenanceMux);
+  g_otaMaintenanceStoppedMask |= taskBit;
+  const uint32_t stopped = g_otaMaintenanceStoppedMask;
+  const uint32_t registered = g_otaMaintenanceRegisteredMask;
+  portEXIT_CRITICAL(&g_otaMaintenanceMux);
+
+  Serial.printf("[OTA MAINT] task stopped bit=0x%02X stopped=0x%02X registered=0x%02X\n",
+                (unsigned)taskBit, (unsigned)stopped, (unsigned)registered);
+}
+
+uint32_t otaMaintenanceRegisteredMask() {
+  portENTER_CRITICAL(&g_otaMaintenanceMux);
+  const uint32_t value = g_otaMaintenanceRegisteredMask;
+  portEXIT_CRITICAL(&g_otaMaintenanceMux);
+  return value;
+}
+
+uint32_t otaMaintenanceStoppedMask() {
+  portENTER_CRITICAL(&g_otaMaintenanceMux);
+  const uint32_t value = g_otaMaintenanceStoppedMask;
+  portEXIT_CRITICAL(&g_otaMaintenanceMux);
+  return value;
+}
+
+bool otaMaintenanceAllTasksStopped() {
+  portENTER_CRITICAL(&g_otaMaintenanceMux);
+  const uint32_t registered = g_otaMaintenanceRegisteredMask;
+  const uint32_t stopped = g_otaMaintenanceStoppedMask;
+  portEXIT_CRITICAL(&g_otaMaintenanceMux);
+  return (stopped & registered) == registered;
+}
+
+void otaMarkPlatformMaintenanceReady() {
+  g_otaPlatformMaintenanceReady = true;
+}
+
+bool otaPlatformMaintenanceReady() {
+  return g_otaPlatformMaintenanceReady;
+}
+
+static void otaRequestExclusiveMaintenance() {
+  portENTER_CRITICAL(&g_otaMaintenanceMux);
+  g_otaMaintenanceStoppedMask = 0;
+  g_otaPlatformMaintenanceReady = false;
+  g_otaMaintenanceRequested = true;
+  const uint32_t registered = g_otaMaintenanceRegisteredMask;
+  portEXIT_CRITICAL(&g_otaMaintenanceMux);
+
+  Serial.printf("[OTA MAINT] exclusive mode requested registered=0x%02X\n",
+                (unsigned)registered);
+}
+
+static bool otaWaitForExclusiveMaintenance(uint32_t requestId) {
+  // Let the AsyncWebServer finish sending the POST acknowledgement before the
+  // main loop shuts the listener down.
+  otaSetProgress(requestId, 0, 0, g_otaKnownFirmwareSize, "preparing_exclusive_ota");
+  vTaskDelay(pdMS_TO_TICKS(OTA_EXCLUSIVE_RESPONSE_GRACE_MS));
+
+  otaRequestExclusiveMaintenance();
+
+  const uint32_t startedAt = millis();
+  uint32_t lastLogAt = 0;
+
+  while (!otaPlatformMaintenanceReady()) {
+    const uint32_t now = millis();
+
+    if (lastLogAt == 0 || (uint32_t)(now - lastLogAt) >= 1000UL) {
+      lastLogAt = now;
+      Serial.printf(
+          "[OTA MAINT] waiting stopped=0x%02X registered=0x%02X platformReady=%s elapsedMs=%u\n",
+          (unsigned)otaMaintenanceStoppedMask(),
+          (unsigned)otaMaintenanceRegisteredMask(),
+          otaPlatformMaintenanceReady() ? "true" : "false",
+          (unsigned)(now - startedAt));
+    }
+
+    if ((uint32_t)(now - startedAt) >= OTA_EXCLUSIVE_QUIESCE_TIMEOUT_MS) {
+      Serial.println("[OTA MAINT] ERROR quiesce timeout");
+      otaSetFailure(requestId, "ota_maintenance_timeout");
+      return false;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(25));
+  }
+
+  // The browser is disconnected at this point. Free status/check strings that
+  // are no longer observable and keep only the local target URL/version copies
+  // already created by runOtaUpdate().
+  if (g_otaMutex && xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    g_otaStatus.changelog = String();
+    g_otaLastCheckStatus.latestVersion = String();
+    g_otaLastCheckStatus.firmwareUrl = String();
+    g_otaLastUpdateStatus.latestVersion = String();
+    g_otaLastUpdateStatus.firmwareUrl = String();
+    xSemaphoreGive(g_otaMutex);
+  }
+
+  g_otaKnownFirmwareUrl = String();
+  g_otaKnownFirmwareVersion = String();
+
+  otaLogMemory("exclusive_ready");
+  Serial.println("[OTA MAINT] exclusive OTA environment ready");
+  return true;
+}
 
 static void otaLogMemory(const char* stage) {
   const uint32_t internalFree =
@@ -179,14 +313,22 @@ static int compareSemver(const String& a, const String& b) {
 }
 
 static void otaSetFailure(uint32_t requestId, const String& error) {
-  if (!g_otaMutex) return;
-  if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
+  if (g_otaMutex && xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
     if (g_otaStatus.requestId == requestId) {
       g_otaStatus.state = OtaJobState::Failed;
       g_otaStatus.error = error;
       g_otaStatus.message = "failed";
     }
     xSemaphoreGive(g_otaMutex);
+  }
+
+  // Once the application has entered exclusive OTA mode, do not try to rebuild
+  // the runtime in-place after a failed installer. The old OTA partition remains
+  // bootable, so reboot back into it and restore the normal application cleanly.
+  if (g_otaMaintenanceRequested && g_otaRestartAtMs == 0) {
+    Serial.printf("[OTA MAINT] update failed (%s); rebooting existing firmware\n",
+                  error.c_str());
+    g_otaRestartAtMs = millis() + 2000UL;
   }
 }
 
@@ -426,6 +568,121 @@ static bool runOtaCheck(uint32_t requestId, bool dryRun) {
   return true;
 }
 
+
+struct OtaHttpDiagContext {
+  char currentHost[96] = "github.com";
+  int redirectCount = 0;
+};
+
+static void otaDiagSetHostFromUrl(OtaHttpDiagContext* ctx, const char* url) {
+  if (!ctx || !url || !*url) return;
+
+  const char* hostStart = strstr(url, "://");
+  hostStart = hostStart ? hostStart + 3 : url;
+
+  const char* hostEnd = hostStart;
+  while (*hostEnd && *hostEnd != '/' && *hostEnd != '?' && *hostEnd != '#') {
+    ++hostEnd;
+  }
+
+  size_t hostLen = (size_t)(hostEnd - hostStart);
+  if (hostLen == 0) return;
+  if (hostLen >= sizeof(ctx->currentHost)) {
+    hostLen = sizeof(ctx->currentHost) - 1;
+  }
+
+  memcpy(ctx->currentHost, hostStart, hostLen);
+  ctx->currentHost[hostLen] = '\0';
+}
+
+static esp_err_t otaNativeHttpEventHandler(esp_http_client_event_t* evt) {
+  if (!evt) return ESP_OK;
+
+  OtaHttpDiagContext* ctx =
+      static_cast<OtaHttpDiagContext*>(evt->user_data);
+  const char* host = (ctx && ctx->currentHost[0]) ? ctx->currentHost : "unknown";
+
+  switch (evt->event_id) {
+    case HTTP_EVENT_ERROR:
+      Serial.printf("[OTA HTTP] ERROR host=%s errno=%d\n",
+                    host,
+                    evt->client ? esp_http_client_get_errno(evt->client) : -1);
+      otaLogMemory("http_event_error");
+      break;
+
+    case HTTP_EVENT_ON_CONNECTED:
+      Serial.printf("[OTA HTTP] CONNECTED host=%s\n", host);
+      otaLogMemory("http_connected");
+      break;
+
+    case HTTP_EVENT_HEADER_SENT:
+      Serial.printf("[OTA HTTP] HEADERS_SENT host=%s\n", host);
+      break;
+
+    case HTTP_EVENT_ON_HEADER:
+      if (evt->header_key && evt->header_value &&
+          strcasecmp(evt->header_key, "Location") == 0) {
+        const int status =
+            evt->client ? esp_http_client_get_status_code(evt->client) : -1;
+
+        char nextHost[96] = {};
+        OtaHttpDiagContext temp;
+        otaDiagSetHostFromUrl(&temp, evt->header_value);
+        strncpy(nextHost, temp.currentHost, sizeof(nextHost) - 1);
+        nextHost[sizeof(nextHost) - 1] = '\0';
+
+        if (ctx) {
+          ++ctx->redirectCount;
+          otaDiagSetHostFromUrl(ctx, evt->header_value);
+        }
+
+        Serial.printf("[OTA HTTP] REDIRECT status=%d from=%s to=%s count=%d\n",
+                      status,
+                      host,
+                      nextHost[0] ? nextHost : "unknown",
+                      ctx ? ctx->redirectCount : -1);
+      }
+      break;
+
+    case HTTP_EVENT_ON_FINISH:
+      Serial.printf("[OTA HTTP] FINISH host=%s status=%d\n",
+                    host,
+                    evt->client ? esp_http_client_get_status_code(evt->client) : -1);
+      break;
+
+    case HTTP_EVENT_DISCONNECTED: {
+      int mbedtlsErr = 0;
+      int certFlags = 0;
+      esp_err_t tlsErr = ESP_OK;
+
+      if (evt->data) {
+        tlsErr = esp_tls_get_and_clear_last_error(
+            (esp_tls_error_handle_t)evt->data,
+            &mbedtlsErr,
+            &certFlags);
+      }
+
+      const int socketErrno =
+          evt->client ? esp_http_client_get_errno(evt->client) : -1;
+
+      Serial.printf(
+          "[OTA HTTP] DISCONNECTED host=%s errno=%d tlsErr=0x%04X mbedtls=0x%04X certFlags=0x%08X\n",
+          host,
+          socketErrno,
+          (unsigned)tlsErr,
+          (unsigned)mbedtlsErr,
+          (unsigned)certFlags);
+      otaLogMemory("http_disconnected");
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return ESP_OK;
+}
+
 static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   if (dryRun) {
     if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
@@ -472,8 +729,13 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   Serial.printf("[OTA] target=%s expectedSize=%d workerStack=%u core=%d\n",
                 targetVersion.c_str(), expectedSize,
                 (unsigned)OTA_WORKER_STACK_BYTES, xPortGetCoreID());
-  otaLogMemory("native_preflight");
+  otaLogMemory("before_exclusive_shutdown");
 
+  if (!otaWaitForExclusiveMaintenance(requestId)) {
+    return false;
+  }
+
+  otaLogMemory("native_preflight");
   otaSetProgress(requestId, 0, 0, expectedSize, "connecting");
   g_otaStreamPercent = 0;
   g_otaStreamCurrent = 0;
@@ -485,9 +747,12 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   // - follows redirects internally
   // - writes through ESP-IDF esp_ota_write(), not the legacy Arduino stream path
   // - esp_https_ota_perform() returns after every HTTP read operation
+  OtaHttpDiagContext httpDiag;
   esp_http_client_config_t httpConfig = {};
   httpConfig.url = firmwareUrl.c_str();
   httpConfig.user_agent = userAgent.c_str();
+  httpConfig.event_handler = otaNativeHttpEventHandler;
+  httpConfig.user_data = &httpDiag;
   httpConfig.timeout_ms = 30000;
   httpConfig.disable_auto_redirect = false;
   httpConfig.max_redirection_count = 8;
@@ -510,37 +775,14 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   esp_https_ota_handle_t handle = nullptr;
   esp_err_t err = ESP_FAIL;
 
-  // GitHub release downloads currently redirect to a long, short-lived signed
-  // release-assets URL. ESP-IDF/GitHub have documented HTTP 618 failures when
-  // redirect headers are handled with small client buffers. Use 8 KiB RX/TX
-  // buffers and allow one complete begin retry so a failed redirect always gets
-  // a freshly signed URL instead of reusing stale connection state.
-  for (int attempt = 1; attempt <= OTA_NATIVE_BEGIN_MAX_ATTEMPTS; ++attempt) {
-    handle = nullptr;
-    Serial.printf("[OTA] native begin attempt=%d/%d rxBuf=%d txBuf=%d\n",
-                  attempt, OTA_NATIVE_BEGIN_MAX_ATTEMPTS,
-                  httpConfig.buffer_size, httpConfig.buffer_size_tx);
-
-    err = esp_https_ota_begin(&otaConfig, &handle);
-    if (err == ESP_OK && handle != nullptr) {
-      break;
-    }
-
-    if (handle != nullptr) {
-      esp_https_ota_abort(handle);
-      handle = nullptr;
-    }
-
-    otaLogMemory("native_begin_attempt_failed");
-    Serial.printf("[OTA] native begin attempt=%d failed: %s\n",
-                  attempt, esp_err_to_name(err));
-
-    if (attempt < OTA_NATIVE_BEGIN_MAX_ATTEMPTS) {
-      Serial.printf("[OTA] retrying native begin with fresh GitHub redirect in %u ms\n",
-                    (unsigned)OTA_NATIVE_BEGIN_RETRY_DELAY_MS);
-      vTaskDelay(pdMS_TO_TICKS(OTA_NATIVE_BEGIN_RETRY_DELAY_MS));
-    }
-  }
+  // v0.4.10 diagnostic build: perform exactly one begin attempt.
+  // Do not retry here; a second attempt can obscure the first transport error
+  // and, with this Arduino-ESP32 2.0.17 TLS configuration, may add enough heap
+  // pressure to fail in mbedtls_ssl_setup before reaching the original fault.
+  Serial.printf("[OTA] native begin diagnostic attempt=1/1 rxBuf=%d txBuf=%d timeoutMs=%d\n",
+                httpConfig.buffer_size, httpConfig.buffer_size_tx,
+                httpConfig.timeout_ms);
+  err = esp_https_ota_begin(&otaConfig, &handle);
 
   if (err != ESP_OK || handle == nullptr) {
     g_otaUpdateStreaming = false;
@@ -771,6 +1013,11 @@ bool otaQueueCheck(bool dryRun, uint32_t& requestId, String& errorOut) {
 }
 
 bool otaQueueUpdate(bool dryRun, uint32_t& requestId, String& errorOut) {
+  if (!dryRun && !g_deferredInitComplete) {
+    requestId = 0;
+    errorOut = "system_initializing";
+    return false;
+  }
   return otaQueue(OtaJobType::Update, dryRun, requestId, errorOut);
 }
 

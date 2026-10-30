@@ -348,6 +348,9 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "ota.installButton": { de: "Update installieren", en: "Install update" },
   "ota.reinstallButton": { de: "Firmware erneut installieren", en: "Reinstall firmware" },
   "ota.currentReinstall": { de: "Kein neueres Update verfügbar. Die aktuelle Firmware kann erneut installiert werden.", en: "No newer update is available. The current firmware can be reinstalled." },
+  "ota.exclusivePreparing": { de: "Exklusiver OTA-Modus wird vorbereitet. Der ESP beendet jetzt Webserver, Sensor-, Shelly- und Bewässerungsprozesse.", en: "Preparing exclusive OTA mode. The ESP is now stopping the web server, sensor, Shelly and watering processes." },
+  "ota.exclusiveRunning": { de: "Firmware wird installiert. Der ESP arbeitet jetzt ausschließlich am Update; die Webverbindung bleibt bis zum Neustart getrennt.", en: "Firmware is being installed. The ESP is now dedicated exclusively to the update; the web connection stays offline until reboot." },
+  "ota.waitingReconnect": { de: "Warte auf Neustart und Webserver…", en: "Waiting for reboot and web server…" },
   "ota.localNewer": { de: "Die installierte Firmware ist neuer als der aktuelle GitHub-Release. Ein Downgrade wird nicht angeboten.", en: "The installed firmware is newer than the current GitHub release. Downgrade is not offered." },
   "ota.checking": { de: "Prüfe GitHub Release…", en: "Checking GitHub release…" },
   "ota.available": { de: "Update verfügbar ✅", en: "Update available ✅" },
@@ -1631,6 +1634,8 @@ async function startNewGrow(){
   let sensorRefreshQueued = false;
 
   async function updateSensorValues() {
+    if (window._otaExclusiveUiActive) return;
+
     if (sensorFetchInFlight) {
       sensorRefreshQueued = true;
       return;
@@ -1913,6 +1918,8 @@ async function startNewGrow(){
   let lastWebLogText = '';
 
   async function fetchWebLog() {
+    if (window._otaExclusiveUiActive) return;
+
     try {
         // Request latest log buffer from backend
         const r = await fetch('/api/logbuffer', { cache: 'no-store' });
@@ -3026,36 +3033,113 @@ window.startOtaUpdate = async function () {
   const installBtn=document.getElementById('otaInstallBtn'), checkBtn=document.getElementById('otaCheckBtn');
   const formatBytes=(n)=>{const v=Number(n);if(!Number.isFinite(v)||v<0)return '—';if(v>=1048576)return(v/1048576).toFixed(2)+' MB';if(v>=1024)return(v/1024).toFixed(0)+' KB';return v+' B';};
   const setProgress=(p,text,sub)=>{p=Math.max(0,Math.min(100,Number(p)||0));panel.classList.remove('hidden');bar.value=p;bar.textContent=p+'%';percentEl.textContent=p+'%';if(text)label.textContent=text;if(sub!==undefined)detail.textContent=sub;};
-  setProgress(0,otaTr('ota.title','OTA Update'),otaTr('ota.starting','Starting OTA update…'));
-  status.textContent=otaTr('ota.starting','Starting OTA update…'); installBtn.disabled=true; if(checkBtn)checkBtn.disabled=true;
-  let completed=false,failed=false;
+
+  // Stop normal dashboard/log traffic from this browser. TCP/8080 itself stays
+  // available exclusively so this page can keep polling OTA status.
+  window._otaExclusiveUiActive=true;
+  window._stopSensorPoll?.();
+  if(window._shellyLightTimer){
+    clearInterval(window._shellyLightTimer);
+    window._shellyLightTimer=null;
+  }
+
+  setProgress(0,otaTr('ota.title','OTA Update'),otaTr('ota.exclusivePreparing','Preparing exclusive OTA mode. Application tasks are being stopped.'));
+  status.textContent=otaTr('ota.exclusivePreparing','Preparing exclusive OTA mode.');
+  installBtn.disabled=true;
+  if(checkBtn)checkBtn.disabled=true;
+
+  let completed=false, failed=false;
+
   try{
-    const r=await fetch('/api/ota/update',{method:'POST',cache:'no-store'}); const q=await r.json().catch(()=>({}));
+    const r=await fetch('/api/ota/update',{method:'POST',cache:'no-store'});
+    const q=await r.json().catch(()=>({}));
     if(!r.ok||!q.ok||!q.requestId) throw new Error(q.error||('HTTP '+r.status));
+
     const deadline=Date.now()+15*60*1000;
+
     while(Date.now()<deadline){
       await new Promise(resolve=>setTimeout(resolve,500));
-      const sr=await fetch('/api/ota/update-status?requestId='+encodeURIComponent(q.requestId),{cache:'no-store'});
-      const d=await sr.json().catch(()=>({})); if(!sr.ok||!d.ok) throw new Error(d.error||('HTTP '+sr.status));
-      const p=Number(d.percent)||0, current=Number(d.current)||0, total=Number(d.total)||0;
-      if(d.state==='queued'){setProgress(0,otaTr('ota.title','OTA Update'),otaTr('ota.connecting','Connecting to firmware download…'));continue;}
+
+      const sr=await fetch('/api/ota/update-status?requestId='+encodeURIComponent(q.requestId),{
+        cache:'no-store'
+      });
+      const d=await sr.json().catch(()=>({}));
+      if(!sr.ok||!d.ok) throw new Error(d.error||('HTTP '+sr.status));
+
+      const p=Number(d.percent)||0;
+      const current=Number(d.current)||0;
+      const total=Number(d.total)||0;
+
+      if(d.state==='queued'){
+        setProgress(
+          0,
+          otaTr('ota.title','OTA Update'),
+          otaTr('ota.exclusivePreparing','Preparing exclusive OTA mode. Application tasks are being stopped.')
+        );
+        continue;
+      }
+
       if(d.state==='running'){
         status.textContent=otaTr('ota.downloading','Downloading and installing firmware…');
-        const bytes=total>0?`${formatBytes(current)} / ${formatBytes(total)}`:(current>0?formatBytes(current):otaTr('ota.downloadStarted','Download started.'));
-        setProgress(p,otaTr('ota.running','Firmware update in progress'),bytes);continue;
+        const bytes=total>0
+          ? `${formatBytes(current)} / ${formatBytes(total)}`
+          : (current>0 ? formatBytes(current) : otaTr('ota.downloadStarted','Download started.'));
+        setProgress(
+          p,
+          otaTr('ota.running','Firmware update in progress'),
+          bytes
+        );
+        continue;
       }
-      if(d.state==='failed') throw new Error(d.error||otaTr('ota.unknownError','Unknown OTA error'));
+
+      if(d.state==='failed'){
+        throw new Error(d.error||otaTr('ota.unknownError','Unknown OTA error'));
+      }
+
       if(d.state==='done'){
         completed=true;
-        if(d.message==='updated_restarting') {setProgress(100,otaTr('ota.success','Update successful'),otaTr('ota.restarting','ESP is restarting…'));status.textContent=otaTr('ota.successRestart','Update successful ✅ – ESP is restarting.');}
-        else {setProgress(100,otaTr('ota.noUpdateNeeded','No update required'),otaTr('ota.alreadyCurrent','The installed firmware is already current.'));status.textContent=otaTr('ota.noUpdateNeeded','No update required');if(checkBtn)checkBtn.disabled=false;}
+        if(d.message==='updated_restarting'){
+          setProgress(
+            100,
+            otaTr('ota.success','Update successful'),
+            otaTr('ota.restarting','ESP is restarting…')
+          );
+          status.textContent=otaTr('ota.successRestart','Update successful ✅ – ESP is restarting.');
+        }else{
+          setProgress(
+            100,
+            otaTr('ota.noUpdateNeeded','No update required'),
+            otaTr('ota.alreadyCurrent','The installed firmware is already current.')
+          );
+          status.textContent=otaTr('ota.noUpdateNeeded','No update required');
+        }
         break;
       }
     }
+
     if(!completed) throw new Error('ota_timeout');
+
+    // Successful real OTA reboots shortly after status=done. Wait for the
+    // temporary disconnect/reconnect, then refresh to show the actual version.
+    if(completed){
+      await new Promise(resolve=>setTimeout(resolve,3500));
+      window.location.reload();
+    }
   }catch(err){
-    failed=true; const msg=err?.message||String(err); label.textContent=otaTr('ota.failed','OTA update failed'); detail.textContent=msg; status.textContent=otaTr('ota.failed','OTA update failed')+': '+msg; console.error('[OTA]',err);
-  }finally{if(failed){installBtn.disabled=false;if(checkBtn)checkBtn.disabled=false;}}
+    failed=true;
+    const msg=err?.message||String(err);
+    label.textContent=otaTr('ota.failed','OTA update failed');
+    detail.textContent=msg;
+    status.textContent=otaTr('ota.failed','OTA update failed')+': '+msg;
+    console.error('[OTA]',err);
+  }finally{
+    if(failed){
+      // The firmware schedules a clean reboot after a failed exclusive OTA.
+      // Keep normal polling disabled; the page will recover after that reboot.
+      installBtn.disabled=true;
+      if(checkBtn)checkBtn.disabled=true;
+    }
+  }
 };
 
 window.resetShellyEnergy = async function (buttonEl) {
