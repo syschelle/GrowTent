@@ -346,6 +346,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "ota.ready": { de: "Bereit.", en: "Ready." },
   "ota.checkButton": { de: "Auf Update prüfen", en: "Check for update" },
   "ota.installButton": { de: "Update installieren", en: "Install update" },
+  "ota.reinstallButton": { de: "Firmware erneut installieren", en: "Reinstall firmware" },
+  "ota.currentReinstall": { de: "Kein neueres Update verfügbar. Die aktuelle Firmware kann erneut installiert werden.", en: "No newer update is available. The current firmware can be reinstalled." },
   "ota.checking": { de: "Prüfe GitHub Release…", en: "Checking GitHub release…" },
   "ota.available": { de: "Update verfügbar ✅", en: "Update available ✅" },
   "ota.none": { de: "Kein Update verfügbar.", en: "No update available." },
@@ -3131,7 +3133,7 @@ window.checkForOtaUpdate = async function () {
   const otaTr=(key,fallback)=>typeof window.trKey==='function'?window.trKey(key,fallback):fallback;
   const status=document.getElementById('otaStatus'),ver=document.getElementById('otaVersion'),log=document.getElementById('otaChangelog'),btn=document.getElementById('otaInstallBtn'),checkBtn=document.getElementById('otaCheckBtn');
   if(!status||!ver||!log||!btn){console.error('[OTA UI] required DOM nodes missing');return;}
-  status.textContent=otaTr('ota.checking','Checking GitHub release…');ver.textContent='';log.textContent='';btn.disabled=true;if(checkBtn)checkBtn.disabled=true;otaInfo=null;
+  status.textContent=otaTr('ota.checking','Checking GitHub release…');ver.textContent='';log.textContent='';btn.disabled=true;btn.textContent=otaTr('ota.installButton','Install update');if(checkBtn)checkBtn.disabled=true;otaInfo=null;
   try{
     const r=await fetch('/api/ota/check',{cache:'no-store'});const q=await r.json().catch(()=>({}));
     if(!r.ok||!q.ok||!q.requestId) throw new Error(q.error||('HTTP '+r.status));
@@ -3139,8 +3141,22 @@ window.checkForOtaUpdate = async function () {
     while(Date.now()<deadline){await new Promise(resolve=>setTimeout(resolve,500));const sr=await fetch('/api/ota/check-status?requestId='+encodeURIComponent(q.requestId),{cache:'no-store'});d=await sr.json().catch(()=>({}));if(!sr.ok||!d.ok)throw new Error(d.error||('HTTP '+sr.status));if(d.state==='done')break;if(d.state==='failed')throw new Error(d.error||'check_failed');}
     if(!d||d.state!=='done')throw new Error('check_timeout');
     ver.textContent=otaTr('ota.installedLatest','Installed: {current} | Latest: {latest}').replace('{current}',d.currentVersion||'').replace('{latest}',d.latestVersion||'');
-    if(d.updateAvailable){status.textContent=otaTr('ota.available','Update available ✅');log.textContent=d.changelog||'';otaInfo=d;btn.disabled=false;}
-    else{status.textContent=otaTr('ota.none','No update available.');log.textContent=d.changelog||'';}
+    if(d.updateAvailable){
+      status.textContent=otaTr('ota.available','Update available ✅');
+      log.textContent=d.changelog||'';
+      otaInfo=d;
+      btn.textContent=otaTr('ota.installButton','Install update');
+      btn.disabled=false;
+    } else {
+      // v0.4.3: a successful check also permits an intentional same-version
+      // reinstall. The OTA worker downloads the current GitHub firmware image
+      // without passing a currentVersion constraint to HTTPUpdate.
+      status.textContent=otaTr('ota.currentReinstall','No newer update is available. The current firmware can be reinstalled.');
+      log.textContent=d.changelog||'';
+      otaInfo=d;
+      btn.textContent=otaTr('ota.reinstallButton','Reinstall firmware');
+      btn.disabled=false;
+    }
   }catch(e){const raw=e?.message||String(e);status.textContent=otaTr('ota.checkError','Update check failed: {error}').replace('{error}',raw);console.error('[OTA CHECK]',e);}
   finally{if(checkBtn)checkBtn.disabled=false;}
 };

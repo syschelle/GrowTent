@@ -70,7 +70,7 @@ jobs:
           notes = Path("release_notes.md").read_text(encoding="utf-8")
 
           # Keep the OTA manifest deliberately compact. The full release notes can
-          # be large (v0.4.2 includes the complete AsyncWebServer migration
+          # be large (v0.4.x includes the complete AsyncWebServer migration
           # history), while older installed firmware reads the manifest into a
           # single String. Only the summary/highlights belong in the OTA payload;
           # the complete notes stay attached to the GitHub Release.

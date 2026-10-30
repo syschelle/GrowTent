@@ -1,13 +1,16 @@
-# GrowTent v0.4.2
+# GrowTent v0.4.3
 
 ## Release summary
 
-GrowTent v0.4.2 is a maintenance release on top of the completed **ESPAsyncWebServer migration through Phase 32**. It keeps the full v0.4.x release baseline and fixes the real-device OTA firmware streaming path discovered while upgrading from v0.3.09.
+GrowTent v0.4.3 is a maintenance release on top of the completed **ESPAsyncWebServer migration through Phase 32**. It keeps the v0.4.2 OTA streaming fix and corrects the OTA dashboard so the currently installed firmware can intentionally be reinstalled from the web interface after a successful update check.
 
 The permanent GrowTent dashboard and application API now run on **TCP/8080**. TCP/80 is no longer used during normal STA operation and is reserved exclusively for the asynchronous Wi-Fi captive portal while provisioning is active.
 
 ## Highlights
 
+- OTA dashboard now permits an intentional same-version reinstall after a successful GitHub update check.
+- When no newer firmware exists, the install action changes to **Firmware erneut installieren / Reinstall firmware** instead of remaining disabled.
+- The reinstall path uses the existing queued OTA worker and the same GitHub `firmware.bin`; no duplicate flash implementation was added.
 - Fixed a real-device OTA firmware download stall that could stop after about 1% progress.
 - OTA progress callbacks are now lock-free and no longer take the OTA FreeRTOS mutex from inside `HTTPUpdate::update()`.
 - Shelly status polling is paused only while the firmware image is actively streamed, preventing competing outbound HTTP requests during flashing.
@@ -28,6 +31,14 @@ The permanent GrowTent dashboard and application API now run on **TCP/8080**. TC
 - OTA dashboard actions use DOM event binding and remain independent of removed legacy WebServer handlers.
 - System Settings logging records actual value changes while same-value saves remain silent.
 - Factory-reset and Wi-Fi provisioning ownership are integrated into the final Async architecture.
+
+## v0.4.3 OTA dashboard reinstall fix
+
+The OTA API already supports downloading and flashing the current GitHub firmware image because the update worker does not pass the installed firmware version as an HTTPUpdate version constraint. The dashboard previously hid that capability by leaving **Update installieren / Install update** disabled whenever `updateAvailable` was false.
+
+v0.4.3 changes the dashboard contract: after any successful OTA check, the action remains available. If a newer version is present it shows the normal install action; if the installed and latest versions match, it shows **Firmware erneut installieren / Reinstall firmware** and deliberately queues the same OTA update endpoint.
+
+The Async regression test now checks for this same-version reinstall behavior so it cannot silently regress.
 
 ## v0.4.2 OTA streaming fix
 
