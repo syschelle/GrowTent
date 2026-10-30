@@ -1,13 +1,18 @@
-# GrowTent v0.4.3
+# GrowTent v0.4.4
 
 ## Release summary
 
-GrowTent v0.4.3 is a maintenance release on top of the completed **ESPAsyncWebServer migration through Phase 32**. It keeps the v0.4.2 OTA streaming fix and corrects the OTA dashboard so the currently installed firmware can intentionally be reinstalled from the web interface after a successful update check.
+GrowTent v0.4.4 is a maintenance release on top of the completed **ESPAsyncWebServer migration through Phase 32**. It keeps the v0.4.2/v0.4.3 OTA fixes and addresses a real-device `Update.begin(): malloc failed` condition caused by excessive RAM reserved for the dedicated OTA worker stack while HTTPS/TLS buffers are active.
 
 The permanent GrowTent dashboard and application API now run on **TCP/8080**. TCP/80 is no longer used during normal STA operation and is reserved exclusively for the asynchronous Wi-Fi captive portal while provisioning is active.
 
 ## Highlights
 
+- Reduced the dedicated OTA worker stack from **18,432 bytes to 8,192 bytes**.
+- Frees roughly **10 KiB of internal heap** during HTTPS OTA, where `Update.begin()` needs a contiguous 4 KiB flash-sector buffer.
+- Added OTA memory diagnostics for free heap, largest allocatable block, internal heap and OTA worker stack high-water mark.
+- Logs the critical memory state immediately before `Update.begin()` while the HTTPS/TLS connection is already established.
+- Keeps the lock-free OTA progress callback from v0.4.2 and the same-version dashboard reinstall support from v0.4.3.
 - OTA dashboard now permits an intentional same-version reinstall after a successful GitHub update check.
 - When no newer firmware exists, the install action changes to **Firmware erneut installieren / Reinstall firmware** instead of remaining disabled.
 - The reinstall path uses the existing queued OTA worker and the same GitHub `firmware.bin`; no duplicate flash implementation was added.
@@ -31,6 +36,19 @@ The permanent GrowTent dashboard and application API now run on **TCP/8080**. TC
 - OTA dashboard actions use DOM event binding and remain independent of removed legacy WebServer handlers.
 - System Settings logging records actual value changes while same-value saves remain silent.
 - Factory-reset and Wi-Fi provisioning ownership are integrated into the final Async architecture.
+
+## v0.4.4 OTA heap-pressure fix
+
+On hardware running the Async OTA worker, the firmware download could reach `HTTPUpdate` but fail before flashing with:
+
+```text
+Updater.cpp: begin(): malloc failed
+HTTPUpdate.cpp: runUpdate(): Update.begin failed!
+```
+
+Arduino-ESP32's `Update.begin()` allocates a 4 KiB flash-sector buffer. The dedicated GrowTent OTA worker previously reserved 18,432 bytes of task stack from the internal heap. Runtime stack high-water measurements from the OTA check path showed that most of this reservation was unused.
+
+v0.4.4 reduces the OTA worker stack to 8,192 bytes, returning about 10 KiB to the internal heap during the TLS/HTTPUpdate phase. Additional diagnostics now report the largest internal free block exactly when `HTTPUpdate` invokes its start callback, immediately before `Update.begin()` allocates the flash buffer.
 
 ## v0.4.3 OTA dashboard reinstall fix
 

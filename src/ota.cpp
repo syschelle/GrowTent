@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
+#include "esp_heap_caps.h"
 
 #if __has_include("build_version.h")
 #include "build_version.h"
@@ -23,7 +24,7 @@ static constexpr int OTA_CHECK_MAX_ATTEMPTS = 2;
 static constexpr uint32_t OTA_CHECK_RETRY_DELAY_MS = 750;
 static constexpr uint16_t OTA_CHECK_CONNECT_TIMEOUT_MS = 8000;
 static constexpr uint16_t OTA_CHECK_RESPONSE_TIMEOUT_MS = 15000;
-static constexpr uint32_t OTA_WORKER_STACK_BYTES = 18432;
+static constexpr uint32_t OTA_WORKER_STACK_BYTES = 8192;
 static constexpr BaseType_t OTA_WORKER_CORE = 1;
 
 enum class OtaJobType : uint8_t { None, Check, Update };
@@ -63,6 +64,22 @@ static volatile bool g_otaUpdateStreaming = false;
 static volatile int g_otaStreamPercent = 0;
 static volatile int g_otaStreamCurrent = 0;
 static volatile int g_otaStreamTotal = 0;
+
+static void otaLogMemory(const char* stage) {
+  const uint32_t internalFree =
+      (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  const uint32_t internalLargest =
+      (uint32_t)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+
+  Serial.printf(
+      "[OTA HEAP] %s freeHeap=%u maxAlloc=%u internalFree=%u internalLargest=%u stackHighWater=%u\n",
+      stage ? stage : "unknown",
+      ESP.getFreeHeap(),
+      ESP.getMaxAllocHeap(),
+      internalFree,
+      internalLargest,
+      (unsigned)uxTaskGetStackHighWaterMark(nullptr));
+}
 
 static String otaJsonEscape(String value) {
   value.replace("\\", "\\\\");
@@ -356,9 +373,9 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
 
   const char* firmwareUrl = "https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin";
   Serial.println("[OTA] worker update requested");
-  Serial.printf("[OTA] preflight core=%d freeHeap=%u maxAlloc=%u stackHighWater=%u\n",
-                xPortGetCoreID(), ESP.getFreeHeap(), ESP.getMaxAllocHeap(),
-                uxTaskGetStackHighWaterMark(nullptr));
+  Serial.printf("[OTA] preflight core=%d workerStack=%u\n",
+                xPortGetCoreID(), (unsigned)OTA_WORKER_STACK_BYTES);
+  otaLogMemory("preflight");
 
   // Initialize the user-visible status before HTTPUpdate starts. From this point
   // until update() returns, callbacks must not take g_otaMutex.
@@ -382,6 +399,9 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   int lastPercentSent = -1;
   otaUpdater.onStart([&]() {
     Serial.println("[OTA] Start");
+    // Called after HTTPS/redirect setup and immediately before Update.begin().
+    // This is the critical memory point for the 4 KiB flash-sector buffer.
+    otaLogMemory("before_Update.begin");
   });
   otaUpdater.onProgress([&](int current, int total) {
     int percent = (total > 0) ? (int)((100LL * current) / total) : 0;
@@ -411,8 +431,9 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   const t_httpUpdate_return ret = otaUpdater.update(client, firmwareUrl);
   g_otaUpdateStreaming = false;
 
-  Serial.printf("[OTA] update() returned=%d lastError=%d freeHeap=%u maxAlloc=%u\n",
-                (int)ret, otaUpdater.getLastError(), ESP.getFreeHeap(), ESP.getMaxAllocHeap());
+  Serial.printf("[OTA] update() returned=%d lastError=%d\n",
+                (int)ret, otaUpdater.getLastError());
+  otaLogMemory("after_update");
 
   if (ret == HTTP_UPDATE_OK) {
     if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
