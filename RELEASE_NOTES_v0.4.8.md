@@ -1,20 +1,17 @@
-# GrowTent v0.4.7
+# GrowTent v0.4.8
 
 ## Release summary
 
-GrowTent v0.4.7 replaces the experimental Arduino `HTTPUpdate` / `Update.writeStream()` firmware-install path with ESP-IDF 4.4's native incremental HTTPS OTA API. The change is based on hardware logs plus a review of the exact Arduino-ESP32 2.0.17 / ESP-IDF 4.4 implementation used by the project, rather than another transport workaround.
+GrowTent v0.4.8 is a targeted correction to the native ESP-IDF HTTPS OTA transport introduced in v0.4.7. Hardware testing showed that the Arduino-specific certificate-bundle wrapper was selected instead of ESP-IDF's native bundle hook. The Arduino wrapper has no automatically initialized bundle in Arduino-ESP32 2.0.17, causing TLS to fail before the firmware transfer began. v0.4.8 binds the native ESP-IDF `esp_crt_bundle_attach()` implementation, which initializes the framework-embedded certificate bundle on first use.
 
 ## Highlights
 
-- Firmware installation now uses `esp_https_ota_begin()`, repeated `esp_https_ota_perform()` calls and `esp_https_ota_finish()`.
-- `esp_https_ota_perform()` returns after each HTTP read, allowing progress publication and an explicit scheduler yield between transfer steps.
-- GitHub and redirected release-asset hosts are verified using the full Espressif CA certificate bundle already enabled in Arduino-ESP32 2.0.17.
-- The Arduino `Update.writeStream()` path is no longer used for firmware installation.
-- A real install requires a recent successful update check and uses the version-specific firmware URL from `manifest.json`; silent downgrade is refused.
-- Same-version reinstall remains supported.
-- `firmware.elf`, package metadata and SHA-256 hashes are retained for 90 days as a GitHub Actions debug artifact so future backtraces can be symbolized exactly.
-- OTA manifest content is now limited to Release summary + Highlights with a hard 4 KiB safety ceiling; full history remains in GitHub Release notes.
-- The v0.4.6 request-status archive fix is retained.
+- Uses ESP-IDF 4.4's native `esp_crt_bundle_attach()` for HTTPS OTA certificate verification.
+- Avoids Arduino-ESP32 2.0.17's `arduino_esp_crt_bundle_attach()` wrapper, which requires an explicit user bundle.
+- Keeps the incremental `esp_https_ota_begin()` / `esp_https_ota_perform()` / `esp_https_ota_finish()` transport from v0.4.7 unchanged.
+- Keeps GitHub redirect support, version-pinned firmware URLs, downgrade protection and same-version reinstall support.
+- Keeps 90-day `firmware.elf` debug artifacts for exact future backtrace decoding.
+- Keeps the compact OTA manifest and v0.4.6 request-status lifecycle fix.
 
 ## v0.4.6 OTA request-status lifecycle fix
 
@@ -28,6 +25,21 @@ v0.4.6 preserves the last terminal OTA check and update status before reusing th
 
 The Async release test now explicitly queues a second OTA job and then queries the previous completed request ID. The old request must remain `state:"done"` and may no longer regress to `request_not_found`.
 
+
+## v0.4.8 native IDF certificate-bundle correction
+
+Hardware testing of v0.4.7 reached `esp_https_ota_begin()` with healthy heap but failed before downloading firmware:
+
+```text
+arduino_esp_crt_bundle_attach(): Failed to attach bundle
+esp_https_ota: Failed to establish HTTP connection
+```
+
+Arduino-ESP32 2.0.17 contains two distinct certificate-bundle implementations. Its `WiFiClientSecure` library ships an Arduino-specific `arduino_esp_crt_bundle_attach()` implementation whose internal bundle remains empty until `arduino_esp_crt_bundle_set()` is supplied with a user-generated bundle. ESP-IDF 4.4 itself separately provides the native `esp_crt_bundle_attach()` implementation. With `CONFIG_MBEDTLS_CERTIFICATE_BUNDLE` enabled, that native function initializes the framework-embedded certificate bundle automatically on first use.
+
+v0.4.8 deliberately binds the native ESP-IDF symbol. The local Arduino `esp_crt_bundle.h` is not included by `ota.cpp`, preventing PlatformIO's library include path from silently selecting the Arduino wrapper declaration again.
+
+No OTA transfer or flash algorithm is changed in this release; the incremental native ESP-IDF OTA transport introduced in v0.4.7 remains intact.
 
 ## v0.4.7 native ESP-IDF OTA transport
 

@@ -4,8 +4,15 @@
 #include <HTTPClient.h>
 #include "esp_https_ota.h"
 #include "esp_http_client.h"
-#include "esp_crt_bundle.h"
 #include "esp_err.h"
+
+// Arduino-ESP32 2.0.17 also ships a WiFiClientSecure-local esp_crt_bundle.h
+// whose attach wrapper requires a user-supplied bundle to be
+// initialized first. ESP-IDF 4.4's precompiled mbedTLS component still exports
+// the native esp_crt_bundle_attach(), which automatically initializes the
+// framework-embedded certificate bundle on first use. Declare that native C
+// symbol explicitly so the Arduino-local header cannot shadow it.
+extern "C" esp_err_t esp_crt_bundle_attach(void *conf);
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "freertos/FreeRTOS.h"
@@ -487,7 +494,7 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
   httpConfig.is_async = false;
   httpConfig.use_global_ca_store = false;
   httpConfig.skip_cert_common_name_check = false;
-  httpConfig.crt_bundle_attach = arduino_esp_crt_bundle_attach;
+  httpConfig.crt_bundle_attach = esp_crt_bundle_attach;
   httpConfig.keep_alive_enable = false;
 
   esp_https_ota_config_t otaConfig = {};

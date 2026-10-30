@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.7.md`](RELEASE_NOTES_v0.4.7.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.8.md`](RELEASE_NOTES_v0.4.8.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -281,10 +281,10 @@ pio run -e nodemcu-32s -t upload
 
 The release workflow is triggered by a `v*` Git tag.
 
-For release `v0.4.7`, the authoritative release-notes file is:
+For release `v0.4.8`, the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.4.7.md
+RELEASE_NOTES_v0.4.8.md
 ```
 
 The workflow:
@@ -321,7 +321,7 @@ src/
 tests/test_async_webserver.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.4.7.md
+RELEASE_NOTES_v0.4.8.md
 LICENSE
 ```
 
@@ -342,9 +342,9 @@ Important source files:
 
 ## Release information
 
-The complete v0.4.7 release documentation and AsyncWebServer migration history, including Phases 1-32 and the final corrective validation builds, is documented in:
+The complete v0.4.8 release documentation and AsyncWebServer migration history, including Phases 1-32 and the final corrective validation builds, is documented in:
 
-[`RELEASE_NOTES_v0.4.7.md`](RELEASE_NOTES_v0.4.7.md)
+[`RELEASE_NOTES_v0.4.8.md`](RELEASE_NOTES_v0.4.8.md)
 
 Historical per-version release notes and internal migration patch/validation files are intentionally not kept in the release source package.
 
