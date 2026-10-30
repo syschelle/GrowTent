@@ -2,8 +2,10 @@
 
 #include <Arduino.h>
 
-// Phase 32 OTA handoff. Async HTTP callbacks only queue work; all outbound
-// GitHub traffic and firmware flashing run in the dedicated OTA worker task.
+// Async OTA handoff. HTTP callbacks only queue work; GitHub traffic and
+// firmware flashing run in the dedicated OTA worker task. Firmware install
+// uses Arduino HTTPUpdate (the proven v0.2.46 transport) while status remains
+// available through the AsyncWebServer.
 void otaInit();
 void otaProcessQueue();
 
@@ -22,7 +24,8 @@ bool otaIsUpdateInProgress();
 // Once a real firmware installation has been acknowledged to the browser,
 // application tasks shut themselves down and release their stacks. The main
 // loop stops the application web server and releases nonessential services.
-// Only Wi-Fi/system networking and the dedicated OTA worker remain active.
+// Wi-Fi/system networking, the Async OTA-status endpoint and the dedicated
+// OTA worker remain active.
 constexpr uint32_t OTA_MAINT_TASK_SENSOR   = 1u << 0;
 constexpr uint32_t OTA_MAINT_TASK_BME      = 1u << 1;
 constexpr uint32_t OTA_MAINT_TASK_SHELLY   = 1u << 2;

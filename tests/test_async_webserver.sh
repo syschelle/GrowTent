@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.11 / phase 32 OTA request-status lifecycle fix
+# Test build: v0.4.12 / phase 32 OTA request-status lifecycle fix
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -153,7 +153,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.11 / Async phase 32 fallback-AP lifecycle fix"
+log "Test build target: v0.4.12 / Async phase 32 fallback-AP lifecycle fix"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -163,7 +163,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.11"
+EXPECTED_FW_VERSION="v0.4.12"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -231,7 +231,7 @@ for spec in "root|/|GET" "style|/style.css|GET" "script|/script.js|GET" "favicon
     LEGACY_UI_FAILURES=$((LEGACY_UI_FAILURES + 1))
   fi
 done
-# v0.4.11: when STA is connected, a boot-time fallback AP must already have
+# v0.4.12: when STA is connected, a boot-time fallback AP must already have
 # released DNS/TCP80 and returned to STA-only mode. This check catches the
 # v0.3.08 lifecycle bug directly instead of relying only on port probes.
 phase0a_health="$(curl -sS --http1.1 --max-time 5 "$BASE8080/api/async/health" 2>>"$LOGFILE" || true)"
@@ -3608,7 +3608,7 @@ if [[ "$phase32_html" == *'id="otaCheckBtn"'* && \
       "$phase32_html" != *'onclick="checkForOtaUpdate()"'* && \
       "$phase32_html" != *'onclick="startOtaUpdate()"'* && \
       "$phase32_html" == *'/script.js?v=0.4.6'* ]]; then
-  log "PASS OTA dashboard buttons use DOM event binding and v0.4.11 script cache-buster; no inline onclick dependency remains"
+  log "PASS OTA dashboard buttons use DOM event binding and v0.4.12 script cache-buster; no inline onclick dependency remains"
 else
   log "FAIL OTA dashboard button binding/cache-buster contract missing"
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
@@ -3721,7 +3721,7 @@ IFS=$'\t' read -r phase32_ota_real_http _ _ <<< "$phase32_ota_real_meta"
 phase32_ota_real_resp="$(cat "$phase32_ota_real_body" 2>/dev/null || true)"
 phase32_ota_real_id="$(json_uint_field "$phase32_ota_real_resp" requestId)"
 if [[ "$phase32_ota_real_rc" -eq 0 && "$phase32_ota_real_http" == "202" && -n "$phase32_ota_real_id" && "$phase32_ota_real_resp" == *'"dryRun":false'* ]]; then
-  # v0.4.11 regression: queueing a new OTA job must not invalidate the terminal
+  # v0.4.12 regression: queueing a new OTA job must not invalidate the terminal
   # requestId of the previous OTA check. The old dry-run request must remain
   # queryable instead of returning request_not_found.
   phase32_ota_archived_status="$(curl -sS --max-time 3 "$BASE8080/api/ota/check-status?requestId=${phase32_ota_check_id}" 2>>"$LOGFILE" || true)"
@@ -4336,17 +4336,17 @@ else
 fi
 
 log ""
-log "===== NATIVE ESP-IDF OTA SOURCE CONTRACT ====="
+log "===== HTTPUPDATE OTA SOURCE CONTRACT ====="
 TEST_REPO_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)"
 if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" ]]; then
-  if grep -q 'esp_https_ota_begin' "$TEST_REPO_ROOT/src/ota.cpp" && \
-     grep -q 'esp_https_ota_perform' "$TEST_REPO_ROOT/src/ota.cpp" && \
-     grep -q 'esp_https_ota_finish' "$TEST_REPO_ROOT/src/ota.cpp" && \
-     grep -q 'crt_bundle_attach = esp_crt_bundle_attach' "$TEST_REPO_ROOT/src/ota.cpp" && \
-     ! grep -q 'Update.writeStream' "$TEST_REPO_ROOT/src/ota.cpp"; then
-    log "PASS native ESP-IDF HTTPS OTA transport is present; Arduino Update.writeStream path is absent"
+  if grep -q '#include <HTTPUpdate.h>' "$TEST_REPO_ROOT/src/ota.cpp" && \
+     grep -q 'HTTPUpdate otaUpdater' "$TEST_REPO_ROOT/src/ota.cpp" && \
+     grep -q 'setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS)' "$TEST_REPO_ROOT/src/ota.cpp" && \
+     grep -q 'otaUpdater.update(client, firmwareUrl)' "$TEST_REPO_ROOT/src/ota.cpp" && \
+     ! grep -q 'esp_https_ota_begin' "$TEST_REPO_ROOT/src/ota.cpp"; then
+    log "PASS v0.2.46-style HTTPUpdate transport is present inside the Async OTA worker"
   else
-    log "FAIL native ESP-IDF OTA source contract"
+    log "FAIL HTTPUpdate OTA source contract"
     PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
   fi
 else
@@ -4381,11 +4381,14 @@ else
   log "tar not found; upload the .txt and requests.tsv files from $OUTDIR instead."
 fi
 
-# v0.4.11 OTA redirect hardening source guards
-grep -q 'OTA_NATIVE_HTTP_BUFFER_BYTES = 1024' "$PROJECT_DIR/src/ota.cpp" || fail "native OTA HTTP buffers are not 8192 bytes"
+# v0.4.12 HTTPUpdate transport source guards
+grep -q '#include <HTTPUpdate.h>' "$PROJECT_DIR/src/ota.cpp" || fail "HTTPUpdate include missing"
+grep -q 'client.setInsecure();' "$PROJECT_DIR/src/ota.cpp" || fail "v0.2.46 WiFiClientSecure transport setup missing"
+grep -q 'otaUpdater.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);' "$PROJECT_DIR/src/ota.cpp" || fail "HTTPUpdate redirect handling missing"
+grep -q 'g_otaUpdateStreaming = true;' "$PROJECT_DIR/src/ota.cpp" || fail "OTA progress streaming flag missing"
 
 
-# v0.4.11 exclusive OTA maintenance source contract
+# v0.4.12 exclusive OTA maintenance source contract
 TEST_REPO_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)"
 if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" ]]; then
   grep -q 'OTA_EXCLUSIVE_QUIESCE_TIMEOUT_MS = 20000UL' "$TEST_REPO_ROOT/src/ota.cpp" || fail "exclusive OTA quiesce timeout missing"

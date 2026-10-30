@@ -1,20 +1,20 @@
-# GrowTent v0.4.11
+# GrowTent v0.4.12
 
 ## Release summary
 
-GrowTent v0.4.11 adds an exclusive OTA maintenance mode. After the user explicitly starts Install update or Reinstall firmware, the ESP stops the normal application runtime and dedicates its resources to the native ESP-IDF HTTPS OTA worker. The change is intended to maximize contiguous internal RAM and eliminate competing application network activity while preserving all normal sensor/control tasks during ordinary operation.
+GrowTent v0.4.12 simplifies the firmware installer after the v0.4.11 hardware diagnostics isolated the remaining failure to the native `esp_https_ota` GitHub Release Asset path. The Async queue/status model and exclusive maintenance mode remain, but the actual firmware download and flash transport returns to Arduino `HTTPUpdate`, matching the proven v0.2.46 implementation. Existing GitHub Release assets and manifest URLs remain unchanged so older GrowTent firmware continues to use the same update infrastructure.
 
 ## Highlights
 
-- `sensorTask` remains active during normal operation and is stopped only for an explicitly started firmware installation.
-- Sensor/BME, Shelly and Watering tasks self-delete at safe loop boundaries, releasing 14 KiB of configured task stacks plus their TCBs.
-- Active irrigation is stopped immediately and pump relays are forced off before OTA networking begins.
-- TCP/8080 stays online specifically for `/api/ota/update-status`, so the browser retains live percentage/byte progress throughout the installation.
-- LittleFS, Preferences, I2C and the in-RAM web log buffer are released before `esp_https_ota_begin()`.
-- The Arduino main loop performs no normal controller, NTP, Wi-Fi policy, storage or runtime-handoff work while exclusive OTA mode is active.
-- The browser stops normal sensor/log polling but continues polling `/api/ota/update-status` every 500 ms until completion.
-- A failed OTA attempt also triggers a clean reboot into the existing firmware instead of trying to reconstruct deleted application tasks in-place.
-- v0.4.10 HTTP/TLS diagnostics and native ESP-IDF OTA transport are retained.
+- Replaces native `esp_https_ota` firmware installation with Arduino `HTTPUpdate`.
+- Uses the same `WiFiClientSecure` + `setInsecure()` + forced redirect pattern proven in v0.2.46.
+- Keeps the firmware URL from the current manifest, including version-pinned GitHub Release assets.
+- Keeps AsyncWebServer callbacks non-blocking: installation still runs only in the dedicated OTA worker.
+- Keeps `/api/ota/update-status` live during the blocking `HTTPUpdate` call through lock-free progress counters.
+- Keeps the v0.4.11 exclusive maintenance mode, which releases the Sensor/BME/Shelly/Watering task stacks before connecting.
+- Keeps TCP/8080 active for live update progress while normal state/log polling is suppressed.
+- No additional OTA branch or alternative firmware hosting is introduced.
+- Existing v0.2.x boards continue to see normal GitHub Release `manifest.json` / `firmware.bin` assets.
 
 ## v0.4.6 OTA request-status lifecycle fix
 
@@ -28,6 +28,18 @@ v0.4.6 preserves the last terminal OTA check and update status before reusing th
 
 The Async release test now explicitly queues a second OTA job and then queries the previous completed request ID. The old request must remain `state:"done"` and may no longer regress to `request_not_found`.
 
+
+## v0.4.12 HTTPUpdate transport simplification
+
+The v0.4.11 diagnostic run showed that exclusive maintenance mode increased the largest contiguous internal block substantially and that TLS connection setup itself was healthy. The remaining native OTA failure occurred when the GitHub Release Asset endpoint returned HTTP 618.
+
+Rather than introduce a second OTA hosting channel, v0.4.12 returns the actual firmware installer to the `HTTPUpdate` path already used successfully by GrowTent v0.2.46. The Async migration is preserved at the API boundary: `/api/ota/update` still queues work and returns immediately, and the dedicated OTA worker performs the blocking download/flash operation.
+
+Before `HTTPUpdate` starts, the v0.4.11 exclusive maintenance mode still shuts down Sensor/BME/Shelly/Watering tasks and releases nonessential services. TCP/8080 remains available so the browser can poll `/api/ota/update-status`.
+
+The `HTTPUpdate` progress callback performs only scalar assignments plus sparse Serial diagnostics. It does not take the OTA mutex and does not build `String` objects. The status endpoint overlays those volatile progress counters while the worker is streaming, preserving the live percentage/byte display without reintroducing the callback locking problem found earlier in the v0.4.x experiments.
+
+The release workflow is intentionally unchanged: `manifest.json` and `firmware.bin` remain ordinary GitHub Release assets. This preserves the update path used by older v0.2.x devices.
 
 ## v0.4.11 exclusive OTA maintenance mode
 
