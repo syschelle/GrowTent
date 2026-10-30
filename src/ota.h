@@ -15,6 +15,12 @@ bool otaQueueUpdate(bool dryRun, uint32_t& requestId, String& errorOut);
 String otaCheckStatusJson(uint32_t requestId);
 String otaUpdateStatusJson(uint32_t requestId);
 
+// Non-flashing OTA transport diagnostic. The normal mode leaves the runtime
+// untouched. The exclusive mode enters the same maintenance state as a real
+// install, performs only DNS/TLS/HTTP-header probes, then reboots cleanly.
+bool otaQueueTransportTest(bool exclusiveMode, uint32_t& requestId, String& errorOut);
+String otaTransportTestStatusJson(uint32_t requestId);
+
 // True only while the firmware image itself is being streamed/flashed.
 // Network polling tasks may use this to avoid competing outbound requests.
 bool otaIsUpdateInProgress();
@@ -23,9 +29,9 @@ bool otaIsUpdateInProgress();
 // Exclusive OTA maintenance mode.
 // Once a real firmware installation has been acknowledged to the browser,
 // application tasks shut themselves down and release their stacks. The main
-// loop stops the application web server and releases nonessential services.
-// Wi-Fi/system networking, the Async OTA-status endpoint and the dedicated
-// OTA worker remain active.
+// loop releases nonessential services while keeping TCP/8080 alive for OTA
+// status/diagnostic polling. Wi-Fi/system networking and the dedicated OTA
+// worker remain active.
 constexpr uint32_t OTA_MAINT_TASK_SENSOR   = 1u << 0;
 constexpr uint32_t OTA_MAINT_TASK_BME      = 1u << 1;
 constexpr uint32_t OTA_MAINT_TASK_SHELLY   = 1u << 2;

@@ -1,20 +1,18 @@
-# GrowTent v0.4.12
+# GrowTent v0.4.16
 
 ## Release summary
 
-GrowTent v0.4.12 simplifies the firmware installer after the v0.4.11 hardware diagnostics isolated the remaining failure to the native `esp_https_ota` GitHub Release Asset path. The Async queue/status model and exclusive maintenance mode remain, but the actual firmware download and flash transport returns to Arduino `HTTPUpdate`, matching the proven v0.2.46 implementation. Existing GitHub Release assets and manifest URLs remain unchanged so older GrowTent firmware continues to use the same update infrastructure.
+GrowTent v0.4.16 is a controlled end-to-end OTA validation release. The HTTPUpdate installer, exclusive maintenance mode, Async handoff/status flow and v0.4.15 transport diagnostics are intentionally unchanged. Only the firmware version, web asset cache-busters and release/test metadata advance so an installed v0.4.15 device can perform a real OTA update to a newer published firmware without introducing another transport variable.
 
 ## Highlights
 
-- Replaces native `esp_https_ota` firmware installation with Arduino `HTTPUpdate`.
-- Uses the same `WiFiClientSecure` + `setInsecure()` + forced redirect pattern proven in v0.2.46.
-- Keeps the firmware URL from the current manifest, including version-pinned GitHub Release assets.
-- Keeps AsyncWebServer callbacks non-blocking: installation still runs only in the dedicated OTA worker.
-- Keeps `/api/ota/update-status` live during the blocking `HTTPUpdate` call through lock-free progress counters.
-- Keeps the v0.4.11 exclusive maintenance mode, which releases the Sensor/BME/Shelly/Watering task stacks before connecting.
-- Keeps TCP/8080 active for live update progress while normal state/log polling is suppressed.
-- No additional OTA branch or alternative firmware hosting is introduced.
-- Existing v0.2.x boards continue to see normal GitHub Release `manifest.json` / `firmware.bin` assets.
+- No OTA transport or installer logic changes from v0.4.15.
+- Keeps Arduino `HTTPUpdate` with forced redirects and the existing exclusive maintenance mode.
+- Keeps the Async OTA worker and `/api/ota/update-status` progress model unchanged.
+- Keeps all non-flashing OTA transport diagnostics from v0.4.15.
+- Provides a new versioned GitHub Release target for a real v0.4.15 -> v0.4.16 OTA hardware test.
+- Keeps normal GitHub Release `manifest.json` and `firmware.bin` assets for backward compatibility with older firmware.
+- Updates dashboard cache-busters and test metadata to v0.4.16.
 
 ## v0.4.6 OTA request-status lifecycle fix
 
@@ -28,6 +26,62 @@ v0.4.6 preserves the last terminal OTA check and update status before reusing th
 
 The Async release test now explicitly queues a second OTA job and then queries the previous completed request ID. The old request must remain `state:"done"` and may no longer regress to `request_not_found`.
 
+
+## v0.4.16 end-to-end OTA validation target
+
+The v0.4.15 cold-first diagnostic reproduced the HTTPUpdate-equivalent request as the first network operation after the exclusive shutdown and still reached the signed firmware asset with HTTP 200 and the expected content length. The earlier v0.4.12 connection refusal could therefore no longer be reproduced in DNS, TLS, redirect, hash/header or first-connection diagnostics.
+
+v0.4.16 deliberately makes no further OTA implementation changes. Its purpose is to create a clean, newer release target so the complete real `HTTPUpdate` path can be tested from v0.4.15:
+
+1. OTA check discovers v0.4.16.
+2. The Async request queues the install.
+3. Exclusive maintenance stops the application tasks.
+4. Arduino `HTTPUpdate` performs the GitHub release download and flash.
+5. Progress is exposed through `/api/ota/update-status`.
+6. On success the ESP restarts into v0.4.16.
+
+Any failure can therefore be compared directly with the already-passing non-flashing v0.4.15 diagnostics without another architecture change.
+
+## v0.4.15 cold-first preflight comparison
+
+v0.4.14 proved that an HTTPUpdate-equivalent request succeeds after the diagnostic has already established several TLS connections. The real v0.4.12 failure differed in one remaining way: HTTPUpdate was the first TLS connection attempted after the exclusive shutdown.
+
+v0.4.15 changes only the diagnostic order. In exclusive mode it performs the HTTPUpdate-equivalent preflight immediately after the maintenance environment is ready, before any other DNS/TLS/HTTP probe. The existing simple transport checks and warm preflight still run afterward.
+
+If the cold-first preflight passes with HTTP 200 and the expected firmware length, the v0.4.12 connection refusal is no longer reproducible even under the same first-connection ordering. If it fails while the later warm preflight succeeds, the first TLS connection itself becomes the primary suspect.
+
+## v0.4.14 HTTPUpdate preflight comparison
+
+The v0.4.13 normal and exclusive diagnostics both reached the signed GitHub asset with HTTP 200 and the exact firmware size. That rules out DNS, TLS, GitHub release redirect handling and the exclusive maintenance shutdown as the immediate cause of the v0.4.12 `start_ssl_client: -1` failure.
+
+The remaining pre-request difference is the work performed inside Arduino-ESP32 2.0.17 `HTTPUpdate::handleUpdate()`: running-sketch MD5/SHA-256 calculation, ESP-specific request headers, HTTP/1.0, the HTTPUpdate User-Agent, its 8-second HTTP timeout and forced redirects.
+
+v0.4.14 reproduces those operations in the non-flashing diagnostic. It closes the connection immediately after final response headers; no firmware body is consumed and no updater/flash API is called.
+
+## v0.4.13 non-flashing OTA transport diagnostic
+
+The v0.4.12 hardware test failed before any HTTP response was received:
+
+```text
+WiFiClientSecure.cpp: connect(): start_ssl_client: -1
+HTTPUpdate.cpp: handleUpdate(): HTTP error: connection refused
+```
+
+Arduino-ESP32 maps HTTPClient error `-1` to the generic text `connection refused`, so that label alone does not identify the actual failing TLS stage.
+
+v0.4.13 therefore leaves the real installer unchanged and adds a dedicated diagnostic worker. A successful normal OTA check first caches the exact version-pinned firmware URL. The diagnostic then performs these operations on the ESP32 itself without flashing:
+
+1. Resolve the firmware host with `WiFi.hostByName()`.
+2. Open a direct insecure `WiFiClientSecure` TLS connection to that host.
+3. Send the same HTTP `GET` method used by HTTPUpdate, but stop after response headers and do not read the firmware body.
+4. Read the release redirect internally and expose only its host name.
+5. Resolve and directly TLS-connect to the redirect host.
+6. Send a GET to the signed asset URL, again stopping after response headers.
+7. Capture the real `WiFiClientSecure::lastError()` code/text, timings and heap measurements.
+
+The shell test runs the sequence first during normal runtime and then, by default, in the exact exclusive OTA maintenance state. Exclusive mode intentionally reboots after publishing the result because Sensor/BME/Shelly/Watering tasks have been self-deleted.
+
+The signed release-asset URL and its JWT are never printed, returned by the API or written to the shell log.
 
 ## v0.4.12 HTTPUpdate transport simplification
 

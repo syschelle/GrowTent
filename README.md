@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.12.md`](RELEASE_NOTES_v0.4.12.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.16.md`](RELEASE_NOTES_v0.4.16.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -281,10 +281,10 @@ pio run -e nodemcu-32s -t upload
 
 The release workflow is triggered by a `v*` Git tag.
 
-For release `v0.4.12`, the authoritative release-notes file is:
+For release `v0.4.16`, the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.4.12.md
+RELEASE_NOTES_v0.4.16.md
 ```
 
 The workflow:
@@ -321,7 +321,7 @@ src/
 tests/test_async_webserver.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.4.12.md
+RELEASE_NOTES_v0.4.16.md
 LICENSE
 ```
 
@@ -342,9 +342,9 @@ Important source files:
 
 ## Release information
 
-The complete v0.4.12 release documentation and AsyncWebServer migration history, including Phases 1-32 and the final corrective validation builds, is documented in:
+The complete v0.4.16 release documentation and AsyncWebServer migration history, including Phases 1-32 and the final corrective validation builds, is documented in:
 
-[`RELEASE_NOTES_v0.4.12.md`](RELEASE_NOTES_v0.4.12.md)
+[`RELEASE_NOTES_v0.4.16.md`](RELEASE_NOTES_v0.4.16.md)
 
 Historical per-version release notes and internal migration patch/validation files are intentionally not kept in the release source package.
 
@@ -353,3 +353,26 @@ Historical per-version release notes and internal migration patch/validation fil
 ## License
 
 Licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE).
+
+
+### OTA transport diagnostic
+
+`tests/test_ota_transport.sh <ESP-IP>` runs a non-flashing OTA network diagnostic against the ESP32 itself. By default it compares normal runtime against the exclusive OTA maintenance environment. The ESP performs DNS, direct TLS, GitHub release redirect, redirect-host TLS and signed asset response-header probes using the same Arduino networking stack as OTA. v0.4.14 additionally reproduces HTTPUpdate's sketch MD5/SHA-256 work, ESP-specific headers, HTTP/1.0 mode, 8-second HTTP timeout and forced redirect behavior without starting the updater. The signed release URL/JWT is never returned or logged.
+
+```bash
+./tests/test_ota_transport.sh 192.168.178.58
+./tests/test_ota_transport.sh 192.168.178.58 --normal
+./tests/test_ota_transport.sh 192.168.178.58 --exclusive
+```
+
+The exclusive mode intentionally reboots the ESP after publishing the diagnostic result because application tasks have been self-deleted, exactly as in a real exclusive OTA attempt.
+
+
+### v0.4.15 cold-first OTA transport probe
+
+In exclusive mode the diagnostic now runs the HTTPUpdate-equivalent preflight as the **first network operation after maintenance shutdown**, before any separate DNS/TLS/redirect warm-up probe. This isolates whether the earlier v0.4.12 `start_ssl_client: -1` failure depended on a cold first TLS connection.
+
+
+### v0.4.16 full OTA validation release
+
+v0.4.16 intentionally keeps the v0.4.15 OTA implementation unchanged. Its purpose is to provide a new GitHub release target for a clean end-to-end `HTTPUpdate` hardware validation from the installed diagnostic build. The non-flashing transport diagnostics remain available unchanged.

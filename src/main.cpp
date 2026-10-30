@@ -7116,6 +7116,54 @@ static void handleAsyncOtaUpdateStatus(AsyncWebServerRequest* request) {
   AsyncWebServerResponse* response=request->beginResponse(200,"application/json; charset=utf-8",otaUpdateStatusJson(id)); addAsyncCommonHeaders(response,false); request->send(response);
 }
 
+
+static void handleAsyncOtaTransportTestQueue(AsyncWebServerRequest* request) {
+  if (!request) return;
+
+  bool exclusive = false;
+  if (request->hasParam("exclusive")) {
+    const String value = request->getParam("exclusive")->value();
+    exclusive = value == "1" || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+  }
+  if (request->hasParam("mode")) {
+    exclusive = request->getParam("mode")->value().equalsIgnoreCase("exclusive");
+  }
+
+  uint32_t id = 0;
+  String err;
+  if (!otaQueueTransportTest(exclusive, id, err)) {
+    String json = "{\"ok\":false,\"error\":\"" + err + "\"}";
+    const int status = err == "ota_busy" ? 409 :
+                       err == "update_check_required" ? 412 : 503;
+    AsyncWebServerResponse* response =
+        request->beginResponse(status, "application/json; charset=utf-8", json);
+    addAsyncCommonHeaders(response, false);
+    request->send(response);
+    return;
+  }
+
+  String json = "{\"ok\":true,\"queued\":true,\"requestId\":" + String(id) +
+                ",\"exclusive\":" + String(exclusive ? "true" : "false") +
+                ",\"flashesFirmware\":false}";
+  AsyncWebServerResponse* response =
+      request->beginResponse(202, "application/json; charset=utf-8", json);
+  addAsyncCommonHeaders(response, false);
+  request->send(response);
+}
+
+static void handleAsyncOtaTransportTestStatus(AsyncWebServerRequest* request) {
+  if (!request) return;
+  uint32_t id = 0;
+  if (request->hasParam("requestId")) {
+    id = request->getParam("requestId")->value().toInt();
+  }
+  AsyncWebServerResponse* response =
+      request->beginResponse(200, "application/json; charset=utf-8",
+                             otaTransportTestStatusJson(id));
+  addAsyncCommonHeaders(response, false);
+  request->send(response);
+}
+
 // -------------------- Phase 31 retained: Async captive portal / transactional Wi-Fi provisioning --------------------
 static const char WIFI_PROVISION_HTML[] PROGMEM = R"GTWIFI(
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8094,6 +8142,8 @@ static void registerAsyncPhase32Routes() {
   asyncServer.on("/api/ota/check-status", AsyncWebRequestMethod::HTTP_GET, handleAsyncOtaCheckStatus);
   asyncServer.on("/api/ota/update", AsyncWebRequestMethod::HTTP_POST, handleAsyncOtaUpdateQueue);
   asyncServer.on("/api/ota/update-status", AsyncWebRequestMethod::HTTP_GET, handleAsyncOtaUpdateStatus);
+  asyncServer.on("/api/ota/transport-test", AsyncWebRequestMethod::HTTP_POST, handleAsyncOtaTransportTestQueue);
+  asyncServer.on("/api/ota/transport-test-status", AsyncWebRequestMethod::HTTP_GET, handleAsyncOtaTransportTestStatus);
 
   asyncServer.on("/api/async/health", AsyncWebRequestMethod::HTTP_GET, handleAsyncHealth);
   asyncServer.on("/favicon.ico", AsyncWebRequestMethod::HTTP_GET, [](AsyncWebServerRequest* request) {
