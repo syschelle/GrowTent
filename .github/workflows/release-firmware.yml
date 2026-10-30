@@ -79,9 +79,11 @@ jobs:
           if marker in notes:
               ota_notes += "\n\nFull migration history: see the GitHub release notes.\n"
 
+          firmware_size = Path("firmware.bin").stat().st_size
           manifest = {
               "version": tag,
               "firmwareUrl": f"https://github.com/syschelle/GrowTent/releases/download/{tag}/firmware.bin",
+              "firmwareSize": firmware_size,
               "changelog": ota_notes,
           }
           Path("manifest.json").write_text(

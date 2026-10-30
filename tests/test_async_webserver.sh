@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.4 / phase 32 fallback-AP lifecycle fix
+# Test build: v0.4.5 / phase 32 fallback-AP lifecycle fix
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -153,7 +153,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.4 / Async phase 32 fallback-AP lifecycle fix"
+log "Test build target: v0.4.5 / Async phase 32 fallback-AP lifecycle fix"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -163,7 +163,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.4"
+EXPECTED_FW_VERSION="v0.4.5"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -231,7 +231,7 @@ for spec in "root|/|GET" "style|/style.css|GET" "script|/script.js|GET" "favicon
     LEGACY_UI_FAILURES=$((LEGACY_UI_FAILURES + 1))
   fi
 done
-# v0.4.4: when STA is connected, a boot-time fallback AP must already have
+# v0.4.5: when STA is connected, a boot-time fallback AP must already have
 # released DNS/TCP80 and returned to STA-only mode. This check catches the
 # v0.3.08 lifecycle bug directly instead of relying only on port probes.
 phase0a_health="$(curl -sS --http1.1 --max-time 5 "$BASE8080/api/async/health" 2>>"$LOGFILE" || true)"
@@ -3608,7 +3608,7 @@ if [[ "$phase32_html" == *'id="otaCheckBtn"'* && \
       "$phase32_html" != *'onclick="checkForOtaUpdate()"'* && \
       "$phase32_html" != *'onclick="startOtaUpdate()"'* && \
       "$phase32_html" == *'/script.js?v=0.4.2'* ]]; then
-  log "PASS OTA dashboard buttons use DOM event binding and v0.4.4 script cache-buster; no inline onclick dependency remains"
+  log "PASS OTA dashboard buttons use DOM event binding and v0.4.5 script cache-buster; no inline onclick dependency remains"
 else
   log "FAIL OTA dashboard button binding/cache-buster contract missing"
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))

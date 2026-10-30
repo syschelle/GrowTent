@@ -2,7 +2,7 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <HTTPUpdate.h>
+#include <Update.h>
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include "freertos/FreeRTOS.h"
@@ -64,6 +64,8 @@ static volatile bool g_otaUpdateStreaming = false;
 static volatile int g_otaStreamPercent = 0;
 static volatile int g_otaStreamCurrent = 0;
 static volatile int g_otaStreamTotal = 0;
+static int g_otaKnownFirmwareSize = -1;
+static uint32_t g_otaKnownFirmwareSizeAtMs = 0;
 
 static void otaLogMemory(const char* stage) {
   const uint32_t internalFree =
@@ -169,11 +171,13 @@ static bool fetchOtaManifestOnce(uint32_t requestId,
                                  String& latestTag,
                                  String& changelog,
                                  String& firmwareUrl,
+                                 int& firmwareSize,
                                  String& errorOut) {
   errorOut = "";
   latestTag = "";
   changelog = "";
   firmwareUrl = "";
+  firmwareSize = -1;
 
   if (WiFi.status() != WL_CONNECTED) {
     errorOut = "wifi_not_connected";
@@ -248,6 +252,7 @@ static bool fetchOtaManifestOnce(uint32_t requestId,
   filter["version"] = true;
   filter["changelog"] = true;
   filter["firmwareUrl"] = true;
+  filter["firmwareSize"] = true;
   JsonDocument doc;
   const DeserializationError jerr =
       deserializeJson(doc, manifestBody, DeserializationOption::Filter(filter));
@@ -262,6 +267,7 @@ static bool fetchOtaManifestOnce(uint32_t requestId,
   latestTag = doc["version"] | "";
   changelog = doc["changelog"] | "";
   firmwareUrl = doc["firmwareUrl"] | "";
+  firmwareSize = doc["firmwareSize"] | -1;
   latestTag.trim();
 
   if (latestTag.isEmpty()) {
@@ -274,8 +280,8 @@ static bool fetchOtaManifestOnce(uint32_t requestId,
                   "/releases/latest/download/firmware.bin";
   }
 
-  Serial.printf("[OTA CHECK] manifest parsed: latest=%s changelogBytes=%u\n",
-                latestTag.c_str(), (unsigned)changelog.length());
+  Serial.printf("[OTA CHECK] manifest parsed: latest=%s changelogBytes=%u firmwareSize=%d\n",
+                latestTag.c_str(), (unsigned)changelog.length(), firmwareSize);
   return true;
 }
 
@@ -308,13 +314,14 @@ static bool runOtaCheck(uint32_t requestId, bool dryRun) {
   String latestTag;
   String changelog;
   String firmwareUrl;
+  int firmwareSize = -1;
   String lastError = "manifest_check_failed";
   bool fetched = false;
 
   for (int attempt = 1; attempt <= OTA_CHECK_MAX_ATTEMPTS; ++attempt) {
     String attemptError;
     if (fetchOtaManifestOnce(requestId, manifestUrl, attempt,
-                             latestTag, changelog, firmwareUrl, attemptError)) {
+                             latestTag, changelog, firmwareUrl, firmwareSize, attemptError)) {
       fetched = true;
       break;
     }
@@ -341,6 +348,10 @@ static bool runOtaCheck(uint32_t requestId, bool dryRun) {
       g_otaStatus.changelog = changelog;
       g_otaStatus.firmwareUrl = firmwareUrl;
       g_otaStatus.updateAvailable = updateAvailable;
+      if (firmwareSize > 0) {
+        g_otaKnownFirmwareSize = firmwareSize;
+        g_otaKnownFirmwareSizeAtMs = millis();
+      }
       g_otaStatus.percent = 100;
       g_otaStatus.message = "check_complete";
       g_otaStatus.state = OtaJobState::Done;
@@ -371,100 +382,217 @@ static bool runOtaUpdate(uint32_t requestId, bool dryRun) {
     return false;
   }
 
-  const char* firmwareUrl = "https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin";
+  const String firmwareUrl =
+      String("https://github.com/") + GITHUB_OWNER + "/" + GITHUB_REPO +
+      "/releases/latest/download/firmware.bin";
+
   Serial.println("[OTA] worker update requested");
   Serial.printf("[OTA] preflight core=%d workerStack=%u\n",
                 xPortGetCoreID(), (unsigned)OTA_WORKER_STACK_BYTES);
   otaLogMemory("preflight");
 
-  // Initialize the user-visible status before HTTPUpdate starts. From this point
-  // until update() returns, callbacks must not take g_otaMutex.
-  otaSetProgress(requestId, 0, 0, 0, "download_started");
+  otaSetProgress(requestId, 0, 0, 0, "probing_firmware");
   g_otaStreamPercent = 0;
   g_otaStreamCurrent = 0;
   g_otaStreamTotal = 0;
+
+  // Prefer the exact size from manifest.json. This lets Update.begin() reserve
+  // its 4 KiB flash buffer before any firmware HTTPS/TLS connection exists.
+  int firmwareSize = -1;
+  if (g_otaKnownFirmwareSize > 0 &&
+      (uint32_t)(millis() - g_otaKnownFirmwareSizeAtMs) <= 10UL * 60UL * 1000UL) {
+    firmwareSize = g_otaKnownFirmwareSize;
+  }
+
+  // Fallback for direct /api/ota/update calls without a preceding update check
+  // or for older manifests without firmwareSize: perform one metadata GET,
+  // close TLS completely, then reserve the Update buffer.
+  if (firmwareSize <= 0) {
+    Serial.println("[OTA] firmwareSize not cached; probing release asset");
+    {
+      WiFiClientSecure probeClient;
+      probeClient.setInsecure();
+      probeClient.setTimeout(60);
+
+      HTTPClient probe;
+      probe.setConnectTimeout(8000);
+      probe.setTimeout(60000);
+      probe.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+      probe.useHTTP10(true);
+
+      if (!probe.begin(probeClient, firmwareUrl)) {
+        otaSetFailure(requestId, "firmware_probe_begin_failed");
+        return false;
+      }
+
+      probe.addHeader("User-Agent", String("GrowTent-ESP32/") + FW_VERSION);
+      probe.addHeader("Accept", "application/octet-stream");
+      probe.addHeader("Accept-Encoding", "identity");
+      probe.addHeader("Connection", "close");
+
+      const int probeCode = probe.GET();
+      firmwareSize = probe.getSize();
+      Serial.printf("[OTA] probe HTTP=%d contentLength=%d\n", probeCode, firmwareSize);
+
+      if (probeCode <= 0) {
+        probe.end();
+        probeClient.stop();
+        otaSetFailure(requestId, String("firmware_probe_transport_") + probeCode);
+        return false;
+      }
+      if (probeCode != HTTP_CODE_OK) {
+        probe.end();
+        probeClient.stop();
+        otaSetFailure(requestId, String("firmware_probe_http_") + probeCode);
+        return false;
+      }
+      if (firmwareSize <= 0) {
+        probe.end();
+        probeClient.stop();
+        otaSetFailure(requestId, "firmware_probe_size_unknown");
+        return false;
+      }
+
+      probe.end();
+      probeClient.stop();
+    }
+
+    // Give the TLS/client destructors a scheduling point so freed heap blocks
+    // can coalesce before Update.begin() requests its 4 KiB sector buffer.
+    vTaskDelay(pdMS_TO_TICKS(20));
+    otaLogMemory("after_probe_close");
+  } else {
+    Serial.printf("[OTA] firmwareSize from manifest=%d\n", firmwareSize);
+  }
+
+  Serial.printf("[OTA] reserving Update buffer for %d bytes before TLS\n", firmwareSize);
+  if (!Update.begin((size_t)firmwareSize, U_FLASH)) {
+    const char* updateErr = Update.errorString();
+    Serial.printf("[OTA] Update.begin failed error=%u text=%s\n",
+                  (unsigned)Update.getError(),
+                  updateErr ? updateErr : "");
+    otaLogMemory("Update.begin_failed");
+    otaSetFailure(requestId,
+                  Update.getError() != UPDATE_ERROR_OK
+                      ? String("update_begin_") + (updateErr ? updateErr : "failed")
+                      : "update_begin_alloc_failed");
+    return false;
+  }
+
+  otaLogMemory("after_Update.begin");
+
+  int lastPercentLogged = -1;
+  Update.onProgress([&](size_t current, size_t total) {
+    const int percent =
+        total > 0 ? constrain((int)((100ULL * current) / total), 0, 100) : 0;
+
+    // Keep the flash-stream callback allocation- and mutex-free.
+    g_otaStreamPercent = percent;
+    g_otaStreamCurrent = (int)current;
+    g_otaStreamTotal = (int)total;
+
+    // Serial output is intentionally sparse to avoid slowing the flash stream.
+    if (percent == 100 || lastPercentLogged < 0 || percent >= lastPercentLogged + 5) {
+      lastPercentLogged = percent;
+      Serial.printf("[OTA] Progress: %d%% (%u / %u)\n",
+                    percent, (unsigned)current, (unsigned)total);
+    }
+  });
+
+  otaSetProgress(requestId, 0, 0, firmwareSize, "download_started");
+  g_otaStreamTotal = firmwareSize;
   g_otaUpdateStreaming = true;
 
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setTimeout(60);
+  bool updateOk = false;
+  String failureReason;
 
-  // The default HTTPUpdate client timeout is 8 s. GitHub release assets may
-  // occasionally pause between TLS/CDN chunks, so allow a bounded 60 s read
-  // timeout while keeping the actual progress callbacks lock-free.
-  HTTPUpdate otaUpdater(60000);
-  otaUpdater.rebootOnUpdate(false);
-  otaUpdater.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+  {
+    // Only now create the real HTTPS connection. The 4 KiB Update buffer is
+    // already allocated and can no longer be squeezed out by TLS fragmentation.
+    WiFiClientSecure client;
+    client.setInsecure();
+    client.setTimeout(60);
 
-  int lastPercentSent = -1;
-  otaUpdater.onStart([&]() {
-    Serial.println("[OTA] Start");
-    // Called after HTTPS/redirect setup and immediately before Update.begin().
-    // This is the critical memory point for the 4 KiB flash-sector buffer.
-    otaLogMemory("before_Update.begin");
-  });
-  otaUpdater.onProgress([&](int current, int total) {
-    int percent = (total > 0) ? (int)((100LL * current) / total) : 0;
-    percent = constrain(percent, 0, 100);
+    HTTPClient http;
+    http.setConnectTimeout(8000);
+    http.setTimeout(60000);
+    http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    http.useHTTP10(true);
 
-    // IMPORTANT: no semaphore/mutex/String work here. This callback runs inside
-    // HTTPUpdate::update()/Update::writeStream(). Only aligned scalar values are
-    // published for the status endpoint to snapshot later.
-    g_otaStreamPercent = percent;
-    g_otaStreamCurrent = current;
-    g_otaStreamTotal = total;
+    if (!http.begin(client, firmwareUrl)) {
+      failureReason = "firmware_http_begin_failed";
+    } else {
+      http.addHeader("User-Agent", String("GrowTent-ESP32/") + FW_VERSION);
+      http.addHeader("Accept", "application/octet-stream");
+      http.addHeader("Accept-Encoding", "identity");
+      http.addHeader("Connection", "close");
 
-    if (percent != lastPercentSent) {
-      lastPercentSent = percent;
-      Serial.printf("[OTA] Progress: %d%% (%d / %d)\n", percent, current, total);
+      const int code = http.GET();
+      const int responseSize = http.getSize();
+      Serial.printf("[OTA] download HTTP=%d contentLength=%d expected=%d\n",
+                    code, responseSize, firmwareSize);
+      otaLogMemory("download_connected");
+
+      if (code <= 0) {
+        failureReason = String("firmware_transport_") + code;
+      } else if (code != HTTP_CODE_OK) {
+        failureReason = String("firmware_http_") + code;
+      } else if (responseSize > 0 && responseSize != firmwareSize) {
+        failureReason =
+            String("firmware_size_changed_") + responseSize + "_expected_" + firmwareSize;
+      } else {
+        WiFiClient* stream = http.getStreamPtr();
+        if (!stream) {
+          failureReason = "firmware_stream_unavailable";
+        } else {
+          const size_t written = Update.writeStream(*stream);
+          Serial.printf("[OTA] stream finished written=%u expected=%d updateError=%u\n",
+                        (unsigned)written, firmwareSize, (unsigned)Update.getError());
+
+          if (written != (size_t)firmwareSize) {
+            failureReason =
+                String("firmware_incomplete_") + (unsigned)written + "_of_" + firmwareSize;
+          } else if (Update.hasError()) {
+            failureReason = String("update_write_") + Update.errorString();
+          } else if (!Update.isFinished()) {
+            failureReason = "update_not_finished";
+          } else if (!Update.end()) {
+            failureReason = String("update_end_") + Update.errorString();
+          } else {
+            updateOk = true;
+          }
+        }
+      }
+
+      http.end();
+      client.stop();
     }
-  });
-  otaUpdater.onEnd([&]() {
-    g_otaStreamPercent = 100;
-    if (g_otaStreamTotal > 0) g_otaStreamCurrent = g_otaStreamTotal;
-    Serial.println("[OTA] download complete");
-  });
-  otaUpdater.onError([&](int error) {
-    Serial.printf("[OTA] Error callback: %d\n", error);
-  });
+  }
 
-  const t_httpUpdate_return ret = otaUpdater.update(client, firmwareUrl);
   g_otaUpdateStreaming = false;
-
-  Serial.printf("[OTA] update() returned=%d lastError=%d\n",
-                (int)ret, otaUpdater.getLastError());
   otaLogMemory("after_update");
 
-  if (ret == HTTP_UPDATE_OK) {
-    if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
-      if (g_otaStatus.requestId == requestId) {
-        g_otaStatus.percent = 100;
-        g_otaStatus.currentBytes = g_otaStreamTotal;
-        g_otaStatus.totalBytes = g_otaStreamTotal;
-        g_otaStatus.message = "updated_restarting";
-        g_otaStatus.state = OtaJobState::Done;
-        g_otaRestartAtMs = millis() + 2500UL;
-      }
-      xSemaphoreGive(g_otaMutex);
-    }
-    return true;
-  }
-  if (ret == HTTP_UPDATE_NO_UPDATES) {
-    if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
-      if (g_otaStatus.requestId == requestId) {
-        g_otaStatus.percent = 100;
-        g_otaStatus.message = "no_update";
-        g_otaStatus.state = OtaJobState::Done;
-      }
-      xSemaphoreGive(g_otaMutex);
-    }
-    return true;
+  if (!updateOk) {
+    if (Update.isRunning()) Update.abort();
+    if (failureReason.isEmpty()) failureReason = "ota_update_failed";
+    Serial.printf("[OTA] FAILED: %s\n", failureReason.c_str());
+    otaSetFailure(requestId, failureReason);
+    return false;
   }
 
-  const String error = otaUpdater.getLastErrorString();
-  Serial.printf("[OTA] FAILED: %s\n", error.c_str());
-  otaSetFailure(requestId, error.length() ? error : "ota_update_failed");
-  return false;
+  Serial.println("[OTA] firmware written successfully");
+  if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) == pdTRUE) {
+    if (g_otaStatus.requestId == requestId) {
+      g_otaStatus.percent = 100;
+      g_otaStatus.currentBytes = firmwareSize;
+      g_otaStatus.totalBytes = firmwareSize;
+      g_otaStatus.message = "updated_restarting";
+      g_otaStatus.state = OtaJobState::Done;
+      g_otaRestartAtMs = millis() + 2500UL;
+    }
+    xSemaphoreGive(g_otaMutex);
+  }
+  return true;
 }
 
 static void otaWorker(void*) {
