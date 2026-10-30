@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.0 / phase 32 fallback-AP lifecycle fix
+# Test build: v0.4.1 / phase 32 fallback-AP lifecycle fix
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -153,7 +153,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.0 / Async phase 32 fallback-AP lifecycle fix"
+log "Test build target: v0.4.1 / Async phase 32 fallback-AP lifecycle fix"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -163,7 +163,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.0"
+EXPECTED_FW_VERSION="v0.4.1"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -231,7 +231,7 @@ for spec in "root|/|GET" "style|/style.css|GET" "script|/script.js|GET" "favicon
     LEGACY_UI_FAILURES=$((LEGACY_UI_FAILURES + 1))
   fi
 done
-# v0.4.0: when STA is connected, a boot-time fallback AP must already have
+# v0.4.1: when STA is connected, a boot-time fallback AP must already have
 # released DNS/TCP80 and returned to STA-only mode. This check catches the
 # v0.3.08 lifecycle bug directly instead of relying only on port probes.
 phase0a_health="$(curl -sS --http1.1 --max-time 5 "$BASE8080/api/async/health" 2>>"$LOGFILE" || true)"
@@ -276,15 +276,15 @@ check_asset() {
 
 log "===== PHASE 0B: STATIC ASSET INTEGRITY ====="
 check_asset "async-root" "$BASE8080/" 45000
-check_asset "async-css" "$BASE8080/style.css?v=0.4.0" 19000
-check_asset "async-js" "$BASE8080/script.js?v=0.4.0" 100000
+check_asset "async-css" "$BASE8080/style.css?v=0.4.1" 19000
+check_asset "async-js" "$BASE8080/script.js?v=0.4.1" 100000
 if [[ "$ASSET_FAILURES" -eq 0 ]]; then
   log "STATIC ASSET CHECK: PASS"
 else
   log "STATIC ASSET CHECK: FAIL ($ASSET_FAILURES problem(s))"
 fi
 
-relay_ui_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=0.4.0&relay-ui-ack=1" 2>>"$LOGFILE" || true)"
+relay_ui_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=0.4.1&relay-ui-ack=1" 2>>"$LOGFILE" || true)"
 if [[ "$relay_ui_js" == *"waitForRelayApply"* && "$relay_ui_js" == *"refreshRelayStatesDirect"* && "$relay_ui_js" == *"Manual relays 1..5 are deliberately excluded"* && "$relay_ui_js" == *"sensorRefreshQueued"* ]]; then
   log "PASS relay dashboard uses direct runtime state ownership and stale-refresh suppression"
 else
@@ -333,8 +333,8 @@ check_cache_header() {
 
 log "===== PHASE 0C: CACHE HEADER POLICY ====="
 check_cache_header "async-root" "$BASE8080/" "no-store"
-check_cache_header "async-css" "$BASE8080/style.css?v=0.4.0" "public, max-age=31536000, immutable"
-check_cache_header "async-js" "$BASE8080/script.js?v=0.4.0" "public, max-age=31536000, immutable"
+check_cache_header "async-css" "$BASE8080/style.css?v=0.4.1" "public, max-age=31536000, immutable"
+check_cache_header "async-js" "$BASE8080/script.js?v=0.4.1" "public, max-age=31536000, immutable"
 if [[ "$CACHE_FAILURES" -eq 0 ]]; then
   log "CACHE HEADER CHECK: PASS"
 else
@@ -469,7 +469,7 @@ log "Transport correctness hard-timeout: ${ASSET_TRANSPORT_MAX_TIME}s; transfers
 asset_baseline_headers="${OUTDIR}/asset-transport-baseline.headers"
 asset_baseline_body="${OUTDIR}/asset-transport-baseline.js"
 asset_baseline_meta="$(curl -sS --http1.1 --max-time "$ASSET_TRANSPORT_MAX_TIME" -D "$asset_baseline_headers" -o "$asset_baseline_body" \
-  -w '%{http_code}\t%{time_total}\t%{size_download}' "$BASE8080/script.js?v=0.4.0&phase16=baseline" 2>>"$LOGFILE")"
+  -w '%{http_code}\t%{time_total}\t%{size_download}' "$BASE8080/script.js?v=0.4.1&phase16=baseline" 2>>"$LOGFILE")"
 asset_baseline_rc=$?
 IFS=$'\t' read -r asset_baseline_http asset_baseline_seconds asset_baseline_bytes <<< "$asset_baseline_meta"
 asset_baseline_actual="$(wc -c <"$asset_baseline_body" 2>/dev/null || echo 0)"
@@ -491,12 +491,12 @@ for round in $(seq 1 10); do
   pids=(); files=(); labels=(); expects=(); hashes=()
   for n in $(seq 1 4); do
     f="${OUTDIR}/asset16-r${round}-js${n}.tmp"
-    asset_transport_request_to_file "$BASE8080/script.js?v=0.4.0&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
+    asset_transport_request_to_file "$BASE8080/script.js?v=0.4.1&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
     files+=("$f"); labels+=("async-js-flow"); expects+=("$EXPECTED_JS_BYTES"); hashes+=("$EXPECTED_JS_SHA256")
   done
   for n in $(seq 1 2); do
     f="${OUTDIR}/asset16-r${round}-css${n}.tmp"
-    asset_transport_request_to_file "$BASE8080/style.css?v=0.4.0&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
+    asset_transport_request_to_file "$BASE8080/style.css?v=0.4.1&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
     files+=("$f"); labels+=("async-css-flow"); expects+=("$EXPECTED_CSS_BYTES"); hashes+=("$EXPECTED_CSS_SHA256")
   done
   for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
@@ -3587,7 +3587,7 @@ else
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
 fi
 
-phase32_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=0.4.0&phase32=contract" 2>>"$LOGFILE" || true)"
+phase32_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=0.4.1&phase32=contract" 2>>"$LOGFILE" || true)"
 if [[ "$phase32_js" == *"/savemessagesettings"* &&       "$phase32_js" == *"/api/settings/message-status?requestId="* &&       "$phase32_js" == *"/api/newgrow/status?requestId="* &&       "$phase32_js" == *"/api/ota/check-status?requestId="* &&       "$phase32_js" == *"/api/ota/update-status?requestId="* &&       "$phase32_js" == *'"message.saving": { de:'* &&       "$phase32_js" == *'"ota.checking": { de:'* && \
       "$phase32_js" == *"window.checkForOtaUpdate = async function"* && \
       "$phase32_js" == *"window.trKey = trKey;"* && \
@@ -3605,8 +3605,8 @@ if [[ "$phase32_html" == *'id="otaCheckBtn"'* && \
       "$phase32_html" == *'id="otaInstallBtn"'* && \
       "$phase32_html" != *'onclick="checkForOtaUpdate()"'* && \
       "$phase32_html" != *'onclick="startOtaUpdate()"'* && \
-      "$phase32_html" == *'/script.js?v=0.4.0'* ]]; then
-  log "PASS OTA dashboard buttons use DOM event binding and v0.4.0 script cache-buster; no inline onclick dependency remains"
+      "$phase32_html" == *'/script.js?v=0.4.1'* ]]; then
+  log "PASS OTA dashboard buttons use DOM event binding and v0.4.1 script cache-buster; no inline onclick dependency remains"
 else
   log "FAIL OTA dashboard button binding/cache-buster contract missing"
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
@@ -3963,8 +3963,8 @@ log "Cold-cache stress: HTML, CSS, JS, state, stats, hint and logbuffer concurre
 for round in $(seq 1 5); do
   urls=(
     "$BASE8080/"
-    "$BASE8080/style.css?v=0.4.0"
-    "$BASE8080/script.js?v=0.4.0"
+    "$BASE8080/style.css?v=0.4.1"
+    "$BASE8080/script.js?v=0.4.1"
     "$BASE8080/api/state"
     "$BASE8080/api/stats"
     "$BASE8080/api/hint"

@@ -68,10 +68,21 @@ jobs:
 
           tag = os.environ["GITHUB_REF_NAME"]
           notes = Path("release_notes.md").read_text(encoding="utf-8")
+
+          # Keep the OTA manifest deliberately compact. The full release notes can
+          # be large (v0.4.1 includes the complete AsyncWebServer migration
+          # history), while older installed firmware reads the manifest into a
+          # single String. Only the summary/highlights belong in the OTA payload;
+          # the complete notes stay attached to the GitHub Release.
+          marker = "## AsyncWebServer migration history"
+          ota_notes = notes.split(marker, 1)[0].rstrip()
+          if marker in notes:
+              ota_notes += "\n\nFull migration history: see the GitHub release notes.\n"
+
           manifest = {
               "version": tag,
-              "firmwareUrl": "https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin",
-              "changelog": notes,
+              "firmwareUrl": f"https://github.com/syschelle/GrowTent/releases/download/{tag}/firmware.bin",
+              "changelog": ota_notes,
           }
           Path("manifest.json").write_text(
               json.dumps(manifest, ensure_ascii=False, separators=(",", ":")),

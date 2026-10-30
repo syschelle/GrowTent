@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.4.0">
+  <link rel="stylesheet" href="/style.css?v=0.4.1">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -1069,7 +1069,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.4.0"></script>
+ <script src="/script.js?v=0.4.1"></script>
 </body>
 </html>
 )rawliteral";
