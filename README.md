@@ -1,523 +1,355 @@
 # GrowTent
 
-> ⚡ Smart, adaptive grow tent controller with real-time climate stabilization and OTA updates
+> Smart ESP32 grow-tent controller with climate monitoring, automation, irrigation, Shelly integration and OTA updates.
 
-GrowTent is a compact ESP32-based grow-tent controller that reads temperature, humidity and computes VPD (Vapor Pressure Deficit) using a BME280 sensor.
+GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-It provides a web interface (German/English), relay control, automation logic and integrates with Shelly devices. The system is designed for **stable long-term operation** and **minimal manual intervention**.
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.0.md`](RELEASE_NOTES_v0.4.0.md).
 
-For centralized history, multi-tent management, irrigation control (if installed), and basic remote control, this firmware can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend). The backend is intended to offload history recording and higher-level coordination from the ESP32, keeping the controller focused on reliable real-time tent operation.
-
----
-
-## 🚀 Features
-
-- **ESP32 web interface** for live status and configuration
-- **Adaptive sensor smoothing (EMA)**
-  - dynamic smoothing based on real-time changes
-  - fast response to environmental shifts (e.g. opening tent/window)
-  - stable readings in steady conditions
-- **Raw vs smoothed sensor values**
-  - full transparency for debugging and tuning
-- **Stable VPD calculation**
-  - based on smoothed values
-  - reduces oscillation in control loops
-- **4x or 8x relay board support** (selectable in UI)
-- **Relay scheduling** (minute-based within each hour)
-- **Conditional relay logic** (e.g. based on light state)
-- **Shelly integration**
-  - Main power
-  - Grow light
-  - Humidifier
-  - Heater
-  - Fan (only on 8x boards)
-  - Exthaust (only on 8x boards)
-  - Heating mat (monitoring only; no switching or automation)
-- **Heater control by temperature**
-  - ESP relay or Shelly device
-- **Irrigation support (only on 8x boards)**
-  - peristaltic pumps (relay 6–8)
-  - each pump can be enabled or disabled independently in Operating Settings
-  - disabled pumps are skipped by automatic watering and blocked for manual 10-second tests
-- **Tank level monitoring (HC-SR04) (only on 8x boards)**
-  - distance-based water level detection
-  - usable for irrigation safety (empty tank protection)
-- **Built-in log buffer**
-- **History and averages**
-- **OTA update from GitHub Release binary**
-- **Designed for stability**
-  - optimized for unattended operation
+For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
 ---
 
-## 🌡️ Adaptive Climate Smoothing
+## Current architecture
 
-The system uses an **adaptive exponential moving average (EMA)** to balance
-stability and responsiveness of sensor readings.
+### Normal operation
 
-### How it works
+- Dashboard and application API: `http://<esp-ip>:8080/`
+- Permanent application server: `ESPAsyncWebServer` on **TCP/8080**
+- No normal application listener on TCP/80
+- State endpoint: `GET /api/state`
+- Compatibility statistics endpoint: `GET /api/stats`
+- Health endpoint: `GET /api/async/health`
 
-- Raw sensor values are read from the BME280
-- The system calculates the difference between consecutive readings
-- Based on this delta, a dynamic smoothing factor (`alpha`) is applied:
-  - small changes → strong smoothing
-  - large changes → fast reaction
+### Wi-Fi provisioning
 
-### Example
+TCP/80 is reserved exclusively for the asynchronous captive portal while Wi-Fi provisioning is active.
 
-- Stable environment → smooth values  
-- Opening a window → immediate response  
+- Captive portal: **TCP/80**
+- Captive DNS is active only while provisioning is running
+- Candidate credentials are tested before they replace the stored Wi-Fi configuration
+- A boot-time fallback AP is automatically stopped after the stored STA connection recovers
+- After successful recovery the controller returns to STA-only operation and TCP/80 is closed again
 
-### Benefits
+Operations that can touch hardware, storage, networking or restart state are queued from the Async HTTP callback and executed by the normal Arduino loop or the responsible worker task.
 
-- Reduced sensor noise  
-- Stable VPD calculation  
-- Faster reaction to real changes  
-- Improved control behavior  
+---
+
+## Features
+
+- Embedded German/English web interface
+- Adaptive BME280 temperature/humidity smoothing
+- VPD calculation and target-based automation
+- Optional DS18B20 water-temperature sensor
+- 4- or 8-relay configuration
+- Minute-based relay schedules
+- Conditional relay operation based on light state
+- Heating control using an ESP relay or Shelly device
+- Shelly integration for:
+  - main power
+  - grow light
+  - humidifier
+  - heater
+  - fan
+  - exhaust
+  - heating mat monitoring
+- Automatic Shelly generation detection
+- Irrigation support on 8-relay systems
+  - Pumps on relays 6-8
+  - Individual pump enable/disable
+  - Pump calibration
+  - Sequential watering
+  - Manual 10-second pump test
+- HC-SR04 tank-level measurement
+- Shelly Flood S Gen4 event integration
+  - event-driven webhook handling
+  - irrigation start interlock
+  - optional active-irrigation abort on Flood alarm
+- Grow Diary stored in LittleFS
+- Built-in system log
+- Runtime/state JSON API
+- GitHub OTA update check and installation
+- Release-specific static-asset cache busting
+- Fixed-length direct-buffer transport for important Async responses
+
+---
 
 ## Hardware
 
-- ESP32 4x or 8x relay board (any compatible dev board)
-- Adafruit BME280 (I2C at default address 0x76)
-- 4x relay channels (driven by ESP32 GPIOs)
-- Power supply appropriate for ESP32 and relays
-- HC-SR04 sensor 
+### Controller
 
-### Default sensor and relay configuration in code:
-- BME I2C address: `0x76` (BME_ADDR)
-- DS18B20 sensor pin 4
-- Relay count: `4` (NUM_RELAYS)
-- 4x Relay pins (in order): `{ 32, 33, 25, 26 }` 
-- 8x Relay pins (in order): `{32, 33, 25, 26, 27, 14, 12, 13 }`
-- only for 8x Relay board connect Relay 6, 7, 8 to a peristaltic pump for watering the pods
-- Pump 1, Pump 2 and Pump 3 can be enabled independently in **Operating Settings → Irrigation settings**; all three are enabled by default after an upgrade
-- Shelly devices (Gen1/Gen2/Gen3 depending on endpoint support)
+- ESP32 NodeMCU-32S
+- PlatformIO board: `nodemcu-32s`
 
-### Wiring notes:
-- Connect BME280 SDA / SCL to ESP32 SDA / SCL (Wire library pins)
-- Make sure common ground between relays and ESP32
-- Relays are initialized as OUTPUT and driven LOW = OFF by default
+### Sensors
 
-### Relay Boards
-- 4-channel relay board
-- 8-channel relay board
+- BME280, I2C address `0x76`
+- DS18B20, GPIO `4`
+- HC-SR04 tank sensor:
+  - TRIG: GPIO `16`
+  - ECHO: GPIO `17`
 
----
+### Relay mapping
 
-## Defaults & Constants
+8-relay mapping in the firmware:
 
-- AP SSID: `new growtent`
-- AP password: `GT-12$34`
-- Measurement interval: `30000 ms` (30 seconds)
-- Default NTP server: `de.pool.ntp.org`
-- Default timezone (POSIX-style): Western European Time, example:
-  `WEST-1DWEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00`
-- Default language: `de` (German)
-- Default theme: `light`
-- Default units: `metric`
-- Default time format: `24h`
-- Default VPD targets (per phase): `{ 0.0, 0.8, 1.2, 1.4, 1.0 }`
-- Phase names: `["", "Vegetative", "Flowering", "Drying"]`
+| Relay | GPIO | Typical use |
+| ---: | ---: | --- |
+| 1 | 32 | configurable relay |
+| 2 | 33 | configurable relay |
+| 3 | 25 | configurable relay |
+| 4 | 26 | configurable relay |
+| 5 | 27 | configurable relay |
+| 6 | 14 | irrigation pump 1 |
+| 7 | 12 | irrigation pump 2 |
+| 8 | 13 | irrigation pump 3 |
 
-Preferences keys stored in NVS:
-- `ssid` / `password` (WiFi)
-- `boxName`
-- `lang`
-- `theme`
-- `unit`
-- `timeFmt`
-- `ntpSrv`
-(Namespace: `growtent`)
+For a 4-relay configuration only relays 1-4 are active.
 
 ---
 
-## Web UI
+## Web interface
 
-The web frontend is embedded in program memory and served by the ESP32:
-- Main page: `/` (index)
-- Stylesheet: `/style.css`
-- JavaScript: `/script.js`
-- i18n manifest and language JSONs are served from memory
-- Factory reset endpoint available via `POST /factory-reset` (form in UI)
+In normal STA operation open:
 
-UI highlights:
-- Gauges for Temperature, Humidity and VPD
-- Settings page for language, theme, date/time format, temperature unit, and NTP/timezone configuration
-- Uses localStorage + Preferences for persistent settings across reloads
-- Statuspage
- <img width="1658" height="1167" alt="Bildschirmfoto_26-7-2026_191323_192 168 178 88" src="https://github.com/user-attachments/assets/3eaaaf75-0dce-4206-9e91-79ac6b099125" />
+```text
+http://<esp-ip>:8080/
+```
 
+The frontend is embedded in the firmware:
 
+- `/` - dashboard
+- `/style.css` - stylesheet
+- `/script.js` - JavaScript
 
+The dashboard includes status, operating settings, system settings, logs, factory reset, messages, OTA update and Grow Diary pages.
 
-
-Languages provided (i18n):
-- German (`de`)
-- English (`en`)
+The installed firmware version is displayed in the dashboard header.
 
 ---
 
-## VPD Calculation
+## API overview
 
-VPD (kPa) is calculated from the measured temperature (°C) and relative humidity (%) using saturation vapor pressure (svp) approximation:
+All normal application endpoints use **TCP/8080**.
 
-svp = 0.6108 * exp((17.27 * T) / (T + 237.3))
-VPD = svp - (RH / 100) * svp
+### State and diagnostics
 
-Values are updated by a background task and stored in:
-- `lastTemperature`
-- `lastHumidity`
-- `lastVPD`
-
----
-
-## Software / Libraries
-
-- Arduino framework for ESP32
-- Wire (I2C)
-- Adafruit_BME280
-- Preferences (NVS)
-- Adafruit Sensor (sensor abstraction)
-
-Make sure to install the Adafruit_BME280 and Adafruit_Sensor libraries before building.
-
----
-
-## Project Structure
-
-- `src/main.cpp`
-Web routes, setup, loop, task startup
-- `src/function.h`
-Core logic (control, API builders, handlers)
-- `src/runtime.h`
-Preferences load and HTML placeholder rendering
-- `src/java_script.h`
-Frontend behavior (status polling, UI updates)
-- `src/index_html.h`
-Embedded web page template
-- `src/style_css.h`
-Embedded styles
-- `src/task_Check_Sensor.h`
-Sensor/control task
-- `src/task_CheckShellyStatus.h`
-Shelly poll task
-- `src/task_Watering.h`
-Irrigation task
-
----
-
-## Build & Flash (quick)
-
-These are general instructions — adapt to your toolchain (Arduino IDE, PlatformIO, Arduino CLI, etc.)
-
-1. Install required libraries:
-   - Adafruit_BME280
-   - Adafruit_Sensor
-
-2. Select the correct ESP32 board in your build environment.
-
-3. Build and flash to your ESP32 as usual.
-
-Example (PlatformIO):
-- pio run --target upload
-
-Example (Arduino CLI):
-- arduino-cli compile --fqbn <fqbn> .
-- arduino-cli upload -p <port> --fqbn <fqbn> .
-
----
-
-## Configuration & Tuning
-
-- WiFi: You can set the device to Station mode or keep it in AP mode for direct connection.
-- NTP and timezone: Set the NTP server and timezone string via the web UI.
-- Relay behavior: By default relays are set LOW at startup. Update logic in code to change behavior.
-
----
-
-## API Endpoints (Connectors)
-
-### Core
 - `GET /api/state`
-Unified state payload for frontend and external integrations (recommended primary endpoint).
-Pump selection is exposed as `irrigation.pump1.enabled`, `irrigation.pump2.enabled` and `irrigation.pump3.enabled`.
-Disabled pumps are visibly marked in the status UI, and their manual 10-second test buttons cannot be operated.
+- `GET /api/stats`
+- `GET /api/async/health`
+- `GET /api/hint`
+- `GET /api/fs/status`
+- `GET /api/logbuffer`
+- `POST /api/logbuffer/clear`
+- `GET /log`
+- `GET /download/log`
 
-Shelly Flood S Gen4 state is exposed event-driven as:
-- `sensors.flood.configured`
-- `sensors.flood.alarm` (`null` until the first valid event)
-- `sensors.flood.status` (`disabled`, `unknown`, `ok`, `alarm`)
-- `sensors.flood.lastSeen`
+### Grow Diary / LittleFS
 
-The Flood sensor IP address and webhook token are intentionally **not** exposed through `/api/state`. The battery-powered sensor is never polled by GrowTent.
+- `GET /api/diary/list`
+- `GET /api/diary.csv`
+- `POST /api/diary/add`
+- `POST /api/diary/update`
+- `POST /api/diary/delete`
+- `POST /api/diary/clear`
+- `POST /api/fs/format`
+- `GET /api/storage/action-status`
 
-### Control
+### Relays
+
+- `GET|POST /api/relay/{1..5}/state`
 - `POST /relay/{1..5}/toggle`
+
+Manual relay operations use a queued main-loop handoff rather than changing GPIO state directly inside an Async callback.
+
+### Irrigation
+
+- `GET /api/watering/state`
+- `POST /api/watering/action`
+- `POST /api/watering/start`
+- `POST /api/watering/stop`
+- `POST /startWatering`
+- `POST /toggleWatering`
 - `POST /pump/6/triggerPump10s`
 - `POST /pump/7/triggerPump10s`
 - `POST /pump/8/triggerPump10s`
-  - returns `409 pump_disabled` when the selected pump is disabled in Operating Settings
-- `POST /startWatering`
-  - starts only when at least one irrigation pump is enabled
 - `POST /pingTank`
+- `GET|POST /api/flood/event`
+
+Disabled pumps cannot be started by the manual pump-test endpoint. When the configured Flood protection is active, a known Flood alarm can block a watering start and optionally stop an active watering cycle.
 
 ### Shelly
+
 - `POST /shelly/main/toggle`
 - `POST /shelly/light/toggle`
 - `POST /shelly/humidifier/toggle`
 - `POST /shelly/heater/toggle`
+- `POST /shelly/fan/toggle`
+- `POST /shelly/exhaust/toggle`
 - `POST /api/shelly/reset-energy`
-- `GET|POST /api/flood/event?token=<token>&alarm=0|1`
-  - event receiver for Shelly Flood S Gen4 URL actions
-  - authenticated with a dedicated per-controller token
-  - persists the last known flood state across ESP restarts
+- `GET /api/shelly/action-status`
 
-### Scheduling / Settings
-- `POST /api/relay/schedule/save-all`
-- `POST /savesettings`
-- `POST /saverunsettings`
-- `POST /saveshellysettings`
-- `POST /savemessagesettings`
+Shelly configuration uses the `/api/settings/shelly/*` and `/api/settings/shelly-dashboard` endpoints on TCP/8080.
 
-### Logs
-- `GET /api/logbuffer`
-- `POST /api/logbuffer/clear`
-- `GET /log`
+### System actions
+
+- `POST /api/system/restart`
+- `GET /api/system/restart-status`
+- `POST /factory-reset`
+- `GET /api/system/factory-reset-status`
 
 ### OTA
+
+- `GET /api/ota/check`
+- `GET /api/ota/check-status`
 - `POST /api/ota/update`
-Triggers OTA update from the configured firmware URL.
+- `GET /api/ota/update-status`
+
+OTA checks use the GitHub Release `manifest.json`; installation downloads the published `firmware.bin` release asset.
 
 ---
 
-## ⚙️ Configuration
+## `/api/state`
 
-- WiFi: AP or Station mode
-- NTP + timezone configurable via UI
-- Relay logic configurable via UI
+`/api/state` is the primary endpoint for the web frontend and external integrations. It includes current sensor values, relay state, grow settings, irrigation state and Shelly telemetry.
 
----
+Examples of exposed areas include:
 
-## Project Structure (high level)
+- temperature / humidity / VPD
+- DS18B20 water temperature
+- grow phase and targets
+- relay configuration and schedules
+- irrigation and pump enable state
+- tank level
+- Shelly power/energy values
+- Flood sensor state
 
-- src/
-  - main.cpp (setup, loop, initialization)
-  - config.h (hardware and global configuration)
-  - task_Check_Sensor.h (background sensor read + VPD logic)
-  - index_html.h (web frontend HTML + i18n JSON)
-  - java_script.h (client JS embedded)
-  - style_css.h (client CSS embedded)
-  - other .h / helper files
-
-All web UI assets are embedded as string literals (PROGMEM) and served by the device.
+Sensitive values such as Wi-Fi credentials, Shelly authentication passwords and the Flood webhook token are not exposed through `/api/state`.
 
 ---
 
-## 🧪 Troubleshooting
+## Default configuration
 
-- BME280 not found → check wiring & I2C address  
-- Relays not switching → check GPIO + logic level  
-- No UI → connect to AP:  
-  - SSID: `new growtent`  
-  - Password: `GT-12$34`
+- Wi-Fi setup AP SSID: `new growtent`
+- Wi-Fi setup AP password: `GT-12$34`
+- Default NTP server: `de.pool.ntp.org`
+- Default language: German (`de`)
+- Default theme: light
+- Default units: metric
+- Default time format: 24-hour
+- BME280 address: `0x76`
+
+Persistent configuration is stored in ESP32 Preferences/NVS. Grow Diary data is stored in LittleFS.
 
 ---
 
-## Contributing
+## Build
 
-Contributions, bug reports and improvements welcome. Please open issues or pull requests describing the change and rationale.
+The project is configured for PlatformIO.
+
+```text
+platform = espressif32@6.11.0
+board = nodemcu-32s
+framework = arduino
+```
+
+Important library dependencies are defined in `platformio.ini`:
+
+- ArduinoJson
+- Adafruit BME280 Library
+- Adafruit Unified Sensor
+- OneWire
+- DallasTemperature
+- ESP32Async/AsyncTCP 3.5.0
+- ESP32Async/ESPAsyncWebServer 3.12.1
+
+Build locally with:
+
+```bash
+pio run -e nodemcu-32s
+```
+
+Upload over USB with:
+
+```bash
+pio run -e nodemcu-32s -t upload
+```
+
+---
+
+## GitHub release and OTA
+
+The release workflow is triggered by a `v*` Git tag.
+
+For release `v0.4.0`, the authoritative release-notes file is:
+
+```text
+RELEASE_NOTES_v0.4.0.md
+```
+
+The workflow:
+
+1. generates `src/build_version.h` from the Git tag;
+2. builds the `nodemcu-32s` PlatformIO environment;
+3. publishes `firmware.bin`;
+4. creates `manifest.json` for OTA;
+5. uses `RELEASE_NOTES_<tag>.md` for both the GitHub Release text and OTA changelog.
+
+This keeps the GitHub Release and the changelog shown by the ESP32 OTA page synchronized.
+
+---
+
+## AsyncWebServer regression test
+
+The repository contains one current migration/regression test:
+
+```text
+tests/test_async_webserver.sh
+```
+
+It is intended to be run against a real ESP32 after flashing and covers the final AsyncWebServer architecture, including state transport, settings/actions, provisioning lifecycle, OTA check and load/regression checks.
+
+---
+
+## Project structure
+
+```text
+.github/workflows/release-firmware.yml
+include/
+lib/
+src/
+tests/test_async_webserver.sh
+platformio.ini
+README.md
+RELEASE_NOTES_v0.4.0.md
+LICENSE
+```
+
+Important source files:
+
+- `src/main.cpp` - initialization, Async routes and main-loop handoffs
+- `src/function.h` - control logic and API helpers
+- `src/runtime.h` - runtime settings and rendering helpers
+- `src/java_script.h` - embedded dashboard JavaScript
+- `src/index_html.h` - embedded dashboard HTML
+- `src/style_css.h` - embedded dashboard CSS
+- `src/task_Check_Sensor.h` - sensor and climate-control task
+- `src/task_CheckShellyStatus.h` - Shelly polling task
+- `src/task_Watering.h` - irrigation task
+- `src/ota.cpp` / `src/ota.h` - GitHub OTA handling
+
+---
+
+## Release information
+
+The complete v0.4.0 AsyncWebServer migration history, including Phases 1-32 and the final corrective validation builds, is documented in:
+
+[`RELEASE_NOTES_v0.4.0.md`](RELEASE_NOTES_v0.4.0.md)
+
+Historical per-version release notes and internal migration patch/validation files are intentionally not kept in the release source package.
 
 ---
 
 ## License
 
-Add license information here (no license file present in the source snapshot). If you want to use a permissive license, consider adding an SPDX header and LICENSE file (MIT, Apache-2.0, etc.).
-
----
-
-
-### v0.2.21 UI robustness
-- Pump status rendering is now handled after `/api/state` is loaded, reducing server-side HTML processing.
-- Sensor rendering is isolated from pump UI updates so pump controls cannot suppress sensor values.
-- Static assets use a firmware-version query string to avoid stale browser cache after updates.
-
-
-### v0.2.22 pump status UI
-- Disabled pumps now show a translated text label instead of a grey disabled test button.
-- The manual 10-second test button is only visible for enabled pumps.
-
-
-### v0.2.24 Flood S Gen4 integration
-
-> Build fix: the internal Flood token generator now uses `HEX_CHARS` instead of `HEX` to avoid a collision with the Arduino `HEX` macro.
-
-- Added event-driven Shelly Flood S Gen4 integration without a polling task.
-- Added a dedicated webhook token and generated Flood alarm / Flood alarm off URLs in Shelly settings.
-- Persisted the last known flood state across ESP restarts to support the sensor's sleep behavior.
-- Added `sensors.flood.*` fields to `/api/state` without exposing the Flood IP address or token.
-
-
-### v0.2.25 Shelly polling stability
-- Empty Shelly IP fields are treated as unconfigured and are not polled.
-- Empty Shelly slots no longer generate repeated `Invalid IP: ''` log messages.
-- Unreachable configured Shellys use a 30-second retry backoff after a failed status request, reducing network/task load.
-- Last known good Shelly values are preserved during transient failures.
-- Removed repetitive API-rendering log messages for unavailable main/light values; actual request failures remain logged by the polling layer.
-- Flood S Gen4 remains event-driven and unchanged.
-
-
-### v0.2.26 Flood webhook API link display
-
-- Added a dedicated **API Links for Shelly Actions** section to the Flood S Gen4 settings.
-- Shows the complete webhook URLs for `Flood alarm` and `Flood alarm off`.
-- Added Copy buttons for both webhook URLs.
-- The URLs continue to use the GrowTent controller address and the local Flood webhook token; neither is exposed through `/api/state`.
-
-### v0.2.27 Web UI heap stability
-
-- The main web interface is no longer assembled as one >52 KB Arduino `String` in heap.
-- HTML is rendered and sent in newline-aligned chunks of about 4 KB.
-- Dynamic placeholders are still resolved server-side for every chunk.
-- This avoids requiring one very large contiguous heap block when opening `/`.
-- The change is intended to keep the web UI available even when free heap is fragmented and the largest free block is around 50–60 KB.
-- Flood S Gen4 behavior, sensor tasks, Shelly control logic, irrigation and VPD control are unchanged.
-- Shelly status polling is now staggered: one Shelly is checked per step instead of all six back-to-back, avoiding multi-second timeout bursts when devices are offline.
-
-
-### v0.2.28 Grow date persistence hardening
-
-- Loads all persistent runtime Preferences before the HTTP server is started.
-- Removes the boot-time race where the web UI could temporarily render empty/default grow values before NVS was restored.
-- Protects `webGrowStart` from being overwritten by an empty or malformed value.
-- Keeps slow sensor/network initialization in the deferred initialization task.
-- No changes to Flood S Gen4 polling policy, irrigation control, VPD control, or relay scheduling.
-
-### v0.2.30 Flood header status, battery telemetry and time formatting
-
-- Shows the Flood S Gen4 state in the header whenever Flood integration is enabled.
-- Adds `sensors.flood.batteryPct` to `/api/state`.
-- Adds Shelly webhook token replacement for battery percentage and device Unix time.
-- Stores Flood event timestamps as UTC ISO-8601 and formats them locally in the browser.
-- Keeps the integration event-driven: the GrowTent controller still never polls the Flood S Gen4.
-
-
-### v0.2.31 OTA manifest reliability
-
-- OTA update checks now use a small `manifest.json` release asset instead of parsing GitHub's complete latest-release API response on the ESP32.
-- The release workflow publishes `manifest.json` together with `firmware.bin`.
-- OTA checking uses forced redirect following and HTTP/1.0 connection-close responses to reduce buffering and heap pressure.
-- OTA check diagnostics now report HTTP status, content length, free heap and largest allocatable heap block on Serial.
-- The web UI now displays the controller's detailed OTA error reason instead of only a generic HTTP status.
-- Firmware download and installation continue to use the existing `firmware.bin` latest-release URL.
-
-### v0.2.29 Flood webhook URL restore fix
-
-- Fixed Flood S Gen4 webhook URLs remaining blank after an ESP restart or normal browser reload.
-- The persisted Flood token is now converted into both complete Shelly Action URLs immediately when the web UI initializes.
-- Webhook URL previews are also refreshed on `pageshow` so browser back/forward cache restores remain correct.
-- No changes to Flood event handling, Shelly polling, VPD control, irrigation, relay scheduling, or FreeRTOS task layout.
-
-
-
-### v0.2.32 Wi-Fi / backend connectivity diagnostics
-
-- Pins PlatformIO to `espressif32@6.11.0` so local and GitHub release builds use the same ESP32/Arduino runtime.
-- Logs Wi-Fi link loss and restoration, including downtime, RSSI and reconnect attempts.
-- Logs main-loop stalls of at least one second because they can delay the synchronous web server and `/api/state`.
-- Logs `/api/state` responses that take at least 250 ms without logging every normal backend poll.
-- Replaces ambiguous Shelly `EmptyInput` JSON errors with explicit empty-response diagnostics.
-- Does not change grow control, irrigation, Flood S Gen4 handling or relay scheduling.
-
-### v0.2.33 OTA progress feedback
-
-- Adds a real-time progress bar for online OTA firmware installation.
-- Shows actual transfer percentage and transferred/total firmware bytes from the ESP32 `HTTPUpdate` progress callback.
-- Displays immediate start feedback, successful completion/restart state, and detailed OTA errors in the web UI.
-- Streams compact progress events over the existing OTA request without adding another FreeRTOS task.
-
-### v0.2.34 OTA release information fix
-
-- OTA manifests now use the version-specific `RELEASE_NOTES_<version>.md` file.
-- GitHub Release notes and the OTA changelog are generated from the same source.
-- Annotated tag text is only used as a fallback when no release-notes file exists.
-
-
-### v0.2.35 Firmware version in header
-
-The installed firmware version is shown directly below the tent/controller name in the top-left header. The value comes from the same `FW_VERSION` generated from the release tag.
-
-
-### v0.2.36 Header version label cleanup
-
-The top-left header now shows only the installed version (for example `v0.2.36`) below the tent/controller name, without the `Firmware:` prefix.
-
-
-## v0.2.38
-
-Adds the optional heating-mat dashboard tile and includes its energy counter in the Shelly kWh reset action when configured.
-
-## v0.2.40 Irrigation dashboard stop/toggle fix
-
-- The irrigation dashboard button is now a real start/stop control.
-- An active irrigation cycle can be stopped immediately from the dashboard.
-- All irrigation pump relays are switched off as soon as stop is requested.
-- Pump runtime and between-run waits are interruptible so the watering task does not continue after a stop request.
-- The button label changes between **Bewässerung starten** and **Bewässerung beenden** according to `irrigation.runsLeft`.
-- The existing `/startWatering` endpoint remains available; the dashboard uses the new `POST /toggleWatering` endpoint.
-
-## v0.2.40
-
-Fixes the v0.2.39 Status-page JavaScript scope regression that prevented normal `/api/state` rendering. No sensor, relay, irrigation, Shelly or Flood backend logic was changed.
-
-## v0.2.41 Flood alarm irrigation safety stop
-
-- Adds an optional checkbox under **Operating Settings → Irrigation settings** to stop an active automatic irrigation cycle when the configured Flood S Gen4 reports a Flood alarm.
-- The option is disabled by default and persisted in ESP32 Preferences.
-- The existing irrigation stop path is reused: pump relays are switched off immediately and the watering task aborts promptly.
-- Dry/clear Flood events and manual 10-second pump pulses are not affected.
-
-## v0.2.42 Flood start interlock and API start notification
-
-- Extends the optional Flood irrigation safety setting so a known active Flood alarm also blocks new automatic irrigation starts while the option is enabled.
-- The Flood start block is applied to both the dashboard start path and `POST /startWatering`, so the safety interlock cannot be bypassed through the API.
-- API-originated irrigation starts are identified explicitly in the Pushover notification and in the irrigation start log.
-- Dashboard-originated Pushover wording remains unchanged.
-- No changes were made to BME280, DS18B20, ultrasonic tank measurement, Shelly polling, Flood webhook transport, relay scheduling or irrigation volume calculations.
-
-## v0.2.43
-
-- Serializes GitHub firmware-release jobs per tag to prevent duplicate release creation races.
-- Adds a defensive retry/update path for HTTP 422 `Release.tag_name already exists`.
-- No ESP32 control logic changes.
-
-
-
-## v0.2.44
-
-### Shelly / web-network resilience
-- Reduced Shelly LAN connection and response timeouts so unreachable devices cannot occupy network resources for several seconds per request.
-- Gen2/Gen3 status polling now reuses the first successful HTTP response instead of issuing a redundant second GET when authentication is disabled.
-- Added exponential retry backoff for failing Shelly devices (30 s, 60 s, 120 s, 240 s; reset immediately after a successful poll).
-- Shelly polling is skipped while Wi-Fi is not connected.
-- Added elapsed-time information to Shelly request-failure logs.
-- Added detailed `/api/state` timing (`buildMs`, `sendMs`, client IP, RSSI) to distinguish JSON generation from a blocked network send.
-- Added slow `server.handleClient()` diagnostics with URI, method and RSSI.
-- No changes to grow automation, relay control, irrigation logic, Flood handling, sensor acquisition or OTA behavior.
-
-## v0.2.45
-
-### Shelly polling regression fix
-- Restores the proven Gen2/Gen3 Shelly HTTP transport path from v0.2.43 after the 1-second connection deadline introduced in v0.2.44 prevented valid local Shelly devices from returning status values.
-- Keeps the v0.2.44 exponential Shelly retry backoff and Wi-Fi-link guard.
-- Keeps the v0.2.44 web-server timing diagnostics for continued investigation of long `server.handleClient()` stalls.
-- Keeps elapsed-time information in Shelly request-failure logs.
-- No changes to sensors, relay automation, irrigation, Flood handling, OTA, or stored settings.
-
-## v0.2.46
-
-### Rollback of v0.2.44/v0.2.45 network experiments
-- Restores the ESP32 runtime network behavior from v0.2.43.
-- Removes the exponential Shelly retry backoff so a recovered Shelly is retried after the established 30-second delay instead of potentially remaining stale for several minutes.
-- Removes the additional v0.2.44/v0.2.45 request timing instrumentation from the Shelly and synchronous WebServer paths.
-- Keeps all functional features through v0.2.43 unchanged.
-- The Arduino-ESP32 core remains pinned to 2.0.17; the upstream WebServer hang fix in newer cores will be evaluated separately.
+Licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE).

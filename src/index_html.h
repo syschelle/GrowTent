@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.2.46">
+  <link rel="stylesheet" href="/style.css?v=0.4.0">
 <body>
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -351,7 +351,7 @@ const char* htmlPage = R"rawliteral(
 
     <div class="spacer"></div>
     <!-- shellysettings section -->
-    <form action="/saveshellysettings" method="POST">
+    <form id="shellySettingsForm" onsubmit="event.preventDefault(); window.saveShellySettingsAll(event); return false;">
     <section id="shelly" class="page card">
       <h1 data-i18n="shelly.title">Shelly Einstellungen</h1>
       <h2 data-i18n="status.shellyDevices">Shelly Geräte</h2>
@@ -359,11 +359,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPMainSw">Shelly IP Adresse für Hauptschalter:</label>
         <div class="twoinone-label">
           <input name="webShellyMainIP" id="shellyMainSwIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYMAINIP%">
-          <select name="webShellyMainGen" id="shellyMainSwGen" class="control-sm shelly-other">
-            <option value="1" %SHMAINSWKIND1%>Gen1</option>
-            <option value="2" %SHMAINSWKIND2%>Gen2</option>
-            <option value="3" %SHMAINSWKIND3%>Gen3</option>
-          </select>
+          <strong class="shelly-gen-detected" id="shellyMainSwGenDetected">—</strong>
         </div>
       </div>
 
@@ -371,11 +367,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPLight">Shelly IP Adresse für Pflanzlicht:</label>
         <div class="twoinone-label">
           <input name="webShellyLightIP" id="shellyLightIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYLIGHTIP%">
-          <select name="webShellyLightGen" id="shellyLightGen" class="control-sm shelly-other">
-            <option value="1" %SHLIGHTKIND1%>Gen1</option>
-            <option value="2" %SHLIGHTKIND2%>Gen2</option>
-            <option value="3" %SHLIGHTKIND3%>Gen3</option>
-          </select>
+          <strong class="shelly-gen-detected" id="shellyLightGenDetected">—</strong>
           <select name="webShellyLightOnTime" id="shellyLightOnTime" class="control-sm shelly-other"></select>
           <select name="webShellyLightDayHours" id="shellyLightDayHours" class="control-sm shelly-other"></select>
           <input name="webShellyLightOffTime" id="shellyLightOffTime" class="control-sm shelly-other" type="text" readonly value="—">
@@ -387,11 +379,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPHumidifier">Shelly IP Adresse für Luftbefeuchter:</label>
         <div class="twoinone-label">
           <input name="webShellyHumidifierIP" id="shellyHumidifierIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%">
-          <select name="webShellyHumidifierGen" id="shellyHumidifierGen" class="control-sm shelly-other">
-            <option value="1" %SHHUMIDIFIERKIND1%>Gen1</option>
-            <option value="2" %SHHUMIDIFIERKIND2%>Gen2</option>
-            <option value="3" %SHHUMIDIFIERKIND3%>Gen3</option>
-          </select>
+          <strong class="shelly-gen-detected" id="shellyHumidifierGenDetected">—</strong>
         </div>
       </div>
 
@@ -399,11 +387,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPHeater">Shelly IP Adresse für Heizgerät:</label>
         <div class="twoinone-label">
           <input name="webShellyHeaterIP" id="shellyHeaterIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATERIP%">
-          <select name="webShellyHeaterGen" id="shellyHeaterGen" class="control-sm shelly-other">
-            <option value="1" %SHHEATERKIND1%>Gen1</option>
-            <option value="2" %SHHEATERKIND2%>Gen2</option>
-            <option value="3" %SHHEATERKIND3%>Gen3</option>
-          </select>
+          <strong class="shelly-gen-detected" id="shellyHeaterGenDetected">—</strong>
         </div>
       </div>
 
@@ -411,11 +395,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyIPFan">Shelly IP Adresse für Lüfter:</label>
         <div class="twoinone-label">
           <input name="webShellyFanIP" id="shellyFanIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYFANIP%">
-          <select name="webShellyFanGen" id="shellyFanGen" class="control-sm shelly-other">
-            <option value="1" %SHFANKIND1%>Gen1</option>
-            <option value="2" %SHFANKIND2%>Gen2</option>
-            <option value="3" %SHFANKIND3%>Gen3</option>
-          </select>
+          <strong class="shelly-gen-detected" id="shellyFanGenDetected">—</strong>
         </div>
       </div>
 
@@ -423,11 +403,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyIP" data-i18n="shelly.shellyExhaust">Shelly IP Adresse für Abluft:</label>
         <div class="twoinone-label">
           <input name="webShellyExhaustIP" id="shellyExhaustIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYEXHAUSTIP%">
-          <select name="webShellyExhaustGen" id="shellyExhaustGen" class="control-sm shelly-other">
-            <option value="1" %SHEXHAUSTKIND1%>Gen1</option>
-            <option value="2" %SHEXHAUSTKIND2%>Gen2</option>
-            <option value="3" %SHEXHAUSTKIND3%>Gen3</option>
-          </select>
+          <strong class="shelly-gen-detected" id="shellyExhaustGenDetected">—</strong>
         </div>
       </div>
 
@@ -435,11 +411,7 @@ const char* htmlPage = R"rawliteral(
         <label for="shellyHeatMatIP" data-i18n="shelly.shellyIPHeatMat">Shelly IP Adresse für Heizmatte:</label>
         <div class="twoinone-label">
           <input name="webShellyHeatMatIP" id="shellyHeatMatIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATMATIP%">
-          <select name="webShellyHeatMatGen" id="shellyHeatMatGen" class="control-sm shelly-other">
-            <option value="1" %SHHEATMATKIND1%>Gen1</option>
-            <option value="2" %SHHEATMATKIND2%>Gen2</option>
-            <option value="3" %SHHEATMATKIND3%>Gen3</option>
-          </select>
+          <strong class="shelly-gen-detected" id="shellyHeatMatGenDetected">—</strong>
         </div>
         <small data-i18n="shelly.heatMatMonitorOnly">Nur Monitoring; die Heizmatte wird vom GrowTent nicht geschaltet.</small>
       </div>
@@ -492,7 +464,7 @@ const char* htmlPage = R"rawliteral(
       </div>
       
       <div class="spacer"></div>
-        <button class="primary" id="saveshellysettingsBtn" data-i18n="settings.save">Speichern</button>
+        <button type="button" class="primary" id="saveshellysettingsBtn" data-i18n="settings.save" onclick="window.saveShellySettingsAll(event)">Speichern</button>
     </form>
     </section>
 
@@ -842,7 +814,7 @@ const char* htmlPage = R"rawliteral(
     </form>
 
     <!-- runsettings section -->
-    <form action="/savemessagesettings" method="POST">
+    <form action="/savemessagesettings" method="POST" id="messageSettingsForm">
     <section id="message" class="page card">
       <h1 data-i18n="message.title">Nachrichteneinstellungen</h1>
 
@@ -894,7 +866,7 @@ const char* htmlPage = R"rawliteral(
     </form>
 
     <!-- setting section -->
-    <form action="/savesettings" method="POST">
+    <form id="systemSettingsForm" onsubmit="event.preventDefault(); window.saveSystemSettingsAll(event); return false;">
       <section id="settings" class="page card">
         <h1 data-i18n="settings.title">Systemeinstellungen</h1>
 
@@ -1014,7 +986,7 @@ const char* htmlPage = R"rawliteral(
           <input name="webRelayName5" id="webRelayName5" type="text" data-i18n="settings.relay5.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES5%">
         </div>
 
-        <button class="primary" id="saveSettingsBtn" data-i18n="settings.save">Speichern</button>
+        <button class="primary" id="saveSettingsBtn" type="button" data-i18n="settings.save" onclick="window.saveSystemSettingsAll(event)">Speichern</button>
       </section>
     </form>
 
@@ -1063,11 +1035,11 @@ const char* htmlPage = R"rawliteral(
     <section id="ota" class="page card">
       <h1 data-i18n="ota.title">OTA Update</h1>
       <p class="hint">
-        Firmware-Quelle:
+        <span data-i18n="ota.source">Firmware-Quelle:</span>
         <code>https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin</code>
       </p>
 
-      <div id="otaStatus" class="muted">Noch nicht geprüft.</div>
+      <div id="otaStatus" class="muted" data-i18n="ota.notChecked">Noch nicht geprüft.</div>
       <div id="otaVersion"></div>
       <pre id="otaChangelog" style="white-space:pre-wrap;"></pre>
 
@@ -1077,13 +1049,13 @@ const char* htmlPage = R"rawliteral(
           <strong id="otaProgressPercent">0%</strong>
         </div>
         <progress id="otaProgressBar" max="100" value="0">0%</progress>
-        <div id="otaProgressDetail" class="muted">Bereit.</div>
+        <div id="otaProgressDetail" class="muted" data-i18n="ota.ready">Bereit.</div>
       </div>
 
       <div class="spacer"></div>
-        <button type="button" class="primary" id="otaCheckBtn" onclick="checkForOtaUpdate()">Auf Update prüfen</button>
+        <button type="button" class="primary" id="otaCheckBtn" data-i18n="ota.checkButton">Auf Update prüfen</button>
       <div class="spacer"></div>
-        <button type="button" class="primary" id="otaInstallBtn" onclick="startOtaUpdate()" disabled>Update installieren</button>
+        <button type="button" class="primary" id="otaInstallBtn" data-i18n="ota.installButton" disabled>Update installieren</button>
     </section>
 
     <!-- factory reset section -->
@@ -1097,57 +1069,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.2.46"></script>
-</body>
-</html>
-)rawliteral";
-
-const char* apPage = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-  <title>%CONTENTCONTROLLERNAME%</title>
-  <meta charset="UTF-8">
-  <link rel="stylesheet" href="/style.css?v=0.2.46">
-</head>
-<body>
-  <header class="header">
-    <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
-    <div class="title-stack">
-      <div class="title" data-i18n="app.title">%CONTENTCONTROLLERNAME%</div>
-      <div class="firmware-version">%FWVERSION%</div>
-    </div>
-    </div>
-  </header>
-  <div class="layout">
-    <nav class="sidebar" id="sidebar">
-      <a class="navlink" data-page="settings"   data-i18n="nav.wifisettings">WIFI Setting</a>
-    </nav>
-
-  <div class="overlay" id="overlay"></div>
-
-    <main class="content" id="content">
-      <section id="status" class="page active card">
-        <form action="/save" method="post">
-          <h1 data-i18n="settings.title">WIFI Setting</h1>
-          <label for="ssid">WIFI SSID:</label>
-          <input type="text" id="ssid" name="ssid" required><br><br>
-          <label for="password">WIFI Passwort:</label>
-          <input type="password" id="password" name="password" required><br><br>
-          <button class="primary" id="saveBtn" data-i18n="settings.save">save & reboot</button>
-        </form>
-      </section>
-      <section id="status" class="page active card">
-        <form action="/factory-reset" method="post" id="factoryResetForm">
-          <h1 data-i18n="settings.title">Factory Reset</h1>
-          <input type="hidden" name="confirm" value="1">
-          <button class="primary" id="factoryResetBtn" type="submit" data-i18n="settings.factoryreset.button">factory reset</button>
-        </form>
-      </section>
-    </main>
-  </div>
-  
- <script src="/script.js?v=0.2.46"></script>
+ <script src="/script.js?v=0.4.0"></script>
 </body>
 </html>
 )rawliteral";

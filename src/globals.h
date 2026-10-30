@@ -153,8 +153,15 @@ struct FloodState {
 };
 
 struct HeatingGroup {
-int sourceType = 0; // 0=disabled, 1=ESP relay, 2=Shelly plug
-int Relay = 0; // used only when sourceType == 1
+  int sourceType = 0; // 0=disabled, 1=ESP relay, 2=Shelly plug
+  int Relay = 0; // used only when sourceType == 1
+
+  // Heater controller tuning. Defaults preserve the proven pre-v0.2.66
+  // behaviour exactly.
+  float hysteresisC = 0.25f;
+  float predictSeconds = 180.0f;
+  int minOnSeconds = 120;
+  int minOffSeconds = 120;
 };
 
 struct Tank {
@@ -287,6 +294,10 @@ extern const char* KEY_HYSTERESIS;
 extern const char* KEY_LIGHT_ON_TIME;
 extern const char* KEY_LIGHT_DAY_HOURS;
 extern const char* KEY_HEATING_RELAY;
+extern const char* KEY_HEAT_HYSTERESIS;
+extern const char* KEY_HEAT_PREDICT;
+extern const char* KEY_HEAT_MIN_ON;
+extern const char* KEY_HEAT_MIN_OFF;
 
 // Relay scheduling keys (enabled as stored in Preferences)
 extern const char* KEY_HEATING_SOURCE;
@@ -443,6 +454,10 @@ extern String DS18B20Name;
 //Irrigation
 extern Irrigation irrigation;
 extern volatile bool irrigationStopRequested;
+// Async irrigation starts defer notification delivery to taskWatering() so the
+// Arduino main loop remains available for Flood-event application.
+extern volatile bool irrigationStartNotifyPending;
+extern volatile bool irrigationStartNotifyViaApi;
 
  // to detect changes and update UI accordingly
 extern const char* KEY_IRRIGATION_TIME_PER_TASK;

@@ -12,7 +12,7 @@ extern bool bmeAvailable;
 extern Adafruit_BME280 bme;
 
 void taskCheckBMESensor(void *parameter) {
-  static UBaseType_t minFree = UINT32_MAX;
+  static UBaseType_t minFreeBytes = UINT32_MAX;
 
   // Read sensors every 10 seconds
   const uint32_t sensorReadIntervalMs = 10UL * 1000UL;
@@ -33,10 +33,10 @@ void taskCheckBMESensor(void *parameter) {
     updateGrowTimeValues();
 
     // --- stack watermark logging (debug) ---
-    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+    UBaseType_t freeBytes = uxTaskGetStackHighWaterMark(NULL);
 
-    if (freeWords < minFree) {
-      minFree = freeWords;
+    if (freeBytes < minFreeBytes) {
+      minFreeBytes = freeBytes;
     }
 
     const uint32_t logIntervalMs = debugLog ? 5000UL : 60000UL;
@@ -49,10 +49,9 @@ void taskCheckBMESensor(void *parameter) {
       snprintf(
         buf,
         sizeof(buf),
-        "[TASK][Check_Sensor] free=%u words (%u bytes), min=%u words",
-        freeWords,
-        freeWords * 4,
-        minFree
+        "[TASK][Check_Sensor] free=%u bytes, min=%u bytes",
+        freeBytes,
+        minFreeBytes
       );
 
       logPrint(String(buf));

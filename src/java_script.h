@@ -263,6 +263,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "settings.tf_hhmma": { de: "12h AM/PM", en: "12h AM/PM" },
 
   "settings.save": { de: "Speichern", en: "Save" },
+  "settings.savedRestarting": { de: "Systemeinstellungen gespeichert. Neustart…", en: "System settings saved. Restarting…" },
+  "settings.saveFailed": { de: "Systemeinstellungen konnten nicht gespeichert werden.", en: "Failed to save system settings." },
 
   "settings.tempUnit": { de: "Temperatur-Einheit:", en: "Temperature unit:" },
   "settings.celsius": { de: "°C (Celsius)", en: "°C (Celsius)" },
@@ -321,6 +323,10 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "message.gotifyToken": { de: "Gotify App Token:", en: "Gotify App Token:" },
   "message.gotifyToken.ph": { de: "z. B. a1b2c3", en: "e.g. a1b2c3" },
 
+  "message.saving": { de: "Nachrichteneinstellungen werden gespeichert…", en: "Saving message settings…" },
+  "message.saved": { de: "Nachrichteneinstellungen gespeichert. Neustart läuft…", en: "Message settings saved. Restarting…" },
+  "message.saveError": { de: "Nachrichteneinstellungen konnten nicht gespeichert werden.", en: "Message settings could not be saved." },
+
   /* -------------------- Vars / Logging / Factory -------------------- */
   "vars.variables": { de: "Variablen", en: "Variables" },
   "vars.hint": {
@@ -330,10 +336,35 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   "logging.title": { de: "Systemprotokoll", en: "Logging Settings" },
 
+  "ota.title": { de: "OTA Update", en: "OTA Update" },
+  "ota.source": { de: "Firmware-Quelle:", en: "Firmware source:" },
   "ota.hint": {
     de: "Die Firmware wird von \"https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin\" heruntergeladen.",
     en: "The firmware will be downloaded from \"https://github.com/syschelle/GrowTent/releases/latest/download/firmware.bin\"."
   },
+  "ota.notChecked": { de: "Noch nicht geprüft.", en: "Not checked yet." },
+  "ota.ready": { de: "Bereit.", en: "Ready." },
+  "ota.checkButton": { de: "Auf Update prüfen", en: "Check for update" },
+  "ota.installButton": { de: "Update installieren", en: "Install update" },
+  "ota.checking": { de: "Prüfe GitHub Release…", en: "Checking GitHub release…" },
+  "ota.available": { de: "Update verfügbar ✅", en: "Update available ✅" },
+  "ota.none": { de: "Kein Update verfügbar.", en: "No update available." },
+  "ota.installedLatest": { de: "Installiert: {current} | Neueste: {latest}", en: "Installed: {current} | Latest: {latest}" },
+  "ota.checkError": { de: "Fehler beim Prüfen: {error}", en: "Update check failed: {error}" },
+  "ota.starting": { de: "OTA Update wird gestartet…", en: "Starting OTA update…" },
+  "ota.connecting": { de: "Verbindung zum Firmware-Download wird aufgebaut…", en: "Connecting to firmware download…" },
+  "ota.downloading": { de: "Firmware wird heruntergeladen und installiert…", en: "Downloading and installing firmware…" },
+  "ota.running": { de: "Firmware-Update läuft", en: "Firmware update in progress" },
+  "ota.downloadStarted": { de: "Download gestartet.", en: "Download started." },
+  "ota.finalizing": { de: "Update wird abgeschlossen…", en: "Finalizing update…" },
+  "ota.transferred": { de: "Firmware übertragen", en: "Firmware transferred" },
+  "ota.success": { de: "Update erfolgreich", en: "Update successful" },
+  "ota.restarting": { de: "ESP wird neu gestartet…", en: "ESP is restarting…" },
+  "ota.successRestart": { de: "Update erfolgreich ✅ – ESP startet neu.", en: "Update successful ✅ – ESP is restarting." },
+  "ota.noUpdateNeeded": { de: "Kein Update erforderlich", en: "No update required" },
+  "ota.alreadyCurrent": { de: "Die installierte Firmware ist bereits aktuell.", en: "The installed firmware is already current." },
+  "ota.failed": { de: "OTA Update fehlgeschlagen", en: "OTA update failed" },
+  "ota.unknownError": { de: "Unbekannter OTA-Fehler", en: "Unknown OTA error" },
 
   "factory.title": { de: "Werkseinstellungen", en: "Factory Settings" },
   "factory.reset": { de: "Zurücksetzen / Neustart", en: "Reset / Restart" },
@@ -439,6 +470,11 @@ window._sensorPollMs = 10000;
 // ---- relay state (firmware can be 4 or 8) ----
 let RELAY_COUNT = 4;
 let relayStates = Array(8).fill(false);
+// Manual relay tiles 1..5 are authoritative from /api/relay/N/state only.
+// /api/state is intentionally cached for one second and must never overwrite
+// a freshly acknowledged manual relay action.
+window._relayPendingCount = 0;
+window._relayDirectRefreshSeq = 0;
 
 // Funktion zum Aktualisieren der Sensorwerte
 window._stopSensorPoll = function () {
@@ -532,27 +568,144 @@ window.updateRelayButtons = function () {
     }
 };
 
-// toggle relay state on button click, then update buttons based on response
-window.toggleRelay = function (nr) {
-    // guard for 4/8 mode
-    if (nr < 1 || nr > RELAY_COUNT) return;
+
+// Refresh manual relay tiles from the dedicated, uncached runtime endpoint.
+// Sequence IDs prevent an older in-flight refresh from overwriting a newer
+// acknowledgement. Relays 6..8 (pumps) continue to come from /api/state.
+window.refreshRelayStatesDirect = async function (count = RELAY_COUNT) {
+    const maxManual = Math.min(Math.max(Number(count) || 0, 0), 5);
+    if (maxManual <= 0 || (window._relayPendingCount || 0) > 0) return false;
+
+    const seq = ++window._relayDirectRefreshSeq;
+    const snapshots = await Promise.all(
+        Array.from({ length: maxManual }, async (_, i) => {
+            try {
+                const response = await fetch(`/api/relay/${i + 1}/state?_=${Date.now()}-${seq}-${i}`, {
+                    method: 'GET',
+                    cache: 'no-store'
+                });
+                if (!response.ok) return null;
+                const data = await response.json();
+                return (data && data.stateReadable === true) ? { index: i, state: !!data.state } : null;
+            } catch (_) {
+                return null;
+            }
+        })
+    );
+
+    if (seq !== window._relayDirectRefreshSeq || (window._relayPendingCount || 0) > 0) {
+        return false;
+    }
+
+    let changed = false;
+    for (const snapshot of snapshots) {
+        if (!snapshot) continue;
+        relayStates[snapshot.index] = snapshot.state;
+        changed = true;
+    }
+    if (changed) window.updateRelayButtons();
+    return changed;
+};
+
+// Await the exact queued relay action instead of guessing with a delayed /api/state refresh.
+// /api/relay/N/state reads the relay runtime state directly and exposes the
+// main-loop request IDs, so this path is independent of the 1 s /api/state cache.
+window.waitForRelayApply = async function (nr, requestId, timeoutMs = 1600) {
+    const started = Date.now();
+    let last = null;
+
+    while ((Date.now() - started) < timeoutMs) {
+        const response = await fetch(`/api/relay/${nr}/state?_=${Date.now()}`, {
+            method: 'GET',
+            cache: 'no-store'
+        });
+        if (!response.ok) {
+            throw new Error(`relay status HTTP ${response.status}`);
+        }
+
+        last = await response.json();
+        const failedId = Number(last.lastFailedId || 0);
+        const appliedId = Number(last.lastAppliedId || 0);
+
+        if (failedId === Number(requestId)) {
+            throw new Error('relay runtime apply failed');
+        }
+
+        if (appliedId >= Number(requestId) && last.stateReadable === true) {
+            return last;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 35));
+    }
+
+    throw new Error(`relay apply timeout${last ? ` (lastAppliedId=${last.lastAppliedId || 0})` : ''}`);
+};
+
+// Toggle relay state and update the dashboard only after the matching main-loop
+// request has actually completed. This prevents stale/missing visual confirmation.
+window.toggleRelay = async function (nr) {
+    // guard for 4/8 mode; only relays 1..5 have manual dashboard toggles
+    if (nr < 1 || nr > RELAY_COUNT || nr > 5) return;
+    // Firmware currently serializes manual relay actions through one queue.
+    if ((window._relayPendingCount || 0) > 0) return;
 
     const idx = nr - 1;
+    const btn = document.getElementById(`relay-Status${nr}`);
+    if (btn && btn.dataset.relayPending === '1') return;
 
-    fetch(`/relay/${nr}/toggle`, { method: 'POST' })
-        .then(r => r.json())
-        .then(data => {
-            if (typeof data.state !== 'undefined') {
-                relayStates[idx] = !!data.state;
-            } else {
-                relayStates[idx] = !relayStates[idx];
-            }
+    // Invalidate any direct-state refresh that started before this click.
+    window._relayDirectRefreshSeq++;
+    window._relayPendingCount = 1;
 
-            updateRelayButtons();
-        })
-        .catch(err => {
-            console.error('toggle relay failed:', err);
+    if (btn) {
+        btn.dataset.relayPending = '1';
+        btn.setAttribute('aria-busy', 'true');
+    }
+
+    try {
+        const response = await fetch(`/relay/${nr}/toggle`, {
+            method: 'POST',
+            cache: 'no-store'
         });
+        let data = {};
+        try { data = await response.json(); } catch (_) {}
+
+        if (!response.ok || data.ok === false) {
+            throw new Error(data.err || `HTTP ${response.status}`);
+        }
+        if (!data.requestId) {
+            throw new Error('relay response missing requestId');
+        }
+
+        // Port 8080 is authoritative: wait for this exact queued action and use
+        // the dedicated uncached relay state as the visual source of truth.
+        const applied = await window.waitForRelayApply(nr, data.requestId);
+        relayStates[idx] = !!applied.state;
+        window.updateRelayButtons();
+
+        // Invalidate direct refreshes that may have started while the action was pending.
+        window._relayDirectRefreshSeq++;
+    } catch (err) {
+        console.error('toggle relay failed:', err);
+        if (typeof window.showToast === 'function') {
+            window.showToast('Relais konnte nicht geschaltet werden.', 'error');
+        }
+    } finally {
+        window._relayPendingCount = 0;
+        if (btn) {
+            delete btn.dataset.relayPending;
+            btn.removeAttribute('aria-busy');
+        }
+
+        // Reconcile directly first, then queue a normal dashboard refresh. The
+        // normal /api/state renderer no longer owns manual relay tiles 1..5.
+        if (typeof window.refreshRelayStatesDirect === 'function') {
+            window.refreshRelayStatesDirect(RELAY_COUNT).catch(() => {});
+        }
+        if (typeof window.updateSensorValues === 'function') {
+            window.updateSensorValues();
+        }
+    }
 };
 
 let lastPumpAvailabilitySignature = '';
@@ -611,10 +764,16 @@ function updatePumpAvailabilityFromState(data, force = false) {
         return;
     }
 
+    // Pumps 1..3 exist only on the 8-relay hardware. Do not present manual
+    // pump or automatic-watering start actions when the controller is running
+    // in 4-relay mode, even if the persisted pump-enable flags are true.
+    const relayCount = Number(data['settings.active_relay_count']) || 4;
+    const pumpsPhysicallyAvailable = relayCount >= 8;
+
     updatePumpAvailabilityFromFlags([
-        data['irrigation.pump1.enabled'],
-        data['irrigation.pump2.enabled'],
-        data['irrigation.pump3.enabled']
+        pumpsPhysicallyAvailable && data['irrigation.pump1.enabled'] === true,
+        pumpsPhysicallyAvailable && data['irrigation.pump2.enabled'] === true,
+        pumpsPhysicallyAvailable && data['irrigation.pump3.enabled'] === true
     ], force);
 }
 
@@ -632,6 +791,12 @@ window.triggerPump10s = function (relayNo) {
         .then(data => {
             if (!data?.ok) {
                 console.warn('triggerPump10s failed', data);
+                return;
+            }
+            // Phase 24 returns 202 after queueing. Refresh shortly afterwards so
+            // the card reflects the state applied by the normal main loop.
+            if (typeof window.updateSensorValues === 'function') {
+                setTimeout(() => window.updateSensorValues(), 150);
             }
         })
         .catch(err => {
@@ -647,50 +812,180 @@ function setShellyStateClass(el, isOn) {
   el.classList.add(isOn ? 'shelly-on' : 'shelly-off');
 }
 
-window.toggleShellyRelay = async function(device) {
-  const url = (device === 'heater')
-    ? '/shelly/heater/toggle'
-    : (device === 'humidifier')
-      ? '/shelly/humidifier/toggle'
-      : (device === 'light')
-        ? '/shelly/light/toggle'
-        : (device === 'fan')
-          ? '/shelly/fan/toggle'
-          : (device === 'exhaust')
-            ? '/shelly/exhaust/toggle'
-            : null;
+async function waitShellyActionApplied(requestId, timeoutMs = 45000) {
+  const started = Date.now();
+  while ((Date.now() - started) < timeoutMs) {
+    const res = await fetch(`/api/shelly/action-status?requestId=${encodeURIComponent(requestId)}`, {
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error(`status_http_${res.status}`);
+    const data = await res.json();
+    if (data?.state === 'applied') return data;
+    if (data?.state === 'failed') throw new Error(data?.err || 'shelly_action_failed');
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+  throw new Error('shelly_action_timeout');
+}
 
-  if (!url) {
+window.toggleShellyRelay = async function(device) {
+  const deviceKey = device === 'mainSw' ? 'main' : String(device || '').toLowerCase();
+  if (!['main', 'light', 'humidifier', 'heater', 'fan', 'exhaust'].includes(deviceKey)) {
     console.error('[SHELLY][JS] Unknown device:', device);
     return;
   }
+  const url = `/shelly/${deviceKey}/toggle`;
 
-  // stop polling while toggling
   window._stopSensorPoll?.();
 
   try {
     const res = await fetch(url, { method: 'POST', cache: 'no-store' });
-
-    if (!res.ok) {
-      console.error('[SHELLY][JS] Toggle failed:', res.status);
-      return;
+    const queued = await res.json().catch(() => ({}));
+    if (!res.ok || !queued?.ok || !queued?.requestId) {
+      throw new Error(queued?.err || `HTTP ${res.status}`);
     }
 
-    console.log('[SHELLY][JS] Toggle OK:', device);
-
-    // refresh once AFTER toggle finished
+    const result = await waitShellyActionApplied(queued.requestId);
+    console.log('[SHELLY][JS] Toggle applied:', deviceKey, result?.result || {});
     if (typeof window.updateSensorValues === 'function') {
-      setTimeout(() => window.updateSensorValues(), 1200);
+      await window.updateSensorValues();
     }
   } catch (err) {
     console.error('[SHELLY][JS] Toggle exception:', err);
+    window.showToast?.(I18N?.['status.actionFailed'] || 'Action failed.', 'error');
   } finally {
-    // restart polling after everything settled
-    setTimeout(() => window._startSensorPoll?.(), 2000);
+    setTimeout(() => window._startSensorPoll?.(), 500);
   }
 };
 
 
+
+
+window.refreshShellyDetectedGenerations = async function() {
+  const ids = {
+    main: 'shellyMainSwGenDetected',
+    light: 'shellyLightGenDetected',
+    humidifier: 'shellyHumidifierGenDetected',
+    heater: 'shellyHeaterGenDetected',
+    fan: 'shellyFanGenDetected',
+    exhaust: 'shellyExhaustGenDetected',
+    heatmat: 'shellyHeatMatGenDetected'
+  };
+  try {
+    const response = await fetch('/api/settings/shelly-dashboard', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    for (const [role, id] of Object.entries(ids)) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const ip = String(data?.devices?.[role]?.ip ?? '').trim();
+      const gen = Number(data?.devices?.[role]?.gen ?? 0);
+      el.textContent = ip && Number.isInteger(gen) && gen >= 1 ? `Gen${gen}` : '—';
+    }
+    return data;
+  } catch (err) {
+    console.warn('[SHELLY][JS] generation state refresh failed:', err);
+    return null;
+  }
+};
+
+// Phase 28: Shelly settings are saved on the permanent port. The broad legacy
+// form POST is intercepted so it can never fall through to port 8080's retired
+// /saveshellysettings compatibility route. Persistence happens in the Async
+// callback; runtime Shelly configuration is reloaded by the normal main loop.
+window.saveShellySettingsAll = async function(event) {
+  if (event && typeof event.preventDefault === 'function') event.preventDefault();
+
+  const form = document.getElementById('shellySettingsForm');
+  const button = document.getElementById('saveshellysettingsBtn');
+  if (!form) return false;
+  if (button) button.disabled = true;
+
+  const value = (id) => String(document.getElementById(id)?.value ?? '').trim();
+  const intValue = (id) => {
+    const n = parseInt(value(id), 10);
+    return Number.isInteger(n) ? n : 0;
+  };
+
+  const payload = {
+    devices: {
+      main:       { ip: value('shellyMainSwIP') },
+      light:      { ip: value('shellyLightIP') },
+      humidifier: { ip: value('shellyHumidifierIP') },
+      heater:     { ip: value('shellyHeaterIP') },
+      fan:        { ip: value('shellyFanIP') },
+      exhaust:    { ip: value('shellyExhaustIP') },
+      heatmat:    { ip: value('shellyHeatMatIP') }
+    },
+    username: value('shellyUsername'),
+    password: document.getElementById('shellyPassword')?.value ?? '',
+    floodEnabled: !!document.getElementById('floodEnabled')?.checked,
+    floodToken: value('floodToken'),
+    detectGenerations: true,
+    programLightSchedule: false
+  };
+
+  // Do not couple a normal Shelly-device save to the light schedule. The
+  // schedule is only sent when the user actually changed one of its controls.
+  // This also prevents still-uninitialized selects from overwriting NVS.
+  const lightOnEl = document.getElementById('shellyLightOnTime');
+  const lightHoursEl = document.getElementById('shellyLightDayHours');
+  const lightScheduleDirty =
+    lightOnEl?.dataset?.userDirty === '1' ||
+    lightHoursEl?.dataset?.userDirty === '1';
+  if (lightScheduleDirty) {
+    const lightOnTime = value('shellyLightOnTime');
+    const lightDayHours = intValue('shellyLightDayHours');
+    if (!/^\d{2}:\d{2}$/.test(lightOnTime) ||
+        lightDayHours < 1 || lightDayHours > 20) {
+      if (button) button.disabled = false;
+      window.showToast?.('Invalid light schedule.', 'error');
+      return false;
+    }
+    payload.lightOnTime = lightOnTime;
+    payload.lightDayHours = lightDayHours;
+    payload.programLightSchedule = true;
+  }
+
+  window._stopSensorPoll?.();
+  try {
+    const response = await fetch('/api/settings/shelly-dashboard', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const queued = await response.json().catch(() => ({}));
+    if (!response.ok || !queued?.ok || !queued?.requestId) {
+      throw new Error(queued?.err || `HTTP ${response.status}`);
+    }
+
+    const result = await waitShellyActionApplied(queued.requestId, 30000);
+    if (typeof queued.floodToken === 'string') {
+      const tokenEl = document.getElementById('floodToken');
+      if (tokenEl) tokenEl.value = queued.floodToken;
+    }
+    if (typeof window.updateFloodWebhookPreview === 'function') window.updateFloodWebhookPreview();
+    console.log('[SHELLY][JS] Settings applied:', result?.result || {});
+    await window.refreshShellyDetectedGenerations?.();
+    if (lightScheduleDirty) {
+      if (lightOnEl?.dataset) lightOnEl.dataset.userDirty = '0';
+      if (lightHoursEl?.dataset) lightHoursEl.dataset.userDirty = '0';
+    }
+    window.showToast?.('Shelly settings saved.', 'success');
+    if (typeof window.updateSensorValues === 'function') {
+      await window.updateSensorValues();
+    }
+  } catch (err) {
+    console.error('[SHELLY][JS] Settings save failed:', err);
+    await window.refreshShellyDetectedGenerations?.();
+    const detectionFailed = String(err?.message || '') === 'shelly_generation_detect_failed';
+    window.showToast?.(detectionFailed ? 'Shelly generation detection failed.' : 'Failed to save Shelly settings.', 'error');
+  } finally {
+    if (button) button.disabled = false;
+    setTimeout(() => window._startSensorPoll?.(), 500);
+  }
+  return false;
+};
 
 // Run after DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
@@ -1030,6 +1325,15 @@ function clampInt(x, lo, hi){
 
     const sel=$('language'); if(sel && sel.value !== currentLang) sel.value = currentLang;
   }
+  function trKey(key, fallback){
+    const v = I18N && I18N[key];
+    return (v !== undefined && v !== null && String(v).length) ? String(v) : fallback;
+  }
+  // OTA handlers live outside this DOMContentLoaded scope. Expose the already
+  // initialized translator explicitly so those handlers cannot hit a scope-only
+  // ReferenceError before they queue the request.
+  window.trKey = trKey;
+
   (function initI18n(){
     try{ manifest = readJsonTag('i18n-manifest'); }
     catch{ manifest = { default:'de', languages:[{code:'de',name:'Deutsch'},{code:'en',name:'English'}] }; }
@@ -1041,28 +1345,32 @@ function clampInt(x, lo, hi){
   
 
 async function startNewGrow(){
-  const msgObj = (typeof I18N_RAW==='object' && I18N_RAW) ? I18N_RAW['runsetting.newGrowConfirm'] : null;
-  const msg = (msgObj && (msgObj[currentLang] || msgObj['de'] || msgObj['en'])) ||
-              'Neuer Grow starten? (setzt Startdatum auf heute, löscht Blüte/Trocknung, setzt Energie zurück)';
+  const msg = trKey('runsetting.newGrowConfirm', 'Start a new grow?');
   if (!confirm(msg)) return;
-
   try{
-    showStatusHint((I18N_RAW['runsetting.newGrowWorking']?.[currentLang] || I18N_RAW['runsetting.newGrowWorking']?.de || 'Setze neuen Grow...'), {durationMs: 8000});
-    const r = await fetch('/api/newgrow', { method:'POST' });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const d = await r.json();
-    if(!d.ok) throw new Error('API');
-    // Update UI fields immediately
+    showStatusHint(trKey('runsetting.newGrowWorking', 'Setting new grow…'), {durationMs: 90000});
+    const r = await fetch('/api/newgrow', { method:'POST', cache:'no-store' });
+    const q = await r.json().catch(()=>({}));
+    if(!r.ok || !q.ok || !q.requestId) throw new Error(q.err || ('HTTP '+r.status));
+    const deadline = Date.now() + 90000;
+    let d = null;
+    while(Date.now() < deadline){
+      await new Promise(resolve=>setTimeout(resolve,300));
+      const sr = await fetch('/api/newgrow/status?requestId='+encodeURIComponent(q.requestId), {cache:'no-store'});
+      d = await sr.json().catch(()=>({}));
+      if(!sr.ok || !d.ok) throw new Error(d.error || ('HTTP '+sr.status));
+      if(d.state === 'applied') break;
+      if(d.state === 'failed') throw new Error(d.error || 'new_grow_failed');
+    }
+    if(!d || d.state !== 'applied') throw new Error('new_grow_timeout');
     const gs = document.getElementById('webGrowStart'); if(gs) gs.value = d.startDate || '';
     const fs = document.getElementById('webFloweringStart'); if(fs) fs.value = '';
     const ds = document.getElementById('webDryingStart'); if(ds) ds.value = '';
-    const ps = document.getElementById('phaseSelect');
-    if(ps){ ps.value = '1'; ps.dispatchEvent(new Event('change')); }
-
-    showStatusHint((I18N_RAW['runsetting.newGrowDone']?.[currentLang] || I18N_RAW['runsetting.newGrowDone']?.de || 'Neuer Grow gesetzt.'), {durationMs: 6000});
+    const ps = document.getElementById('phaseSelect'); if(ps){ ps.value='1'; ps.dispatchEvent(new Event('change')); }
+    showStatusHint(trKey('runsetting.newGrowDone', 'New grow has been set.'), {durationMs:6000});
   }catch(e){
     console.warn(e);
-    showStatusHint((I18N_RAW['runsetting.newGrowError']?.[currentLang] || I18N_RAW['runsetting.newGrowError']?.de || 'Fehler beim Setzen des neuen Grows.'), {durationMs: 9000});
+    showStatusHint(trKey('runsetting.newGrowError', 'Error: could not set new grow.'), {durationMs:9000});
   }
 }
 
@@ -1071,6 +1379,41 @@ async function startNewGrow(){
   // expose for onclick handlers
   window.startNewGrow = startNewGrow;
 })();
+
+
+  // Phase 32: message settings use Async queue/status instead of a synchronous
+  // form POST. The real save still sends the configured test notifications and
+  // schedules the same controlled restart after the status becomes visible.
+  const messageSettingsForm = document.getElementById('messageSettingsForm');
+  if (messageSettingsForm) messageSettingsForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = document.getElementById('saveMessageBtn');
+    if (button) button.disabled = true;
+    showStatusHint(trKey('message.saving','Saving message settings…'), {durationMs:90000});
+    try {
+      const body = new URLSearchParams(new FormData(messageSettingsForm));
+      const r = await fetch('/savemessagesettings', {method:'POST', body, cache:'no-store'});
+      const q = await r.json().catch(()=>({}));
+      if (!r.ok || !q.ok || !q.requestId) throw new Error(q.err || ('HTTP '+r.status));
+      const deadline = Date.now()+90000;
+      while (Date.now()<deadline) {
+        await new Promise(resolve=>setTimeout(resolve,300));
+        const sr=await fetch('/api/settings/message-status?requestId='+encodeURIComponent(q.requestId),{cache:'no-store'});
+        const d=await sr.json().catch(()=>({}));
+        if(!sr.ok || !d.ok) throw new Error(d.error || ('HTTP '+sr.status));
+        if(d.state==='applied') {
+          showStatusHint(trKey('message.saved','Message settings saved. Restarting…'),{durationMs:8000});
+          return;
+        }
+        if(d.state==='failed') throw new Error(d.error || 'message_save_failed');
+      }
+      throw new Error('message_save_timeout');
+    } catch(err) {
+      console.warn('[MESSAGE] save failed',err);
+      showStatusHint(trKey('message.saveError','Message settings could not be saved.'),{durationMs:9000});
+      if (button) button.disabled=false;
+    }
+  });
 
   // ---------- i18n validation ----------
   function validateI18n(){
@@ -1127,7 +1470,7 @@ async function startNewGrow(){
     return value == null || value === '' ? '—' : String(value);
   }
 
-  function setSwitchWithMetrics(baseId, status, power, totalWh, costEur) {
+  function setSwitchWithMetrics(baseId, status, power, totalWh, costEur, generation) {
     const cfg = shellyMap[baseId];
     if (!cfg) return;
 
@@ -1135,14 +1478,20 @@ async function startNewGrow(){
     const stateEl = document.getElementById(stateId);
     const infoEl = document.getElementById(infoId);
 
+    const gen = Number(generation);
+    const hideMetrics = Number.isInteger(gen) && gen === 1;
     const p = fmtNum(power, 1, 'W');
     const kwh = isNum(totalWh) ? `${(totalWh / 1000).toFixed(3)} kWh` : 'n/a';
     const eur = fmtNum(costEur, 2, '€');
 
     if (stateEl) {
+        // Classic Shelly Gen1 devices do not expose the Watt/Wh telemetry used
+        // by this dashboard. Keep the red/green ON/OFF status strip visible,
+        // but leave it empty instead of showing misleading metric values.
+        stateEl.style.display = 'flex';
         stateEl.classList.toggle('shelly-on', !!status);
         stateEl.classList.toggle('shelly-off', !status);
-        stateEl.innerHTML = `
+        stateEl.innerHTML = hideMetrics ? '' : `
             <div>${p}</div>
             <div class="sub">${kwh} - ${eur}</div>
         `;
@@ -1167,7 +1516,10 @@ async function startNewGrow(){
   function updateRelayStates(relays) {
     if (!Array.isArray(relays)) return;
 
-    for (let i = 0; i < RELAY_COUNT; i++) {
+    // Manual relays 1..5 are deliberately excluded here. /api/state has a
+    // one-second cache and can legitimately complete after a relay action with
+    // an older snapshot. Only pump relays 6..8 use the cached state payload.
+    for (let i = 5; i < RELAY_COUNT; i++) {
       if (i < relays.length && typeof relays[i] === 'object') {
         relayStates[i] = !!relays[i].state;
       } else {
@@ -1252,20 +1604,34 @@ async function startNewGrow(){
       ? (I18N['status.stopWatering'] || 'Bewässerung beenden')
       : (I18N['status.startWatering'] || 'Bewässerung starten');
 
-    const anyPumpEnabled = [
+    const relayCount = Number(data['settings.active_relay_count']) || 4;
+    const anyPumpEnabled = relayCount >= 8 && [
       data['irrigation.pump1.enabled'],
       data['irrigation.pump2.enabled'],
       data['irrigation.pump3.enabled']
     ].some(v => v === true);
+    const floodBlocked = data['irrigation.stopOnFloodAlarm'] === true &&
+      data['sensors.flood.status'] === 'alarm';
 
-    button.disabled = running ? false : !anyPumpEnabled;
+    button.disabled = running ? false : (!anyPumpEnabled || floodBlocked);
+    if (!running && floodBlocked) {
+      button.title = (typeof I18N === 'object' && I18N && I18N['runsetting.stopOnFloodAlarm'])
+        ? I18N['runsetting.stopOnFloodAlarm']
+        : 'Flood alarm';
+    } else if (!running) {
+      button.title = '';
+    }
   }
 
   // ---------- Sensor fetch (/api/state) ----------
   let sensorFetchInFlight = false;
+  let sensorRefreshQueued = false;
 
   async function updateSensorValues() {
-    if (sensorFetchInFlight) return;
+    if (sensorFetchInFlight) {
+      sensorRefreshQueued = true;
+      return;
+    }
     sensorFetchInFlight = true;
 
     function isNum(v) {
@@ -1423,7 +1789,8 @@ async function startNewGrow(){
         data['cur.shelly.main.isOn'],
         data['cur.shelly.main.Watt'],
         data['cur.shelly.main.Wh'],
-        data['cur.shelly.main.Cost']
+        data['cur.shelly.main.Cost'],
+        data['settings.shelly.main.gen']
       );
 
       setSwitchWithMetrics(
@@ -1431,7 +1798,8 @@ async function startNewGrow(){
         data['cur.shelly.light.isOn'],
         data['cur.shelly.light.Watt'],
         data['cur.shelly.light.Wh'],
-        data['cur.shelly.light.Cost']
+        data['cur.shelly.light.Cost'],
+        data['settings.shelly.light.gen']
       );
 
       setSwitchWithMetrics(
@@ -1439,7 +1807,8 @@ async function startNewGrow(){
         data['cur.shelly.humidifier.isOn'],
         data['cur.shelly.humidifier.Watt'],
         data['cur.shelly.humidifier.Wh'],
-        data['cur.shelly.humidifier.Cost']
+        data['cur.shelly.humidifier.Cost'],
+        data['settings.shelly.humidifier.gen']
       );
 
       setSwitchWithMetrics(
@@ -1447,7 +1816,8 @@ async function startNewGrow(){
         data['cur.shelly.heater.isOn'],
         data['cur.shelly.heater.Watt'],
         data['cur.shelly.heater.Wh'],
-        data['cur.shelly.heater.Cost']
+        data['cur.shelly.heater.Cost'],
+        data['settings.shelly.heater.gen']
       );
 
       setSwitchWithMetrics(
@@ -1455,7 +1825,8 @@ async function startNewGrow(){
         data['cur.shelly.fan.isOn'],
         data['cur.shelly.fan.Watt'],
         data['cur.shelly.fan.Wh'],
-        data['cur.shelly.fan.Cost']
+        data['cur.shelly.fan.Cost'],
+        data['settings.shelly.fan.gen']
       );
 
       setSwitchWithMetrics(
@@ -1463,7 +1834,8 @@ async function startNewGrow(){
         data['cur.shelly.exhaust.isOn'],
         data['cur.shelly.exhaust.Watt'],
         data['cur.shelly.exhaust.Wh'],
-        data['cur.shelly.exhaust.Cost']
+        data['cur.shelly.exhaust.Cost'],
+        data['settings.shelly.exhaust.gen']
       );
 
       // Heating mat is monitoring-only and its card exists only while configured.
@@ -1476,14 +1848,19 @@ async function startNewGrow(){
           data['cur.shelly.heatmat.isOn'],
           data['cur.shelly.heatmat.Watt'],
           data['cur.shelly.heatmat.Wh'],
-          data['cur.shelly.heatmat.Cost']
+          data['cur.shelly.heatmat.Cost'],
+          data['settings.shelly.heatmat.gen']
         );
       }
 
-      // Relays
+      // Relays: cached /api/state only updates pumps 6..8. Manual relays
+      // 1..5 are refreshed from their dedicated uncached runtime endpoints.
       const relays = buildRelayArrayFromApiState(data, relayCount);
       if (typeof updateRelayStates === 'function') {
         updateRelayStates(relays);
+      }
+      if ((window._relayPendingCount || 0) === 0 && typeof window.refreshRelayStatesDirect === 'function') {
+        window.refreshRelayStatesDirect(relayCount).catch(() => {});
       }
 
     } catch (error) {
@@ -1491,6 +1868,10 @@ async function startNewGrow(){
       setNA();
     } finally {
       sensorFetchInFlight = false;
+      if (sensorRefreshQueued) {
+        sensorRefreshQueued = false;
+        setTimeout(() => window.updateSensorValues?.(), 0);
+      }
     }
   }
 
@@ -1648,6 +2029,7 @@ async function startNewGrow(){
       try { initLightScheduleControls(); } catch(e) {}
       // Immediate update (no waiting for timer)
       try { fetchStateAndUpdateShellyUI(); } catch(e) {}
+      try { window.refreshShellyDetectedGenerations?.(); } catch(e) {}
       if (!window._shellyLightTimer) {
         window._shellyLightTimer = setInterval(() => {
           // Immediate update (no waiting for timer)
@@ -1741,17 +2123,43 @@ async function startNewGrow(){
 
 
 
+  async function waitForStorageAction(requestId, timeoutMs = 15000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const res = await fetch(`/api/storage/action-status?requestId=${encodeURIComponent(requestId)}`, { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !data.ok) throw new Error('storage-status');
+      if (data.state === 'applied') return data;
+      if (data.state === 'failed') throw new Error(data.err || 'storage-action-failed');
+      await new Promise(resolve => setTimeout(resolve, 80));
+    }
+    throw new Error('storage-action-timeout');
+  }
+
+  async function postStorageMutation(url, payload) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+      cache: 'no-store'
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.ok) {
+      const err = new Error((data && data.err) || ('HTTP ' + res.status));
+      err.httpStatus = res.status;
+      throw err;
+    }
+    if (res.status === 202 && data.requestId) {
+      await waitForStorageAction(data.requestId);
+    }
+    return data;
+  }
+
   async function diaryDelete(id) {
     if (!id) return;
     if (!confirm('Eintrag wirklich löschen?')) return;
     try {
-      const res = await fetch('/api/diary/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: String(id) })
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.ok) throw new Error('delete');
+      await postStorageMutation('/api/diary/delete', { id: String(id) });
       await loadDiaryList();
     } catch (e) {
       alert('Löschen fehlgeschlagen');
@@ -1764,13 +2172,9 @@ async function startNewGrow(){
     if (note === null) return; // cancelled
     const phase = prompt('Phase (grow|flower|dry) – leer lassen um unverändert zu lassen:', curPhase || '');
     try {
-      const res = await fetch('/api/diary/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: String(id), note: String(note), phase: String(phase || '') })
+      await postStorageMutation('/api/diary/update', {
+        id: String(id), note: String(note), phase: String(phase || '')
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.ok) throw new Error('update');
       await loadDiaryList();
     } catch (e) {
       alert('Ändern fehlgeschlagen');
@@ -1786,22 +2190,21 @@ async function startNewGrow(){
 
   // Phase-Init
   function initPhaseSelect(){
-    const currentPhase = '%PHASE%';
     const sel = document.getElementById('phaseSelect');
-
     if (!sel) return;
 
-    const validPhases = ['grow', 'flower', 'dry'];
-    const phase = validPhases.includes(currentPhase) ? currentPhase : 'grow';
-
-    sel.value = phase;
+    // The actual select values are numeric ("1", "2", "3"). Keep the
+    // server-rendered selection instead of replacing it with textual phase
+    // names that do not exist as option values.
+    const phase = ['1', '2', '3'].includes(sel.value) ? sel.value : '1';
+    if (sel.value !== phase) sel.value = phase;
 
     const phaseLabel = document.getElementById('currentPhase');
     if (phaseLabel) {
       const phaseNames = {
-        grow:   'Wuchs (Grow)',
-        flower: 'Blüte (Flower)',
-        dry:    'Trocknung (Dry)',
+        '1': 'Wuchs (Grow)',
+        '2': 'Blüte (Flower)',
+        '3': 'Trocknung (Dry)',
       };
       phaseLabel.textContent = phaseNames[phase] || phase;
     }
@@ -1829,11 +2232,9 @@ async function startNewGrow(){
 
   function getPhaseCode(){
     const sel = document.getElementById('phaseSelect');
-    let v = sel ? sel.value : null;
-    // Fallback to the current runtime phase provided by the backend template
-    if (!v) v = '%PHASE%';
-    if (v === 'flower') return 'flower';
-    if (v === 'dry') return 'dry';
+    const v = sel ? sel.value : '1';
+    if (v === '2') return 'flower';
+    if (v === '3') return 'dry';
     return 'grow';
   }
 
@@ -1993,19 +2394,12 @@ async function startNewGrow(){
     if (status) status.textContent = '';
 
     try {
-      const res = await fetch('/api/diary/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note, phase, lang: (typeof currentLang === "string" ? currentLang : "de"), meta: computeDiaryMetaText() }),
-        cache: 'no-store'
+      await postStorageMutation('/api/diary/add', {
+        note,
+        phase,
+        lang: (typeof currentLang === "string" ? currentLang : "de"),
+        meta: computeDiaryMetaText()
       });
-
-      if (!res.ok) {
-        if (res.status === 503 && status) {
-          status.textContent = I18N['diary.fsError'] || 'Diary storage is not ready';
-        }
-        throw new Error('HTTP ' + res.status);
-      }
 
       ta.value = '';
       updateDiaryCounter();
@@ -2032,14 +2426,10 @@ async function startNewGrow(){
     if (status) status.textContent = '';
 
     try {
-      const res = await fetch('/api/diary/clear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'FORMAT_LITTLEFS' }),
-        cache: 'no-store'
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.ok || !data.mounted) throw new Error('HTTP ' + res.status);
+      await postStorageMutation('/api/diary/clear', { confirm: 'FORMAT_LITTLEFS' });
+      const fsRes = await fetch('/api/fs/status', { cache: 'no-store' });
+      const fsData = await fsRes.json().catch(() => null);
+      if (!fsRes.ok || !fsData || !fsData.ok || !fsData.mounted) throw new Error('fs-not-mounted');
       if (status) status.textContent = (I18N['diary.cleared'] || 'Diary cleared, LittleFS formatted and mounted ✓');
       setTimeout(() => { if (status) status.textContent = ''; }, 3500);
       loadDiaryList();
@@ -2200,8 +2590,11 @@ window.refreshShellySchedule = async function(device, buttonEl) {
       method: 'POST',
       cache: 'no-store'
     });
-
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const queued = await res.json().catch(() => ({}));
+    if (!res.ok || !queued?.ok || !queued?.requestId) {
+      throw new Error(queued?.err || ('HTTP ' + res.status));
+    }
+    await waitShellyActionApplied(queued.requestId);
 
     await fetchStateAndUpdateShellyUI();
     window.showToast?.(I18N?.['shelly.refreshScheduleOk'] || 'Shelly schedule refreshed.', 'success');
@@ -2256,6 +2649,15 @@ function initLightScheduleControls(){
       daySel.appendChild(opt);
     }
     daySel._filled = true;
+  }
+
+  if (!onSel._growTentDirtyBound) {
+    onSel.addEventListener('change', () => { onSel.dataset.userDirty = '1'; });
+    onSel._growTentDirtyBound = true;
+  }
+  if (!daySel._growTentDirtyBound) {
+    daySel.addEventListener('change', () => { daySel.dataset.userDirty = '1'; });
+    daySel._growTentDirtyBound = true;
   }
 
   function recalcOff(){
@@ -2359,34 +2761,173 @@ async function loadLightScheduleFromState(){
 
 }); // end DOMContentLoaded
 
+// ---------- Phase 29: save System Settings on permanent port 8080 ----------
+// The old broad /savesettings form is no longer used by the dashboard. Each
+// field is persisted through its already validated dedicated endpoint. Only
+// after all writes succeed do we queue a restart; the ESP schedules that restart
+// from its normal main loop, never from the Async callback.
+window.saveSystemSettingsAll = async function(event) {
+  event?.preventDefault?.();
+  const button = document.getElementById('saveSettingsBtn');
+  if (button?.disabled) return;
+
+  const postJson = async (url, payload) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    let data = null;
+    try { data = await response.json(); } catch (_) {}
+    if (!response.ok || !data?.ok) {
+      const err = new Error(data?.err || `HTTP ${response.status}`);
+      err.url = url;
+      throw err;
+    }
+    return data;
+  };
+
+  const value = id => document.getElementById(id)?.value ?? '';
+  const checked = id => !!document.getElementById(id)?.checked;
+  const relayCount = Number(value('webRelayCount'));
+  const powerPrice = Number(value('webPowerPriceKwh'));
+  const rawTimeFormat = value('timeFormat') || localStorage.getItem('timeFormat') || '24';
+  const storedTimeFormat = (rawTimeFormat === '12' || rawTimeFormat === '12h' || String(rawTimeFormat).includes('A')) ? '12' : '24';
+
+  if (relayCount !== 4 && relayCount !== 8) {
+    window.showToast?.('Invalid relay count.', 'error');
+    return;
+  }
+  if (!Number.isFinite(powerPrice) || powerPrice < 0) {
+    window.showToast?.('Invalid power price.', 'error');
+    return;
+  }
+
+  if (button) button.disabled = true;
+  try {
+    const writes = [
+      ['/api/settings/debug', { debug: checked('webDebugEnable') }],
+      ['/api/settings/active-relay-count', { activeRelayCount: relayCount }],
+      ['/api/settings/box-name', { boxName: value('webBoxName') }],
+      ['/api/settings/ntp-server', { ntpServer: value('webNTPServer') }],
+      ['/api/settings/time-zone', { timeZoneInfo: value('webTimeZoneInfo') }],
+      ['/api/settings/language', { language: value('language') }],
+      ['/api/settings/theme', { theme: value('theme') }],
+      ['/api/settings/time-format', { timeFormat: storedTimeFormat }],
+      ['/api/settings/unit', { unit: value('tempUnit') }],
+      ['/api/settings/power-price', { powerPrice }],
+      ['/api/settings/ds18b20-enabled', { ds18b20Enabled: checked('webDS18B20Enable') }],
+      ['/api/settings/ds18b20-name', { ds18b20Name: value('webDS18B20Name') }],
+      ['/api/settings/relay-name/1', { relayName: value('webRelayName1') }],
+      ['/api/settings/relay-name/2', { relayName: value('webRelayName2') }],
+      ['/api/settings/relay-name/3', { relayName: value('webRelayName3') }],
+      ['/api/settings/relay-name/4', { relayName: value('webRelayName4') }]
+    ];
+    if (relayCount === 8) {
+      writes.push(['/api/settings/relay-name/5', { relayName: value('webRelayName5') }]);
+    }
+
+    // Serialize NVS writes. This avoids overlapping Preferences operations and
+    // preserves the same deterministic ownership used by the regression suite.
+    for (const [url, payload] of writes) {
+      await postJson(url, payload);
+    }
+
+    const restart = await fetch('/api/system/restart', { method: 'POST' });
+    let restartData = null;
+    try { restartData = await restart.json(); } catch (_) {}
+    if (!restart.ok || !restartData?.ok || !restartData?.requestId) {
+      throw new Error(restartData?.err || `restart HTTP ${restart.status}`);
+    }
+
+    window.showToast?.(I18N?.['settings.savedRestarting'] || 'System settings saved. Restarting…', 'success', 5000);
+
+    // The main loop schedules reboot 1.5 s after the accepted request. Start
+    // probing after that point and reload as soon as the ESP is reachable again.
+    setTimeout(async () => {
+      for (let attempt = 0; attempt < 30; attempt++) {
+        try {
+          const health = await fetch(`/api/async/health?restart=${Date.now()}`, { cache: 'no-store' });
+          if (health.ok) {
+            window.location.href = '/';
+            return;
+          }
+        } catch (_) {}
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      window.location.reload();
+    }, 2500);
+  } catch (err) {
+    console.error('[SYSTEM] saveSystemSettingsAll failed:', err);
+    window.showToast?.(I18N?.['settings.saveFailed'] || 'Failed to save system settings.', 'error', 5000);
+    if (button) button.disabled = false;
+  }
+};
+
 //---------- save Runsettings ----------
 window.saveRunsettingsAll = async function () {
+  const postJson = async (url, payload) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    let json = null;
+    try { json = await res.json(); } catch (e) {}
+    if (!res.ok || json?.ok === false) {
+      const err = new Error(json?.err || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.payload = json;
+      throw err;
+    }
+    return json || { ok: true };
+  };
+
+  const waitApplied = async (stateUrl, requestId, timeoutMs = 3500) => {
+    if (!requestId) return null;
+    const started = Date.now();
+    while ((Date.now() - started) < timeoutMs) {
+      const sep = stateUrl.includes('?') ? '&' : '?';
+      const res = await fetch(`${stateUrl}${sep}_=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) {
+        const state = await res.json();
+        if (Number(state?.lastFailedId || 0) === Number(requestId)) {
+          throw new Error(`runtime apply failed for ${stateUrl}`);
+        }
+        if (Number(state?.lastAppliedId || 0) === Number(requestId)) return state;
+      }
+      await new Promise(resolve => setTimeout(resolve, 60));
+    }
+    throw new Error(`runtime apply timeout for ${stateUrl}`);
+  };
+
+  const postAndWait = async (url, stateUrl, payload) => {
+    const json = await postJson(url, payload);
+    if (json?.applyQueued && json?.requestId) {
+      await waitApplied(stateUrl, json.requestId);
+    }
+    return json;
+  };
+
   try {
     const val = (id, fallback = "") => {
       const el = document.getElementById(id);
       return el ? (el.value ?? fallback) : fallback;
     };
-
-    const checked = (id) => {
-      const el = document.getElementById(id);
-      return !!el?.checked;
-    };
+    const num = (id) => Number(val(id));
+    const intVal = (id) => parseInt(val(id), 10);
+    const checked = (id) => !!document.getElementById(id)?.checked;
 
     let maxRelay = 4;
-    try {
-      const relayCountEl = document.getElementById("webRelayCount");
-      const relayCount = parseInt(relayCountEl?.value || "4", 10);
-      if (Number.isFinite(relayCount)) {
-        maxRelay = Math.max(4, Math.min(5, relayCount));
-      }
-    } catch (e) {}
+    const relayCountEl = document.getElementById("webRelayCount");
+    const relayCount = parseInt(relayCountEl?.value || "4", 10);
+    if (Number.isFinite(relayCount)) maxRelay = Math.max(4, Math.min(5, relayCount));
 
-    const relays = [];
+    const relaySchedules = [];
     for (let relay = 1; relay <= maxRelay; relay++) {
       const onMinRaw = parseInt(document.getElementById(`espRelay${relay}OnMin`)?.value || "0", 10);
       const offMinRaw = parseInt(document.getElementById(`espRelay${relay}OffMin`)?.value || "0", 10);
-
-      relays.push({
+      relaySchedules.push({
         relay,
         enabled: checked(`espRelay${relay}Enabled`),
         ifLightOff: checked(`espRelay${relay}IfLightOff`),
@@ -2395,215 +2936,123 @@ window.saveRunsettingsAll = async function () {
       });
     }
 
-    const payload = {
-      webGrowStart: val("webGrowStart"),
-      webFloweringStart: val("webFloweringStart"),
-      webDryingStart: val("webDryingStart"),
-      webCurrentPhase: val("phaseSelect"),
-
-      webTargetTemp: val("webTargetTemp"),
-      webOffsetLeafTemp: val("webOffsetLeafTemp"),
-
-      webMinVPDMonitoring: checked("webMinVPDMonitoring"),
-      webTargetVPD: val("webTargetVPD"),
-      webMinVPD: val("webMinVPD"),
-      webHysteresis: val("webHysteresis"),
-
-      webAmountOfWater: val("webAmountOfWater"),
-      webTimePerTask: val("webTimePerTask"),
-      webBetweenTasks: val("webBetweenTasks"),
-      webIrrigation: val("webIrrigation"),
-      webPump1Enabled: checked("webPump1Enabled"),
-      webPump2Enabled: checked("webPump2Enabled"),
-      webPump3Enabled: checked("webPump3Enabled"),
-      webIrrigationStopOnFlood: checked("webIrrigationStopOnFlood"),
-      webMinTank: val("webMinTank"),
-      webMaxTank: val("webMaxTank"),
-
-      webHeatingSource: val("heatingSource"),
-      webHeatingRelay: val("heatingRelay"),
-
-      relays
-    };
-
-    const res = await fetch("/saverunsettings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    // Phase 26 deliberately saves sequentially. Preferences writes and runtime
+    // handoffs therefore never overlap, and the broad legacy /saverunsettings
+    // endpoint is no longer needed on either port.
+    await postAndWait('/api/settings/run-profile', '/api/settings/run-profile', {
+      startDate: val('webGrowStart'),
+      floweringStart: val('webFloweringStart'),
+      dryingStart: val('webDryingStart'),
+      currentPhase: intVal('phaseSelect'),
+      minVpdMonitoring: checked('webMinVPDMonitoring'),
+      minVPD: num('webMinVPD'),
+      vpdHysteresis: num('webHysteresis')
     });
 
-    let json = null;
-    try { json = await res.json(); } catch (e) {}
+    await postAndWait('/api/settings/grow-targets', '/api/settings/grow-targets', {
+      targetTemperature: num('webTargetTemp'),
+      targetVPD: num('webTargetVPD'),
+      offsetLeafTemperature: num('webOffsetLeafTemp')
+    });
 
-    if (!res.ok || json?.ok === false) {
-      window.showToast("Failed to save operating settings.", "error");
-      return;
+    await postAndWait('/api/settings/irrigation', '/api/settings/irrigation', {
+      amountOfWater: num('webAmountOfWater'),
+      timePerTask: intVal('webTimePerTask'),
+      betweenTasks: intVal('webBetweenTasks'),
+      amount: num('webIrrigation'),
+      pump1Enabled: checked('webPump1Enabled'),
+      pump2Enabled: checked('webPump2Enabled'),
+      pump3Enabled: checked('webPump3Enabled'),
+      stopOnFloodAlarm: checked('webIrrigationStopOnFlood'),
+      tankMin: num('webMinTank'),
+      tankMax: num('webMaxTank')
+    });
+
+    const heatingSource = intVal('heatingSource');
+    const heatingRelayRaw = intVal('heatingRelay');
+    if (!Number.isInteger(heatingSource) || heatingSource < 0 || heatingSource > 2) {
+      throw new Error('invalid_heating_source');
+    }
+    if (heatingSource === 1 &&
+        (!Number.isInteger(heatingRelayRaw) || heatingRelayRaw < 1 || heatingRelayRaw > 4)) {
+      throw new Error('invalid_heating_relay');
+    }
+    // The HTML intentionally uses an empty value for "Keines". parseInt("") is NaN
+    // and JSON.stringify(NaN) becomes null, which the permanent-port API correctly
+    // rejects. Non-ESP heating sources therefore always send the canonical relay=0.
+    const heatingRelay = (heatingSource === 1) ? heatingRelayRaw : 0;
+    await postAndWait('/api/settings/heating-output', '/api/settings/heating-output', {
+      sourceType: heatingSource,
+      relay: heatingRelay
+    });
+
+    for (const schedule of relaySchedules) {
+      await postAndWait(`/api/settings/relay-schedule/${schedule.relay}`,
+                        `/api/settings/relay-schedule/${schedule.relay}`,
+                        {
+                          enabled: schedule.enabled,
+                          ifLightOff: schedule.ifLightOff,
+                          onMin: schedule.onMin,
+                          offMin: schedule.offMin
+                        });
     }
 
     updatePumpAvailabilityFromFlags([
-      checked("webPump1Enabled"),
-      checked("webPump2Enabled"),
-      checked("webPump3Enabled")
+      checked('webPump1Enabled'),
+      checked('webPump2Enabled'),
+      checked('webPump3Enabled')
     ]);
-
+    if (typeof window.refreshRelayStatesDirect === 'function') {
+      window.refreshRelayStatesDirect(RELAY_COUNT).catch(() => {});
+    }
     window.showToast("All operating settings saved.", "success");
   } catch (err) {
     console.error("[RUN] saveRunsettingsAll failed:", err);
-    window.showToast("Failed to save operating settings.", "error");
+    const msg = err?.message === 'irrigation_runtime_busy'
+      ? 'Cannot change irrigation settings while watering is active.'
+      : 'Failed to save operating settings.';
+    window.showToast(msg, "error");
   }
 };
 
 window.startOtaUpdate = async function () {
-  const status = document.getElementById('otaStatus');
-  const panel = document.getElementById('otaProgressPanel');
-  const bar = document.getElementById('otaProgressBar');
-  const percentEl = document.getElementById('otaProgressPercent');
-  const label = document.getElementById('otaProgressLabel');
-  const detail = document.getElementById('otaProgressDetail');
-  const installBtn = document.getElementById('otaInstallBtn');
-  const checkBtn = document.getElementById('otaCheckBtn');
-
-  const formatBytes = (n) => {
-    const v = Number(n);
-    if (!Number.isFinite(v) || v < 0) return '—';
-    if (v >= 1024 * 1024) return (v / (1024 * 1024)).toFixed(2) + ' MB';
-    if (v >= 1024) return (v / 1024).toFixed(0) + ' KB';
-    return v + ' B';
-  };
-
-  const setProgress = (percent, text, subtext) => {
-    const p = Math.max(0, Math.min(100, Number(percent) || 0));
-    panel.classList.remove('hidden');
-    bar.value = p;
-    bar.textContent = p + '%';
-    percentEl.textContent = p + '%';
-    if (text) label.textContent = text;
-    if (subtext !== undefined) detail.textContent = subtext;
-  };
-
-  setProgress(0, 'OTA Update', 'Update wird gestartet…');
-  status.textContent = 'OTA Update wird gestartet…';
-  installBtn.disabled = true;
-  if (checkBtn) checkBtn.disabled = true;
-
-  let completed = false;
-  let failed = false;
-
-  const handleEvent = (evt) => {
-    if (!evt || typeof evt !== 'object') return;
-
-    if (evt.type === 'accepted') {
-      setProgress(0, 'OTA Update', 'Verbindung zum Firmware-Download wird aufgebaut…');
-      return;
-    }
-
-    if (evt.type === 'start') {
-      status.textContent = 'Firmware wird heruntergeladen und installiert…';
-      setProgress(0, 'Firmware-Update läuft', 'Download gestartet.');
-      return;
-    }
-
-    if (evt.type === 'progress') {
-      const current = Number(evt.current) || 0;
-      const total = Number(evt.total) || 0;
-      const p = Number(evt.percent) || 0;
-      const bytes = total > 0 ? `${formatBytes(current)} / ${formatBytes(total)}` : formatBytes(current);
-      setProgress(p, 'Firmware-Update läuft', bytes);
-      return;
-    }
-
-    if (evt.type === 'download_complete') {
-      setProgress(100, 'Firmware übertragen', 'Update wird abgeschlossen…');
-      return;
-    }
-
-    if (evt.type === 'result') {
-      completed = true;
-      if (evt.message === 'updated_restarting') {
-        setProgress(100, 'Update erfolgreich', 'ESP wird neu gestartet…');
-        status.textContent = 'Update erfolgreich ✅ – ESP startet neu.';
-      } else if (evt.message === 'no_update') {
-        setProgress(100, 'Kein Update erforderlich', 'Die installierte Firmware ist bereits aktuell.');
-        status.textContent = 'Kein Update erforderlich.';
+  const otaTr=(key,fallback)=>typeof window.trKey==='function'?window.trKey(key,fallback):fallback;
+  const status=document.getElementById('otaStatus'), panel=document.getElementById('otaProgressPanel');
+  const bar=document.getElementById('otaProgressBar'), percentEl=document.getElementById('otaProgressPercent');
+  const label=document.getElementById('otaProgressLabel'), detail=document.getElementById('otaProgressDetail');
+  const installBtn=document.getElementById('otaInstallBtn'), checkBtn=document.getElementById('otaCheckBtn');
+  const formatBytes=(n)=>{const v=Number(n);if(!Number.isFinite(v)||v<0)return '—';if(v>=1048576)return(v/1048576).toFixed(2)+' MB';if(v>=1024)return(v/1024).toFixed(0)+' KB';return v+' B';};
+  const setProgress=(p,text,sub)=>{p=Math.max(0,Math.min(100,Number(p)||0));panel.classList.remove('hidden');bar.value=p;bar.textContent=p+'%';percentEl.textContent=p+'%';if(text)label.textContent=text;if(sub!==undefined)detail.textContent=sub;};
+  setProgress(0,otaTr('ota.title','OTA Update'),otaTr('ota.starting','Starting OTA update…'));
+  status.textContent=otaTr('ota.starting','Starting OTA update…'); installBtn.disabled=true; if(checkBtn)checkBtn.disabled=true;
+  let completed=false,failed=false;
+  try{
+    const r=await fetch('/api/ota/update',{method:'POST',cache:'no-store'}); const q=await r.json().catch(()=>({}));
+    if(!r.ok||!q.ok||!q.requestId) throw new Error(q.error||('HTTP '+r.status));
+    const deadline=Date.now()+15*60*1000;
+    while(Date.now()<deadline){
+      await new Promise(resolve=>setTimeout(resolve,500));
+      const sr=await fetch('/api/ota/update-status?requestId='+encodeURIComponent(q.requestId),{cache:'no-store'});
+      const d=await sr.json().catch(()=>({})); if(!sr.ok||!d.ok) throw new Error(d.error||('HTTP '+sr.status));
+      const p=Number(d.percent)||0, current=Number(d.current)||0, total=Number(d.total)||0;
+      if(d.state==='queued'){setProgress(0,otaTr('ota.title','OTA Update'),otaTr('ota.connecting','Connecting to firmware download…'));continue;}
+      if(d.state==='running'){
+        status.textContent=otaTr('ota.downloading','Downloading and installing firmware…');
+        const bytes=total>0?`${formatBytes(current)} / ${formatBytes(total)}`:(current>0?formatBytes(current):otaTr('ota.downloadStarted','Download started.'));
+        setProgress(p,otaTr('ota.running','Firmware update in progress'),bytes);continue;
       }
-      return;
-    }
-
-    if (evt.type === 'error') {
-      failed = true;
-      completed = true;
-      const msg = evt.message || 'Unbekannter OTA-Fehler';
-      label.textContent = 'OTA Update fehlgeschlagen';
-      detail.textContent = msg;
-      status.textContent = 'OTA-Fehler: ' + msg;
-    }
-  };
-
-  try {
-    const res = await fetch('/api/ota/update', {
-      method: 'POST',
-      cache: 'no-store'
-    });
-
-    if (!res.ok) {
-      const raw = await res.text();
-      let d = null;
-      try { d = raw ? JSON.parse(raw) : null; } catch (_) {}
-      const msg = d && d.error ? d.error : (raw || ('HTTP ' + res.status));
-      throw new Error(msg);
-    }
-
-    if (!res.body || typeof res.body.getReader !== 'function') {
-      throw new Error('Browser unterstützt keinen OTA-Fortschrittsstream.');
-    }
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (value) buffer += decoder.decode(value, { stream: !done });
-
-      let nl;
-      while ((nl = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, nl).trim();
-        buffer = buffer.slice(nl + 1);
-        if (!line) continue;
-        try { handleEvent(JSON.parse(line)); }
-        catch (parseErr) { console.warn('[OTA] invalid progress event:', line, parseErr); }
+      if(d.state==='failed') throw new Error(d.error||otaTr('ota.unknownError','Unknown OTA error'));
+      if(d.state==='done'){
+        completed=true;
+        if(d.message==='updated_restarting') {setProgress(100,otaTr('ota.success','Update successful'),otaTr('ota.restarting','ESP is restarting…'));status.textContent=otaTr('ota.successRestart','Update successful ✅ – ESP is restarting.');}
+        else {setProgress(100,otaTr('ota.noUpdateNeeded','No update required'),otaTr('ota.alreadyCurrent','The installed firmware is already current.'));status.textContent=otaTr('ota.noUpdateNeeded','No update required');if(checkBtn)checkBtn.disabled=false;}
+        break;
       }
-
-      if (done) break;
     }
-
-    const tail = buffer.trim();
-    if (tail) {
-      try { handleEvent(JSON.parse(tail)); }
-      catch (parseErr) { console.warn('[OTA] invalid final event:', tail, parseErr); }
-    }
-
-    if (!completed && !failed) {
-      throw new Error('OTA-Verbindung wurde ohne Abschlussmeldung beendet.');
-    }
-  } catch (err) {
-    // A reboot can close the HTTP connection immediately after the success
-    // event.  Do not overwrite the successful 100% state in that case.
-    if (!completed) {
-      failed = true;
-      const msg = err && err.message ? err.message : String(err);
-      label.textContent = 'OTA Update fehlgeschlagen';
-      detail.textContent = msg;
-      status.textContent = 'OTA-Fehler: ' + msg;
-      console.error('[OTA] request failed:', err);
-    }
-  } finally {
-    if (failed) installBtn.disabled = false;
-    if (checkBtn && (failed || !completed)) checkBtn.disabled = false;
-    if (completed && !failed && status.textContent === 'Kein Update erforderlich.') {
-      if (checkBtn) checkBtn.disabled = false;
-    }
-  }
+    if(!completed) throw new Error('ota_timeout');
+  }catch(err){
+    failed=true; const msg=err?.message||String(err); label.textContent=otaTr('ota.failed','OTA update failed'); detail.textContent=msg; status.textContent=otaTr('ota.failed','OTA update failed')+': '+msg; console.error('[OTA]',err);
+  }finally{if(failed){installBtn.disabled=false;if(checkBtn)checkBtn.disabled=false;}}
 };
 
 window.resetShellyEnergy = async function (buttonEl) {
@@ -2619,14 +3068,16 @@ window.resetShellyEnergy = async function (buttonEl) {
     }
 
     try {
-        const res = await fetch('/api/shelly/reset-energy', { method: 'POST' });
-
-        if (!res.ok) {
-            window.showToast("Failed to reset Shelly energy.", "error");
-            return;
+        const res = await fetch('/api/shelly/reset-energy', { method: 'POST', cache: 'no-store' });
+        const queued = await res.json().catch(() => ({}));
+        if (!res.ok || !queued?.ok || !queued?.requestId) {
+            throw new Error(queued?.err || `HTTP ${res.status}`);
         }
-
+        await waitShellyActionApplied(queued.requestId, 60000);
         window.showToast("Shelly energy reset.", "success");
+        if (typeof window.updateSensorValues === 'function') {
+            await window.updateSensorValues();
+        }
 
     } catch (err) {
         window.showToast("Failed to reset Shelly energy.", "error");
@@ -2676,45 +3127,49 @@ function pingTank() {
 // ---------- OTA Update Checker (Settings page) ----------
 let otaInfo = null;
 
-async function checkForOtaUpdate() {
-  const status = document.getElementById('otaStatus');
-  const ver = document.getElementById('otaVersion');
-  const log = document.getElementById('otaChangelog');
-  const btn = document.getElementById('otaInstallBtn');
+window.checkForOtaUpdate = async function () {
+  const otaTr=(key,fallback)=>typeof window.trKey==='function'?window.trKey(key,fallback):fallback;
+  const status=document.getElementById('otaStatus'),ver=document.getElementById('otaVersion'),log=document.getElementById('otaChangelog'),btn=document.getElementById('otaInstallBtn'),checkBtn=document.getElementById('otaCheckBtn');
+  if(!status||!ver||!log||!btn){console.error('[OTA UI] required DOM nodes missing');return;}
+  status.textContent=otaTr('ota.checking','Checking GitHub release…');ver.textContent='';log.textContent='';btn.disabled=true;if(checkBtn)checkBtn.disabled=true;otaInfo=null;
+  try{
+    const r=await fetch('/api/ota/check',{cache:'no-store'});const q=await r.json().catch(()=>({}));
+    if(!r.ok||!q.ok||!q.requestId) throw new Error(q.error||('HTTP '+r.status));
+    const deadline=Date.now()+90000;let d=null;
+    while(Date.now()<deadline){await new Promise(resolve=>setTimeout(resolve,500));const sr=await fetch('/api/ota/check-status?requestId='+encodeURIComponent(q.requestId),{cache:'no-store'});d=await sr.json().catch(()=>({}));if(!sr.ok||!d.ok)throw new Error(d.error||('HTTP '+sr.status));if(d.state==='done')break;if(d.state==='failed')throw new Error(d.error||'check_failed');}
+    if(!d||d.state!=='done')throw new Error('check_timeout');
+    ver.textContent=otaTr('ota.installedLatest','Installed: {current} | Latest: {latest}').replace('{current}',d.currentVersion||'').replace('{latest}',d.latestVersion||'');
+    if(d.updateAvailable){status.textContent=otaTr('ota.available','Update available ✅');log.textContent=d.changelog||'';otaInfo=d;btn.disabled=false;}
+    else{status.textContent=otaTr('ota.none','No update available.');log.textContent=d.changelog||'';}
+  }catch(e){const raw=e?.message||String(e);status.textContent=otaTr('ota.checkError','Update check failed: {error}').replace('{error}',raw);console.error('[OTA CHECK]',e);}
+  finally{if(checkBtn)checkBtn.disabled=false;}
+};
 
-  status.textContent = 'Prüfe GitHub Release...';
-  ver.textContent = '';
-  log.textContent = '';
-  btn.disabled = true;
-  otaInfo = null;
 
-  try {
-    const r = await fetch('/api/ota/check', { cache: 'no-store' });
-    const raw = await r.text();
-    let d = null;
-    try { d = raw ? JSON.parse(raw) : null; } catch (_) {}
-
-    if (!r.ok) {
-      const detail = d && d.error ? ': ' + d.error : (raw ? ': ' + raw.substring(0, 120) : '');
-      throw new Error('HTTP ' + r.status + detail);
-    }
-    if (!d) throw new Error('Ungültige Antwort vom Controller');
-    if (!d.ok) throw new Error(d.error || 'Check failed');
-
-    ver.textContent = `Installiert: ${d.currentVersion} | Neueste: ${d.latestVersion}`;
-
-    if (d.updateAvailable) {
-      status.textContent = 'Update verfügbar ✅';
-      log.textContent = d.changelog || '(kein Changelog)';
-      otaInfo = d;
-      btn.disabled = false;
-    } else {
-      status.textContent = 'Kein Update verfügbar.';
-      log.textContent = d.changelog || '';
-    }
-  } catch (e) {
-    status.textContent = 'Fehler beim Prüfen: ' + (e.message || e);
+function bindOtaControls(){
+  const checkBtn=document.getElementById('otaCheckBtn');
+  const installBtn=document.getElementById('otaInstallBtn');
+  if(checkBtn && checkBtn.dataset.otaBound!=='1'){
+    checkBtn.dataset.otaBound='1';
+    checkBtn.addEventListener('click',()=>{
+      console.info('[OTA UI] check button clicked');
+      void window.checkForOtaUpdate();
+    });
   }
+  if(installBtn && installBtn.dataset.otaBound!=='1'){
+    installBtn.dataset.otaBound='1';
+    installBtn.addEventListener('click',()=>{
+      console.info('[OTA UI] install button clicked');
+      void window.startOtaUpdate();
+    });
+  }
+  console.info('[OTA UI] controls bound', {check:!!checkBtn, install:!!installBtn, translator:typeof window.trKey});
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',bindOtaControls,{once:true});
+}else{
+  bindOtaControls();
 }
 
 )rawliteral";

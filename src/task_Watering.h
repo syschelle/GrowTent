@@ -26,6 +26,7 @@ static bool irrigationDelayInterruptible(uint32_t durationMs) {
 
 static void acknowledgeIrrigationStop() {
   stopAllIrrigationPumps();
+  irrigationStartNotifyPending = false;
   irrigation.irrigationRuns = 0;
   irrigation.wTimeLeft = "00:00";
   irrigationStopRequested = false;
@@ -33,13 +34,13 @@ static void acknowledgeIrrigationStop() {
 }
 
 void taskWatering(void *parameter) {
-  static UBaseType_t minFree = UINT32_MAX;
+  static UBaseType_t minFreeBytes = UINT32_MAX;
 
   for (;;) {
-    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+    UBaseType_t freeBytes = uxTaskGetStackHighWaterMark(NULL);
 
-    if (freeWords < minFree) {
-      minFree = freeWords;
+    if (freeBytes < minFreeBytes) {
+      minFreeBytes = freeBytes;
     }
 
     static uint32_t last = 0;
@@ -50,10 +51,9 @@ void taskWatering(void *parameter) {
       snprintf(
         buf,
         sizeof(buf),
-        "[TASK][Watering] free=%u words (%u bytes), min=%u words",
-        freeWords,
-        freeWords * sizeof(StackType_t),
-        minFree
+        "[TASK][Watering] free=%u bytes, min=%u bytes",
+        freeBytes,
+        minFreeBytes
       );
 
       logPrint(String(buf));
@@ -74,6 +74,7 @@ void taskWatering(void *parameter) {
 
     if (activeRelayCount < 8) {
       logPrint("[IRRIGATION] Aborted: irrigation requires 8 relays.");
+      irrigationStartNotifyPending = false;
       irrigation.irrigationRuns = 0;
       irrigation.wTimeLeft = "00:00";
       vTaskDelay(pdMS_TO_TICKS(1000));
@@ -84,10 +85,60 @@ void taskWatering(void *parameter) {
 
     if (activePumpCount == 0) {
       logPrint("[IRRIGATION] Aborted: all irrigation pumps were disabled.");
+      irrigationStartNotifyPending = false;
       irrigation.irrigationRuns = 0;
       irrigation.wTimeLeft = "00:00";
       vTaskDelay(pdMS_TO_TICKS(1000));
       continue;
+    }
+
+    // Async start notifications are delivered here before any irrigation pump
+    // can be energized. Network notification latency therefore cannot block the
+    // main loop's Flood-event processing while a pump is already running.
+    if (irrigationStartNotifyPending) {
+      const bool startedViaApi = irrigationStartNotifyViaApi;
+      irrigationStartNotifyPending = false;
+
+      if (language == "de") {
+        if (startedViaApi) {
+          sendPushover(
+            boxName + "Bewässerung über API gestartet. Dauer: " + calculateEndtimeWatering(),
+            boxName + "Bewässerung über API gestartet."
+          );
+        } else {
+          sendPushover(
+            boxName + "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
+            boxName + "Bewässerung startet."
+          );
+        }
+        sendGotify(
+          boxName + "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
+          boxName + "Bewässerung startet."
+        );
+      } else {
+        if (startedViaApi) {
+          sendPushover(
+            boxName + "Irrigation started via API. Duration: " + calculateEndtimeWatering(),
+            boxName + "Irrigation started via API."
+          );
+        } else {
+          sendPushover(
+            boxName + "Irrigation started. Duration: " + calculateEndtimeWatering(),
+            boxName + "Irrigation started."
+          );
+        }
+        sendGotify(
+          boxName + "Irrigation started. Duration: " + calculateEndtimeWatering(),
+          boxName + "Irrigation started."
+        );
+      }
+
+      // A Flood alarm or dashboard/API stop may have arrived while notification
+      // network I/O was in progress. Re-check before the first pump can start.
+      if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+        acknowledgeIrrigationStop();
+        continue;
+      }
     }
 
     irrigation.wTimeLeft = calculateEndtimeWatering();

@@ -4,7 +4,7 @@
 #include <StreamString.h>
 #include <WString.h>
 #include <Preferences.h>
-#include <WebServer.h>
+#include "preferences_safe.h"
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
@@ -24,7 +24,6 @@
 // external DallasTemperature sensor instance (defined in a single .cpp file)
 extern DallasTemperature sensors;
 
-extern WebServer server;
 
 void loadPrefInt(
   const char* prefKey,
@@ -144,7 +143,7 @@ static void applyMainPageReplacements(String& html) {
 
   // Pump status controls are intentionally rendered fail-safe in index_html.h.
   // JavaScript enables them only after /api/state has been loaded successfully.
-  // This avoids additional full-page String.replace() operations in handleRoot().
+  // This avoids unnecessary full-page replacement work in the Async dashboard stream.
 
   String minTankStr = String(irrigation.tank.min, 1); minTankStr.trim();
   String maxTankStr = String(irrigation.tank.max, 1); maxTankStr.trim();
@@ -264,66 +263,8 @@ static void applyMainPageReplacements(String& html) {
 
 }
 
-static void sendMainPageChunked() {
-  // The full HTML template is >50 KB. Building it in one Arduino String can fail
-  // when the heap is fragmented even though total free heap still looks healthy.
-  // Stream newline-aligned chunks so each temporary allocation stays small.
-  constexpr size_t SOURCE_CHUNK_TARGET = 4096;
-
-  server.sendHeader("Cache-Control", "no-store");
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/html; charset=utf-8", "");
-
-  const char* cursor = htmlPage;
-  while (*cursor) {
-    size_t len = 0;
-    while (cursor[len] && len < SOURCE_CHUNK_TARGET) {
-      ++len;
-    }
-
-    // Prefer a newline boundary so no %PLACEHOLDER% can be split between chunks.
-    if (cursor[len] != '\0') {
-      size_t cut = len;
-      while (cut > 0 && cursor[cut - 1] != '\n') {
-        --cut;
-      }
-      if (cut > 0) {
-        len = cut;
-      }
-    }
-
-    String chunk;
-    if (!chunk.reserve(len + 512)) {
-      logPrint("[WEB] HTML chunk allocation failed");
-      break;
-    }
-    for (size_t i = 0; i < len; ++i) {
-      chunk += cursor[i];
-    }
-
-    applyMainPageReplacements(chunk);
-    server.sendContent(chunk);
-    cursor += len;
-    delay(0);
-  }
-
-  server.sendContent("");
-}
-
-// Handle root path "/"
-void handleRoot() {
-  if (espMode) {
-    String html = FPSTR(apPage);
-    html.replace("%CONTROLLERNAME%", settings.ui.boxName);
-    html.replace("%CONTENTCONTROLLERNAME%", settings.ui.boxName);
-    html.replace("%FWVERSION%", String(FW_VERSION));
-    server.send(200, "text/html; charset=utf-8", html);
-    return;
-  }
-
-  updateGrowTimeValues();
-  sendMainPageChunked();
-}
+// The legacy TCP/80 HTML renderer was retired in v0.2.79.
+// Port 8080 is the only dashboard/AP-setup UI path.
 
 // Read stored preferences
 void readPreferences() {
@@ -337,15 +278,15 @@ void readPreferences() {
   activeRelayCount = (activeRelayCount == 8) ? 8 : 4;
 
   // relays
-  settings.relay.name[0] = preferences.getString(KEY_RELAY_1, "relay 1");
-  settings.relay.name[1] = preferences.getString(KEY_RELAY_2, "relay 2");
-  settings.relay.name[2] = preferences.getString(KEY_RELAY_3, "relay 3");
-  settings.relay.name[3] = preferences.getString(KEY_RELAY_4, "relay 4");
+  settings.relay.name[0] = prefGetStringOrDefault(preferences, KEY_RELAY_1, "relay 1");
+  settings.relay.name[1] = prefGetStringOrDefault(preferences, KEY_RELAY_2, "relay 2");
+  settings.relay.name[2] = prefGetStringOrDefault(preferences, KEY_RELAY_3, "relay 3");
+  settings.relay.name[3] = prefGetStringOrDefault(preferences, KEY_RELAY_4, "relay 4");
   if (activeRelayCount == 8) {
-    settings.relay.name[4] = preferences.getString(KEY_RELAY_5, "relay 5");
-    settings.relay.name[5] = preferences.getString(KEY_RELAY_6, "relay 6");
-    settings.relay.name[6] = preferences.getString(KEY_RELAY_7, "relay 7");
-    settings.relay.name[7] = preferences.getString(KEY_RELAY_8, "relay 8");
+    settings.relay.name[4] = prefGetStringOrDefault(preferences, KEY_RELAY_5, "relay 5");
+    settings.relay.name[5] = prefGetStringOrDefault(preferences, KEY_RELAY_6, "relay 6");
+    settings.relay.name[6] = prefGetStringOrDefault(preferences, KEY_RELAY_7, "relay 7");
+    settings.relay.name[7] = prefGetStringOrDefault(preferences, KEY_RELAY_8, "relay 8");
   }
 
   // running settings
@@ -361,18 +302,52 @@ void readPreferences() {
   loadPrefFloat(KEY_TARGETVPD, settings.grow.targetVPD, 1.0f, true, "settings.grow.targetVPD");
   loadPrefBool(KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, false, true, "settings.grow.minVpdMonEnabled");
 
-  loadPrefFloat(KEY_MINVPD, settings.grow.minVPD, 0.75f, true, "settings.grow.minVPD");
+  // Offset min-VPD is a small subtraction from the target VPD. 0.75 was a
+  // stale historical default and is outside the dashboard/API range.
+  loadPrefFloat(KEY_MINVPD, settings.grow.minVPD, 0.06f, true, "settings.grow.minVPD");
   loadPrefFloat(KEY_HYSTERESIS, settings.grow.vpdHysteresis, 0.05f, true, "settings.grow.vpdHysteresis");
 
-  //load heating settings
+  // Keep runtime values compatible with the operating-settings form/API even
+  // when an old NVS entry contains a historical out-of-range value. Do not
+  // rewrite NVS during boot; the next explicit settings save persists the
+  // normalized value through the normal Phase-26 handoff.
+  if (!isfinite(settings.grow.minVPD) || settings.grow.minVPD < 0.0f || settings.grow.minVPD > 0.30f) {
+    logPrint("[PREFERENCES LOAD] settings.grow.minVPD normalized to 0.06 (legacy/out-of-range value)");
+    settings.grow.minVPD = 0.06f;
+  }
+  if (!isfinite(settings.grow.vpdHysteresis) || settings.grow.vpdHysteresis < 0.0f || settings.grow.vpdHysteresis > 0.10f) {
+    logPrint("[PREFERENCES LOAD] settings.grow.vpdHysteresis normalized to 0.05 (out-of-range value)");
+    settings.grow.vpdHysteresis = 0.05f;
+  }
+
+  // load heating settings
   loadPrefInt(KEY_HEATING_SOURCE, settings.heating.sourceType, 0, true, "heatingSource");
   loadPrefInt(KEY_HEATING_RELAY, settings.heating.Relay, 0, true, "heatingRelay");
-  // sanitize
+  loadPrefFloat(KEY_HEAT_HYSTERESIS, settings.heating.hysteresisC, 0.25f, true, "heatingHysteresisC");
+  loadPrefFloat(KEY_HEAT_PREDICT, settings.heating.predictSeconds, 180.0f, true, "heatingPredictSeconds");
+  loadPrefInt(KEY_HEAT_MIN_ON, settings.heating.minOnSeconds, 120, true, "heatingMinOnSeconds");
+  loadPrefInt(KEY_HEAT_MIN_OFF, settings.heating.minOffSeconds, 120, true, "heatingMinOffSeconds");
+
+  // Sanitize persisted values while preserving the historical defaults.
   if (settings.heating.sourceType < 0 || settings.heating.sourceType > 2) {
     settings.heating.sourceType = 0;
   }
   if (settings.heating.sourceType != 1) {
     settings.heating.Relay = 0;
+  }
+  if (!isfinite(settings.heating.hysteresisC) ||
+      settings.heating.hysteresisC < 0.05f || settings.heating.hysteresisC > 2.0f) {
+    settings.heating.hysteresisC = 0.25f;
+  }
+  if (!isfinite(settings.heating.predictSeconds) ||
+      settings.heating.predictSeconds < 0.0f || settings.heating.predictSeconds > 600.0f) {
+    settings.heating.predictSeconds = 180.0f;
+  }
+  if (settings.heating.minOnSeconds < 30 || settings.heating.minOnSeconds > 1800) {
+    settings.heating.minOnSeconds = 120;
+  }
+  if (settings.heating.minOffSeconds < 30 || settings.heating.minOffSeconds > 1800) {
+    settings.heating.minOffSeconds = 120;
   }
 
   settings.grow.lightOnTime = lightOnTime;
@@ -400,10 +375,10 @@ void readPreferences() {
     (relay == 4) ? KEY_RELAY_END_4 :
     KEY_RELAY_END_5;
 
-    settings.relay.schedule[i].enabled = preferences.getBool(keyEn.c_str(), false);
-    settings.relay.schedule[i].ifLightOff = preferences.getBool(keyILO.c_str(), false);
-    settings.relay.schedule[i].onMin = preferences.getInt(keyOn, 0);
-    settings.relay.schedule[i].offMin = preferences.getInt(keyOff, 0);
+    settings.relay.schedule[i].enabled = prefGetBoolOrDefault(preferences, keyEn.c_str(), false);
+    settings.relay.schedule[i].ifLightOff = prefGetBoolOrDefault(preferences, keyILO.c_str(), false);
+    settings.relay.schedule[i].onMin = prefGetIntOrDefault(preferences, keyOn, 0);
+    settings.relay.schedule[i].offMin = prefGetIntOrDefault(preferences, keyOff, 0);
   }
 
   // Shelly devices

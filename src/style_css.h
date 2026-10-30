@@ -531,6 +531,14 @@ const char cssContent[] PROGMEM = R"rawliteral(
       max-width: 120px;
     }
 
+    .shelly-gen-detected {
+      display: inline-block;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      white-space: nowrap;
+    }
+
     .shelly-other {
       width: 90px; /* adjust as you like */
       max-width: 90px;

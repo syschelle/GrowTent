@@ -169,6 +169,8 @@ static String g_grow_tVpd() { return jNumOrNull(settings.grow.targetVPD, 2); }
 static String g_grow_minVPDMonitoring() { return jBool(settings.grow.minVpdMonEnabled); }
 static String g_grow_minVPD() { return jNumOrNull(settings.grow.minVPD, 2); }
 static String g_grow_vpdHysteresis() { return jNumOrNull(settings.grow.vpdHysteresis, 2); }
+static String g_grow_lightOnTime() { return jStr(settings.grow.lightOnTime); }
+static String g_grow_lightDayHours() { return jInt(settings.grow.lightDayHours); }
 
 // Notifications (masked tokens)
 static String g_notify_pushoverEnabled() { return jBool(settings.notify.pushoverEnabled); }
@@ -188,6 +190,7 @@ static String g_irrigation_between_tasks() { return jInt(irrigation.betweenTasks
 static String g_irrigation_pump1_enabled() { return jBool(irrigation.pumpEnabled[0]); }
 static String g_irrigation_pump2_enabled() { return jBool(irrigation.pumpEnabled[1]); }
 static String g_irrigation_pump3_enabled() { return jBool(irrigation.pumpEnabled[2]); }
+static String g_irrigation_stop_on_flood() { return jBool(irrigation.stopOnFloodAlarm); }
 static String g_irrigation_tank_level_cm() { return jNumOrNull(tankLevelCm, 1); }
 static String g_irrigation_tank_level_percent() { return jNumOrNull(tankLevel, 0); }
 
@@ -271,7 +274,12 @@ static String g_sh_heatmat_Cost() { return jNumOrNull((shelly.heatmat.values.ene
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
 
+static String g_heating_source_type() { return jInt(settings.heating.sourceType); }
 static String g_heating_relay() { return jInt(settings.heating.Relay); }
+static String g_heating_hysteresis() { return jNumOrNull(settings.heating.hysteresisC, 2); }
+static String g_heating_predict_seconds() { return jNumOrNull(settings.heating.predictSeconds, 1); }
+static String g_heating_min_on_seconds() { return jInt(settings.heating.minOnSeconds); }
+static String g_heating_min_off_seconds() { return jInt(settings.heating.minOffSeconds); }
 
 // Active relay count (4 or 8 depending on config)
 static String g_active_relay_count() { return jInt(activeRelayCount); }
@@ -281,6 +289,7 @@ static String g_active_relay_count() { return jInt(activeRelayCount); }
   static String g_relay_state_##i() { return jBool(relayStates[i]); } \
   static String g_relay_name_##i() { return jStr(settings.relay.name[i]); } \
   static String g_relay_schen_##i() { return jBool(settings.relay.schedule[i].enabled); } \
+  static String g_relay_schilo_##i() { return jBool(settings.relay.schedule[i].ifLightOff); } \
   static String g_relay_schst_##i() { return jInt(settings.relay.schedule[i].onMin); } \
   static String g_relay_schen_##i##_end() { return jInt(settings.relay.schedule[i].offMin); }
 
@@ -367,6 +376,8 @@ const VarItem VARS[] = {
   {"settings.grow.minVPDMonitoring", g_grow_minVPDMonitoring, false, "settings.grow"},
   {"settings.grow.minVPD", g_grow_minVPD, false, "settings.grow"},
   {"settings.grow.vpdHysteresis", g_grow_vpdHysteresis, false, "settings.grow"},
+  {"settings.grow.lightOnTime", g_grow_lightOnTime, false, "settings.grow"},
+  {"settings.grow.lightDayHours", g_grow_lightDayHours, false, "settings.grow"},
 
   // --- notifications ---
   {"settings.notify.pushoverEnabled", g_notify_pushoverEnabled, false, "settings.notify"},
@@ -442,8 +453,13 @@ const VarItem VARS[] = {
   {"settings.shelly.username", g_sh_user, false, "settings.shelly"},
   {"settings.shelly.password", g_sh_pass, true, "settings.shelly"},
 
-  // --- heating relay ---
+  // --- heating controller ---
+  {"settings.heating.sourceType", g_heating_source_type, false, "settingsheating"},
   {"settings.heatingrelay", g_heating_relay, false, "settingsheating"},
+  {"settings.heating.hysteresisC", g_heating_hysteresis, false, "settingsheating"},
+  {"settings.heating.predictSeconds", g_heating_predict_seconds, false, "settingsheating"},
+  {"settings.heating.minOnSeconds", g_heating_min_on_seconds, false, "settingsheating"},
+  {"settings.heating.minOffSeconds", g_heating_min_off_seconds, false, "settingsheating"},
 
   {"settings.active_relay_count", g_active_relay_count, false, "settingsheating"},
 
@@ -451,30 +467,35 @@ const VarItem VARS[] = {
   {"relays[0].name", g_relay_name_0, false, "relays"},
   {"relays[0].state", g_relay_state_0, false, "relays"},
   {"relays[0].schedule.enabled", g_relay_schen_0, false, "relays"},
+  {"relays[0].schedule.ifLightOff", g_relay_schilo_0, false, "relays"},
   {"relays[0].schedule.start", g_relay_schst_0, false, "relays"},
   {"relays[0].schedule.end", g_relay_schen_0_end, false, "relays"},
 
   {"relays[1].name", g_relay_name_1, false, "relays"},
   {"relays[1].state", g_relay_state_1, false, "relays"},
   {"relays[1].schedule.enabled", g_relay_schen_1, false, "relays"},
+  {"relays[1].schedule.ifLightOff", g_relay_schilo_1, false, "relays"},
   {"relays[1].schedule.start", g_relay_schst_1, false, "relays"},
   {"relays[1].schedule.end", g_relay_schen_1_end, false, "relays"},
 
   {"relays[2].name", g_relay_name_2, false, "relays"},
   {"relays[2].state", g_relay_state_2, false, "relays"},
   {"relays[2].schedule.enabled", g_relay_schen_2, false, "relays"},
+  {"relays[2].schedule.ifLightOff", g_relay_schilo_2, false, "relays"},
   {"relays[2].schedule.start", g_relay_schst_2, false, "relays"},
   {"relays[2].schedule.end", g_relay_schen_2_end, false, "relays"},
 
   {"relays[3].name", g_relay_name_3, false, "relays"},
   {"relays[3].state", g_relay_state_3, false, "relays"},
   {"relays[3].schedule.enabled", g_relay_schen_3, false, "relays"},
+  {"relays[3].schedule.ifLightOff", g_relay_schilo_3, false, "relays"},
   {"relays[3].schedule.start", g_relay_schst_3, false, "relays"},
   {"relays[3].schedule.end", g_relay_schen_3_end, false, "relays"},
 
   {"relays[4].name", g_relay_name_4, false, "relays"},
   {"relays[4].state", g_relay_state_4, false, "relays"},
   {"relays[4].schedule.enabled", g_relay_schen_4, false, "relays"},
+  {"relays[4].schedule.ifLightOff", g_relay_schilo_4, false, "relays"},
   {"relays[4].schedule.start", g_relay_schst_4, false, "relays"},
   {"relays[4].schedule.end", g_relay_schen_4_end, false, "relays"},
 
@@ -497,6 +518,7 @@ const VarItem VARS[] = {
   {"irrigation.pump1.enabled", g_irrigation_pump1_enabled, false, "irrigation"},
   {"irrigation.pump2.enabled", g_irrigation_pump2_enabled, false, "irrigation"},
   {"irrigation.pump3.enabled", g_irrigation_pump3_enabled, false, "irrigation"},
+  {"irrigation.stopOnFloodAlarm", g_irrigation_stop_on_flood, false, "irrigation"},
   {"irrigation.tankLevelCm", g_irrigation_tank_level_cm, false, "irrigation"},
   {"irrigation.tankLevelPercent", g_irrigation_tank_level_percent, false, "irrigation"},
 

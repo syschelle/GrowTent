@@ -52,17 +52,12 @@ jobs:
       - name: Prepare release notes
         run: |
           NOTES_FILE="RELEASE_NOTES_${GITHUB_REF_NAME}.md"
-          if [ -s "${NOTES_FILE}" ]; then
-            cp "${NOTES_FILE}" release_notes.md
-            echo "Using ${NOTES_FILE} for GitHub release and OTA manifest"
-          else
-            git fetch --force --tags
-            git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' > release_notes.md
-            if [ ! -s release_notes.md ]; then
-              printf 'ESP32 firmware %s\n' "${GITHUB_REF_NAME}" > release_notes.md
-            fi
-            echo "Release notes file missing; using annotated tag text as fallback"
+          if [ ! -s "${NOTES_FILE}" ]; then
+            echo "ERROR: ${NOTES_FILE} is missing or empty" >&2
+            exit 1
           fi
+          cp "${NOTES_FILE}" release_notes.md
+          echo "Using ${NOTES_FILE} for GitHub release and OTA manifest"
 
       - name: Prepare OTA manifest
         run: |

@@ -8,7 +8,7 @@ extern Preferences preferences;
 extern int amountOfWater;
 
 void taskShellyStatus(void *parameter){
-  static UBaseType_t minFree = UINT32_MAX;
+  static UBaseType_t minFreeBytes = UINT32_MAX;
 
   struct PollState {
     ShellyValues lastGood;
@@ -60,9 +60,9 @@ void taskShellyStatus(void *parameter){
   };
 
   for (;;) {
-    UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
-    if (freeWords < minFree) {
-      minFree = freeWords;
+    UBaseType_t freeBytes = uxTaskGetStackHighWaterMark(NULL);
+    if (freeBytes < minFreeBytes) {
+      minFreeBytes = freeBytes;
     }
 
     static uint32_t lastLogMs = 0;
@@ -75,10 +75,9 @@ void taskShellyStatus(void *parameter){
       snprintf(
         buf,
         sizeof(buf),
-        "[TASK][CheckShellyStatus] free=%u words (%u bytes), min=%u words",
-        freeWords,
-        freeWords * sizeof(StackType_t),
-        minFree
+        "[TASK][CheckShellyStatus] free=%u bytes, min=%u bytes",
+        freeBytes,
+        minFreeBytes
       );
       logPrint(String(buf));
     }

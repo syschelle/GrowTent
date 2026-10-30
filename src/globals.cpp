@@ -39,8 +39,13 @@ const char* KEY_LIGHT_ON_TIME = "lightOnTime";
 const char* KEY_LIGHT_DAY_HOURS = "lightDayHours";
 const char* KEY_LIGHT_OFF_TIME = "lightOffTime";
 
-// heating relay key
+// Heating control keys. NVS keys stay below the ESP32 Preferences
+// 15-character key limit.
 const char* KEY_HEATING_RELAY = "heatingRelay";
+const char* KEY_HEAT_HYSTERESIS = "heatHyst";
+const char* KEY_HEAT_PREDICT = "heatPredict";
+const char* KEY_HEAT_MIN_ON = "heatMinOn";
+const char* KEY_HEAT_MIN_OFF = "heatMinOff";
 
 const char* KEY_RELAYCOUNT = "relayCount";
 
@@ -162,6 +167,8 @@ String relayNames[NUM_RELAYS] = {"relay 1","relay 2","relay 3","relay 4,","relay
 // Irrigation
 Irrigation irrigation;
 volatile bool irrigationStopRequested = false;
+volatile bool irrigationStartNotifyPending = false;
+volatile bool irrigationStartNotifyViaApi = false;
 const char* KEY_IRRIGATION_TIME_PER_TASK = "irrTimeTask";
 const char* KEY_IRRIGATION_BETWEEN_TASKS = "irrBetween";
 

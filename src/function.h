@@ -13,6 +13,8 @@
 #include <HTTPClient.h>
 #include <mbedtls/md.h>
 #include <esp_system.h>
+#include <Preferences.h>
+#include "preferences_safe.h"
 // Base64 (for Basic auth) via mbedTLS (available in ESP32 Arduino core)
 #include <mbedtls/base64.h>
 
@@ -35,7 +37,6 @@ struct ShellyValues;
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port = 80);
 static bool shellyResetEnergyCounters(ShellyDevice &dev, uint8_t switchId, uint16_t port);
 
-// Called early (e.g. from handleNewGrow) but implemented further below.
 static bool applyGrowLightSchedule();
 static bool refreshShellyLightSchedule(bool force = false);
 static String _fmtHHMM(int h, int m);
@@ -52,8 +53,6 @@ static String _fmtHHMM(int h, int m);
 extern OneWire oneWire;
 extern DallasTemperature sensors;
 
-// declare the global WebServer instance defined elsewhere
-extern WebServer server;
 extern Preferences preferences;
 extern const char* htmlPage;
 extern std::deque<String> logBuffer;
@@ -192,10 +191,9 @@ void sensorTask(void* pvParameters) {
         if (debugLog && (millis() - lastLogMs > debugLogIntervalMs)) {
             lastLogMs = millis();
 
-            UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+            UBaseType_t freeBytes = uxTaskGetStackHighWaterMark(NULL);
             logPrint(
-                "[TASK][sensor] free stack: " + String(freeWords) +
-                " words (" + String(freeWords * sizeof(StackType_t)) + " bytes)"
+                "[TASK][sensor] free stack=" + String(freeBytes) + " bytes"
             );
         }
 
@@ -204,141 +202,32 @@ void sensorTask(void* pvParameters) {
 }
 
 // Helper function: Send JSON from PROGMEM
-void sendJSON_P(const char* jsonP) {
-  server.sendHeader("Cache-Control", "no-store");
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "application/json");
-  // stream the content:
-  WiFiClient client = server.client();
-  // Attention: PROGMEM -> Read in pieces
-  PGM_P p = reinterpret_cast<PGM_P>(jsonP);
-  char c;
-  while ((c = pgm_read_byte(p++)) != 0) {
-    client.write(c);
-  }
-}
-
-// soft ap configuration
-void startSoftAP() {
-  IPAddress ip = WiFi.softAPIP();
-  Serial.println("[SoftAP] Start SoftAP mode. IP address: " + ip.toString());
-
-  
-  // Disconnect previous connections
-  WiFi.disconnect(true, true);  
-  delay(100);
-  
+// soft AP configuration. Phase 32 retains the transactional rule and does NOT erase or overwrite
+// STA credentials here. The captive portal tests candidate credentials first;
+// only a successful connection is persisted from the main loop.
+bool startSoftAP() {
   WiFi.mode(WIFI_AP_STA);
+  WiFi.softAPdisconnect(true);
+  delay(50);
 
-  //last parameter 'false' = do not hide SSID
+  // Last parameter 'false' = do not hide SSID.
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
   String apName = String(KEY_APSSID) + "_" + chipId;
-
-  // Harden weak/default AP password at runtime.
   String apPass = String(KEY_APPASSWORD);
-  
+
   bool ok = WiFi.softAP(apName.c_str(), apPass.c_str(), /*channel*/ 1, /*hidden*/ false);
   if (!ok) {
     Serial.println("[SoftAP] Error starting the SoftAP!");
-    return;
+    return false;
   }
+
+  Serial.println("[SoftAP] Started: " + apName + " IP=" + WiFi.softAPIP().toString());
+  return true;
 }
 
 // Helper function to save a string preference if the corresponding argument is present
-void savePrefString(
-  const char* argName,
-  const char* prefKey,
-  String& targetVar,
-  bool logValue = true,
-  const char* logLabel = nullptr
-) {
-  if (!server.hasArg(argName)) return;
-
-  targetVar = server.arg(argName);
-  preferences.putString(prefKey, targetVar);
-
-  if (logLabel == nullptr) logLabel = prefKey;
-
-  if (logValue) {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " written = " + targetVar);
-  } else {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
-  }
-}
-
 // Helper function to save an integer preference if the corresponding argument is present
-void savePrefInt(
-  const char* argName,
-  const char* prefKey,
-  int& targetVar,
-  bool logValue = true,
-  const char* logLabel = nullptr
-) {
-  if (!server.hasArg(argName)) return;
-
-  targetVar = server.arg(argName).toInt();
-  preferences.putInt(prefKey, targetVar);
-
-  if (logLabel == nullptr) logLabel = prefKey;
-
-  if (logValue) {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " written = " + String(targetVar));
-  } else {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
-  }
-}
-
-void savePrefFloat(
-  const char* argName,
-  const char* prefKey,
-  float& targetVar,
-  bool logValue = true,
-  const char* logLabel = nullptr
-) {
-  if (!server.hasArg(argName)) return;
-
-  String v = server.arg(argName);
-  targetVar = v.toFloat();
-
-  preferences.putFloat(prefKey, targetVar);
-
-  if (logLabel == nullptr) logLabel = prefKey;
-
-  if (logValue) {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) +
-             " = " + String(targetVar, 2));
-  } else {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
-  }
-}
-
 // Helper function to save a boolean preference if the corresponding argument is present
-void savePrefBool(
-  const char* argName,
-  const char* prefKey,
-  bool& targetVar,
-  bool logValue = true,
-  const char* logLabel = nullptr
-) {
-  if (!server.hasArg(argName)) return;
-
-  String val = server.arg(argName);
-
-  // HTML Checkbox: "on", "1", "true"
-  targetVar = (val == "1" || val == "on" || val == "true");
-
-  preferences.putBool(prefKey, targetVar);
-
-  if (logLabel == nullptr) logLabel = prefKey;
-
-  if (logValue) {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) +
-             " = " + String(targetVar ? "true" : "false"));
-  } else {
-    logPrint("[PREFERENCES SAVE] " + String(logLabel) + " updated (hidden)");
-  }
-}
-
 void loadPrefInt(
   const char* prefKey,
   int& targetVar,
@@ -346,7 +235,7 @@ void loadPrefInt(
   bool logValue,
   const char* logLabel
 ) {
-  targetVar = preferences.getInt(prefKey, defaultValue);
+  targetVar = prefGetIntOrDefault(preferences, prefKey, defaultValue);
 
   if (logLabel == nullptr) logLabel = prefKey;
 
@@ -365,7 +254,7 @@ void loadPrefFloat(
   const char* logLabel,
   uint8_t decimals
 ) {
-  targetVar = preferences.getFloat(prefKey, defaultValue);
+  targetVar = prefGetFloatOrDefault(preferences, prefKey, defaultValue);
 
   if (logLabel == nullptr) logLabel = prefKey;
 
@@ -385,7 +274,7 @@ void loadPrefBool(
   bool logValue,
   const char* logLabel
 ) {
-  targetVar = preferences.getBool(prefKey, defaultValue);
+  targetVar = prefGetBoolOrDefault(preferences, prefKey, defaultValue);
 
   if (logLabel == nullptr) logLabel = prefKey;
 
@@ -403,7 +292,7 @@ void loadPrefString(
   bool logValue,
   const char* logLabel
 ) {
-  targetVar = preferences.getString(prefKey, defaultValue);
+  targetVar = prefGetStringOrDefault(preferences, prefKey, defaultValue);
 
   if (logLabel == nullptr) logLabel = prefKey;
 
@@ -415,306 +304,10 @@ void loadPrefString(
 }
 
 // Handler for POST /saverunsettings - saves run settings sent as JSON in the request body
-void handleSaveRunsettings() {
-  if (!server.hasArg("plain")) {
-    server.send(
-      400,
-      "application/json; charset=utf-8",
-      "{\"ok\":false,\"err\":\"missing_body\"}"
-    );
-    return;
-  }
-
-  JsonDocument doc;
-  if (deserializeJson(doc, server.arg("plain"))) {
-    server.send(
-      400,
-      "application/json; charset=utf-8",
-      "{\"ok\":false,\"err\":\"bad_json\"}"
-    );
-    return;
-  }
-
-  if (!preferences.begin(PREF_NS, false)) {
-    logPrint("[PREF][ERROR] preferences.begin() failed. Check PREF_NS.");
-    server.send(
-      500,
-      "application/json; charset=utf-8",
-      "{\"ok\":false,\"err\":\"prefs\"}"
-    );
-    return;
-  }
-
-  auto clampIntLocal = [](int value, int minValue, int maxValue) -> int {
-    if (value < minValue) return minValue;
-    if (value > maxValue) return maxValue;
-    return value;
-  };
-
-  auto clampFloatLocal = [](float value, float minValue, float maxValue) -> float {
-    if (value < minValue) return minValue;
-    if (value > maxValue) return maxValue;
-    return value;
-  };
-
-  auto saveStringJson = [&](const char* jsonKey, const char* prefKey, String& targetVar, const char* label) {
-    if (doc[jsonKey].isNull()) return;
-    targetVar = String(doc[jsonKey].as<const char*>());
-    preferences.putString(prefKey, targetVar);
-    logPrint("[PREFERENCES SAVE] " + String(label) + " written = " + targetVar);
-  };
-
-  auto saveIntJson = [&](const char* jsonKey, const char* prefKey, int& targetVar, const char* label) {
-    if (doc[jsonKey].isNull()) return;
-    targetVar = doc[jsonKey].as<int>();
-    preferences.putInt(prefKey, targetVar);
-    logPrint("[PREFERENCES SAVE] " + String(label) + " written = " + String(targetVar));
-  };
-
-  auto saveFloatJson = [&](const char* jsonKey, const char* prefKey, float& targetVar, const char* label) {
-    if (doc[jsonKey].isNull()) return;
-    targetVar = doc[jsonKey].as<float>();
-    preferences.putFloat(prefKey, targetVar);
-    logPrint("[PREFERENCES SAVE] " + String(label) + " = " + String(targetVar, 2));
-  };
-
-  auto saveBoolJson = [&](const char* jsonKey, const char* prefKey, bool& targetVar, const char* label) {
-    if (doc[jsonKey].isNull()) return;
-    targetVar = doc[jsonKey].as<bool>();
-    preferences.putBool(prefKey, targetVar);
-    logPrint("[PREFERENCES SAVE] " + String(label) + " = " + String(targetVar ? "true" : "false"));
-  };
-
-  // -----------------------------
-  // Runsettings - grow settings
-  // -----------------------------
-  // Never overwrite an existing grow start date with an empty or malformed value.
-  // This is a safety net in addition to loading Preferences before the web server starts.
-  if (!doc["webGrowStart"].isNull()) {
-    String requestedGrowStart = String(doc["webGrowStart"].as<const char*>());
-    requestedGrowStart.trim();
-
-    int y = 0, m = 0, d = 0;
-    const bool formatOk =
-      requestedGrowStart.length() == 10 &&
-      requestedGrowStart.charAt(4) == '-' &&
-      requestedGrowStart.charAt(7) == '-' &&
-      sscanf(requestedGrowStart.c_str(), "%d-%d-%d", &y, &m, &d) == 3 &&
-      y >= 2020 && y <= 2100 &&
-      m >= 1 && m <= 12 &&
-      d >= 1 && d <= 31;
-
-    if (formatOk) {
-      startDate = requestedGrowStart;
-      preferences.putString(KEY_STARTDATE, startDate);
-      logPrint("[PREFERENCES SAVE] Grow Start Date written = " + startDate);
-    } else {
-      logPrint("[PREFERENCES SAVE] Grow Start Date ignored: empty or invalid value");
-    }
-  }
-
-  saveStringJson("webFloweringStart",  KEY_FLOWERDATE,    startFlowering,               "Flowering Start Date");
-  saveStringJson("webDryingStart",     KEY_DRYINGDATE,    startDrying,                  "Drying Start Date");
-
-  saveIntJson("webCurrentPhase",       KEY_CURRENTPHASE,  settings.grow.currentPhase,   "Current Phase");
-  settings.grow.currentPhase = clampIntLocal(settings.grow.currentPhase, 1, 3);
-  preferences.putInt(KEY_CURRENTPHASE, settings.grow.currentPhase);
-  curPhase = settings.grow.currentPhase;
-
-  saveFloatJson("webTargetTemp",       KEY_TARGETTEMP,    settings.grow.targetTemperature, "Target Temperature");
-  settings.grow.targetTemperature = clampFloatLocal(settings.grow.targetTemperature, 18.0f, 30.0f);
-  preferences.putFloat(KEY_TARGETTEMP, settings.grow.targetTemperature);
-  targetTemperature = settings.grow.targetTemperature;
-
-  saveFloatJson("webTargetVPD",        KEY_TARGETVPD,     settings.grow.targetVPD,      "Target VPD");
-  settings.grow.targetVPD = clampFloatLocal(settings.grow.targetVPD, 0.50f, 3.50f);
-  preferences.putFloat(KEY_TARGETVPD, settings.grow.targetVPD);
-  targetVPD = settings.grow.targetVPD;
-
-  saveBoolJson("webMinVPDMonitoring", KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, "Min VPD Monitoring Enabled");
-  saveFloatJson("webMinVPD", KEY_MINVPD, settings.grow.minVPD, "Min VPD");
-  saveFloatJson("webHysteresis", KEY_HYSTERESIS, settings.grow.vpdHysteresis, "VPD Hysteresis");
-
-  saveFloatJson("webOffsetLeafTemp",   KEY_LEAFTEMP,      settings.grow.offsetLeafTemperature, "Leaf Temperature Offset");
-  settings.grow.offsetLeafTemperature = clampFloatLocal(settings.grow.offsetLeafTemperature, -3.0f, 0.0f);
-  preferences.putFloat(KEY_LEAFTEMP, settings.grow.offsetLeafTemperature);
-  offsetLeafTemperature = settings.grow.offsetLeafTemperature;
-
-  saveFloatJson("webAmountOfWater",    KEY_AMOUNTOFWATER, irrigation.amountOfWater,     "Amount of Water");
-  irrigation.amountOfWater = clampFloatLocal(irrigation.amountOfWater, 10.0f, 500.0f);
-  preferences.putFloat(KEY_AMOUNTOFWATER, irrigation.amountOfWater);
-
-  saveIntJson("webTimePerTask",        KEY_TIMEPERTASK,   irrigation.timePerTask,       "Time Per Task");
-  irrigation.timePerTask = clampIntLocal(irrigation.timePerTask, 1, 10);
-  preferences.putInt(KEY_TIMEPERTASK, irrigation.timePerTask);
-
-  saveIntJson("webBetweenTasks",       KEY_BETWEENTASKS,  irrigation.betweenTasks,      "Between Tasks");
-  irrigation.betweenTasks = clampIntLocal(irrigation.betweenTasks, 1, 10);
-  preferences.putInt(KEY_BETWEENTASKS, irrigation.betweenTasks);
-
-  saveFloatJson("webIrrigation",       KEY_IRRIGATION,    irrigation.amount,  "Irrigation Amount");
-  irrigation.amount = clampFloatLocal(irrigation.amount, 100.0f, 3000.0f);
-  preferences.putFloat(KEY_IRRIGATION, irrigation.amount);
-
-  // Store pump selection independently so unused pots can be excluded from watering.
-  saveBoolJson("webPump1Enabled", KEY_PUMP1_ENABLED, irrigation.pumpEnabled[0], "Pump 1 Enabled");
-  saveBoolJson("webPump2Enabled", KEY_PUMP2_ENABLED, irrigation.pumpEnabled[1], "Pump 2 Enabled");
-  saveBoolJson("webPump3Enabled", KEY_PUMP3_ENABLED, irrigation.pumpEnabled[2], "Pump 3 Enabled");
-  saveBoolJson("webIrrigationStopOnFlood", KEY_IRRIGATION_STOP_ON_FLOOD, irrigation.stopOnFloodAlarm, "Irrigation Stop On Flood");
-
-  saveFloatJson("webMinTank",          KEY_MINTANK,       irrigation.tank.min,          "Tank Min Level (cm)");
-  saveFloatJson("webMaxTank",          KEY_MAXTANK,       irrigation.tank.max,          "Tank Max Level (cm)");
-
-  if (irrigation.tank.min > irrigation.tank.max) {
-    float tmp = irrigation.tank.min;
-    irrigation.tank.min = irrigation.tank.max;
-    irrigation.tank.max = tmp;
-  }
-  preferences.putFloat(KEY_MINTANK, irrigation.tank.min);
-  preferences.putFloat(KEY_MAXTANK, irrigation.tank.max);
-
-  saveIntJson("webHeatingSource",      KEY_HEATING_SOURCE, settings.heating.sourceType, "Heating Source");
-  settings.heating.sourceType = clampIntLocal(settings.heating.sourceType, 0, 2);
-  preferences.putInt(KEY_HEATING_SOURCE, settings.heating.sourceType);
-
-  saveIntJson("webHeatingRelay",       KEY_HEATING_RELAY, settings.heating.Relay,       "Heating Relay");
-  settings.heating.Relay = clampIntLocal(settings.heating.Relay, 0, 4);
-
-  if (settings.heating.sourceType != 1) {
-    settings.heating.Relay = 0;
-  }
-  preferences.putInt(KEY_HEATING_RELAY, settings.heating.Relay);
-  heatingRelay = settings.heating.Relay;
-
-  // -----------------------------
-  // store relay scheduling settings (up to 5 relays, each with enabled, ifLightOff, onMin and offMin)
-  // -----------------------------
-  JsonArray arr = doc["relays"].as<JsonArray>();
-  if (!arr.isNull()) {
-    const int maxScheduledRelay = (activeRelayCount < 5) ? activeRelayCount : 5;
-
-    for (JsonObject r : arr) {
-      int relay = r["relay"] | 0;
-      if (relay < 1 || relay > maxScheduledRelay) continue;
-
-      int idx = relay - 1;
-
-      bool enabled = r["enabled"] | false;
-      bool ifLightOff = r["ifLightOff"] | false;
-      int onMin  = clampIntLocal((int)(r["onMin"]  | 0), 0, 59);
-      int offMin = clampIntLocal((int)(r["offMin"] | 0), 0, 59);
-
-      settings.relay.schedule[idx].enabled    = enabled;
-      settings.relay.schedule[idx].ifLightOff = ifLightOff;
-      settings.relay.schedule[idx].onMin      = onMin;
-      settings.relay.schedule[idx].offMin     = offMin;
-
-      String keyEn  = "relay_enable_" + String(relay);
-      String keyILO = "ilo_" + String(relay);
-
-      const char* kOn =
-        (relay == 1) ? KEY_RELAY_START_1 :
-        (relay == 2) ? KEY_RELAY_START_2 :
-        (relay == 3) ? KEY_RELAY_START_3 :
-        (relay == 4) ? KEY_RELAY_START_4 :
-                       KEY_RELAY_START_5;
-
-      const char* kOff =
-        (relay == 1) ? KEY_RELAY_END_1 :
-        (relay == 2) ? KEY_RELAY_END_2 :
-        (relay == 3) ? KEY_RELAY_END_3 :
-        (relay == 4) ? KEY_RELAY_END_4 :
-                       KEY_RELAY_END_5;
-
-      preferences.putBool(keyEn.c_str(), enabled);
-      preferences.putBool(keyILO.c_str(), ifLightOff);
-      preferences.putInt(kOn, onMin);
-      preferences.putInt(kOff, offMin);
-    }
-  }
-
-  preferences.end();
-
-  readPreferences();
-  server.send(
-    200,
-    "application/json; charset=utf-8",
-    "{\"ok\":true}"
-  );
-}
+// Legacy /saverunsettings handler retired in v0.2.80; undefined legacy routes return deterministic 404 from v0.2.81.
+// Betriebseinstellungen are persisted through split Async port-8080 endpoints.
 
 // Handle Shelly settings save
-
-void handleNewGrow() {
-  if (!preferences.begin(PREF_NS, false)) {
-    logPrint("[PREF][ERROR] preferences.begin() failed (newGrow)");
-    server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"error\":\"prefs\"}");
-    return;
-  }
-
-  // Today in local time: YYYY-MM-DD
-  char dateBuf[11] = {0};
-  time_t now = time(nullptr);
-  struct tm tmNow {};
-  localtime_r(&now, &tmNow);
-  snprintf(dateBuf, sizeof(dateBuf), "%04d-%02d-%02d",
-           tmNow.tm_year + 1900, tmNow.tm_mon + 1, tmNow.tm_mday);
-  const String today(dateBuf);
-
-  // Reset grow dates/phases
-  startDate = today;
-  startFlowering = "";
-  startDrying = "";
-  settings.grow.currentPhase = 1; // Vegetativ
-
-  preferences.putString(KEY_STARTDATE, startDate);
-  preferences.putString(KEY_FLOWERDATE, startFlowering);
-  preferences.putString(KEY_DRYINGDATE, startDrying);
-  preferences.putInt(KEY_CURRENTPHASE, curPhase);
-
-  // Reset energy display: store current totals as offset (so UI shows 0)
-  // Then try to reset device counters (Gen2), if successful -> offset can be 0.
-  auto resetOne = [&](ShellyDevice &d, const char* keyOff) -> bool {
-    if (d.ip.length() == 0) return false;
-
-    // read current raw total (offset currently applied inside getShellyValues, so temporarily disable)
-    const float prevOff = d.energyOffsetWh;
-    d.energyOffsetWh = 0.0f;
-    ShellyValues v = getShellyValues(d, 0, 80);
-    float rawWh = (!isnan(v.energyWh) ? v.energyWh : 0.0f);
-
-    // baseline offset to show 0
-    d.energyOffsetWh = rawWh;
-    preferences.putFloat(keyOff, d.energyOffsetWh);
-
-    // try to reset counters on device; if succeeds -> keep offset 0
-    bool resetOk = shellyResetEnergyCounters(d, 0, 80);
-    if (resetOk) {
-      d.energyOffsetWh = 0.0f;
-      preferences.putFloat(keyOff, 0.0f);
-    }
-
-    // refresh values
-    return resetOk;
-  };
-
-  bool okMain = resetOne(settings.shelly.main, KEY_SHELLYMAINOFF);
-  bool okLight= resetOne(settings.shelly.light,KEY_SHELLYLIGHTOFF);
-  bool okHum = resetOne(settings.shelly.humidifier, KEY_SHELLYHUMOFF);
-
-  // Response
-  String resp = "{";
-  resp += "\"ok\":true,";
-  resp += "\"startDate\":\"" + startDate + "\",";
-  resp += "\"reset\":{";
-  resp += "\"main\":" + String(okMain ? "true" : "false") + ",";
-  resp += "\"light\":" + String(okLight ? "true" : "false") + ",";
-  resp += "\"humidifier\":" + String(okHum ? "true" : "false") + ",";
-
-  resp += "}}";
-
-  server.send(200, "application/json; charset=utf-8", resp);
-}
 
 static String generateFloodWebhookToken() {
   static const char HEX_CHARS[] = "0123456789abcdef";
@@ -758,483 +351,9 @@ static String floodTimestampNow() {
 // safety interlock so there is one authoritative stop path.
 static void requestIrrigationStop(const char* source);
 
-void handleFloodEvent() {
-  // The Flood S Gen4 is intentionally not polled. This handler only consumes
-  // the two URL actions configured on the battery-powered sensor.
-  if (!settings.flood.enabled || settings.flood.webhookToken.isEmpty()) {
-    server.send(404, "application/json", "{\"ok\":false,\"error\":\"disabled\"}");
-    return;
-  }
-
-  if (!server.hasArg("token") || server.arg("token") != settings.flood.webhookToken) {
-    logPrint("[FLOOD] rejected webhook: invalid token");
-    server.send(403, "application/json", "{\"ok\":false,\"error\":\"forbidden\"}");
-    return;
-  }
-
-  if (!server.hasArg("alarm")) {
-    server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing_alarm\"}");
-    return;
-  }
-
-  String alarmArg = server.arg("alarm");
-  alarmArg.trim();
-  alarmArg.toLowerCase();
-
-  bool alarm = false;
-  if (alarmArg == "1" || alarmArg == "true" || alarmArg == "on" || alarmArg == "flood") {
-    alarm = true;
-  } else if (alarmArg == "0" || alarmArg == "false" || alarmArg == "off" || alarmArg == "dry") {
-    alarm = false;
-  } else {
-    server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid_alarm\"}");
-    return;
-  }
-
-  int reportedBatteryPct = -1;
-  if (server.hasArg("battery")) {
-    String batteryArg = server.arg("battery");
-    batteryArg.trim();
-    if (batteryArg.length() > 0 && batteryArg != "null") {
-      char* endPtr = nullptr;
-      const long parsed = strtol(batteryArg.c_str(), &endPtr, 10);
-      if (endPtr != batteryArg.c_str() && *endPtr == '\0' && parsed >= 0 && parsed <= 100) {
-        reportedBatteryPct = (int)parsed;
-      }
-    }
-  }
-
-  time_t eventEpoch = time(nullptr);
-  if (server.hasArg("ts")) {
-    String tsArg = server.arg("ts");
-    tsArg.trim();
-    if (tsArg.length() > 0 && tsArg != "null") {
-      char* endPtr = nullptr;
-      const long long parsed = strtoll(tsArg.c_str(), &endPtr, 10);
-      if (endPtr != tsArg.c_str() && *endPtr == '\0' && parsed >= 1609459200LL) {
-        eventEpoch = (time_t)parsed;
-      }
-    }
-  }
-
-  const bool changed = !floodState.known || floodState.alarm != alarm;
-  const bool batteryChanged = reportedBatteryPct >= 0 && floodState.batteryPct != reportedBatteryPct;
-  floodState.known = true;
-  floodState.alarm = alarm;
-  if (reportedBatteryPct >= 0) floodState.batteryPct = reportedBatteryPct;
-
-  // Optional irrigation safety interlock. Only an actual ALARM event can stop
-  // a currently running automatic irrigation cycle. Dry/clear events do not
-  // affect irrigation, and manual 10-second pump pulses are intentionally not
-  // treated as an automatic irrigation cycle here.
-  if (alarm && irrigation.stopOnFloodAlarm && irrigation.irrigationRuns > 0) {
-    requestIrrigationStop("Flood alarm");
-  }
-
-  const String timestamp = floodTimestampFromEpoch(eventEpoch);
-  if (!timestamp.isEmpty()) floodState.lastSeen = timestamp;
-
-  // Persist state transitions and actual battery changes. Repeated confirmations
-  // with identical state/battery remain RAM-only to avoid unnecessary NVS writes.
-  if (changed || batteryChanged) {
-    Preferences floodPrefs;
-    if (floodPrefs.begin(PREF_NS, false)) {
-      floodPrefs.putBool(KEY_FLOOD_KNOWN, floodState.known);
-      floodPrefs.putBool(KEY_FLOOD_ALARM, floodState.alarm);
-      if (floodState.batteryPct >= 0) floodPrefs.putInt(KEY_FLOOD_BATTERY, floodState.batteryPct);
-      if (!floodState.lastSeen.isEmpty()) floodPrefs.putString(KEY_FLOOD_LAST_SEEN, floodState.lastSeen);
-      floodPrefs.end();
-    } else {
-      logPrint("[FLOOD][WARN] state could not be persisted");
-    }
-    if (changed) logPrint(String("[FLOOD] state changed: ") + (alarm ? "ALARM" : "DRY"));
-    if (batteryChanged) logPrint(String("[FLOOD] battery: ") + String(floodState.batteryPct) + "%");
-  }
-
-  String response = String("{\"ok\":true,\"alarm\":") + (alarm ? "true" : "false");
-  if (floodState.batteryPct >= 0) response += String(",\"batteryPct\":") + String(floodState.batteryPct);
-  response += "}";
-  server.send(200, "application/json", response);
-}
-
-void handleSaveShellySettings() {
-    if (!preferences.begin(PREF_NS, false)) {
-        server.send(500, "text/plain", "Failed to open Preferences");
-        return;
-    }
-
-    struct PreferencesGuard {
-        Preferences& prefs;
-        ~PreferencesGuard() { prefs.end(); }
-    } guard{preferences};
-
-    auto clampInt = [](int value, int minValue, int maxValue) -> int {
-        if (value < minValue) return minValue;
-        if (value > maxValue) return maxValue;
-        return value;
-    };
-
-    auto normalizeIPv4 = [](String& ip) {
-        ip.trim();
-        if (ip.isEmpty()) return;
-
-        IPAddress parsedIp;
-        if (!parsedIp.fromString(ip)) {
-            ip = "";
-            return;
-        }
-
-        ip = parsedIp.toString();
-    };
-
-    auto isValidTimeHHMM = [](const String& value) -> bool {
-        if (value.length() != 5 || value[2] != ':') return false;
-
-        if (!isDigit(value[0]) || !isDigit(value[1]) ||
-            !isDigit(value[3]) || !isDigit(value[4])) {
-            return false;
-        }
-
-        const int hh = (value[0] - '0') * 10 + (value[1] - '0');
-        const int mm = (value[3] - '0') * 10 + (value[4] - '0');
-
-        return (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59);
-    };
-
-    auto saveShellyDevice = [&](String& ip,
-                                int& gen,
-                                const char* webKeyIp,
-                                const char* prefKeyIp,
-                                const char* labelIp,
-                                const char* webKeyGen,
-                                const char* prefKeyGen,
-                                const char* labelGen) {
-        normalizeIPv4(ip);
-        gen = clampInt(gen, 1, 2);  // falls nur Gen1 / Gen2 erlaubt sind
-
-        savePrefString(webKeyIp, prefKeyIp, ip, true, labelIp);
-        savePrefInt(webKeyGen, prefKeyGen, gen, true, labelGen);
-    };
-
-    auto saveGrowLightSettings = [&]() {
-        if (server.hasArg("webShellyLightOnTime")) {
-            String newTime = server.arg("webShellyLightOnTime");
-            newTime.trim();
-
-            if (isValidTimeHHMM(newTime)) {
-                settings.grow.lightOnTime = newTime;
-                savePrefString(
-                    "webShellyLightOnTime",
-                    KEY_LIGHT_ON_TIME,
-                    settings.grow.lightOnTime,
-                    true,
-                    "Shelly Light ON Time"
-                );
-            }
-        }
-
-        if (server.hasArg("webShellyLightDayHours")) {
-            settings.grow.lightDayHours = clampInt(
-                server.arg("webShellyLightDayHours").toInt(),
-                1,
-                20
-            );
-
-            savePrefInt(
-                "webShellyLightDayHours",
-                KEY_LIGHT_DAY_HOURS,
-                settings.grow.lightDayHours,
-                true,
-                "Light Day Hours"
-            );
-        }
-    };
-
-    auto saveAuthSettings = [&]() {
-        savePrefString(
-            "webShellyUsername",
-            KEY_SHELLYUSERNAME,
-            settings.shelly.username,
-            true,
-            "User"
-        );
-
-        savePrefString(
-            "webShellyPassword",
-            KEY_SHELLYPASSWORD,
-            settings.shelly.password,
-            false,
-            "Pass"
-        );
-    };
-
-    // Shelly devices
-    saveShellyDevice(
-        settings.shelly.main.ip,
-        settings.shelly.main.gen,
-        "webShellyMainIP",
-        KEY_SHELLYMAINIP,
-        "Main IP",
-        "webShellyMainGen",
-        KEY_SHELLYMAINGEN,
-        "Main Gen"
-    );
-
-    saveShellyDevice(
-        settings.shelly.light.ip,
-        settings.shelly.light.gen,
-        "webShellyLightIP",
-        KEY_SHELLYLIGHTIP,
-        "Light IP",
-        "webShellyLightGen",
-        KEY_SHELLYLIGHTGEN,
-        "Light Gen"
-    );
-
-    saveShellyDevice(
-        settings.shelly.humidifier.ip,
-        settings.shelly.humidifier.gen,
-        "webShellyHumidifierIP",
-        KEY_SHELLYHUMIP,
-        "Humidifier IP",
-        "webShellyHumidifierGen",
-        KEY_SHELLYHUMGEN,
-        "Humidifier Gen"
-    );
-
-    saveShellyDevice(
-        settings.shelly.heater.ip,
-        settings.shelly.heater.gen,
-        "webShellyHeaterIP",
-        KEY_SHELLYHEATERIP,
-        "Heater IP",
-        "webShellyHeaterGen",
-        KEY_SHELLYHEATERGEN,
-        "Heater Gen"
-    );
-
-    saveShellyDevice(
-        settings.shelly.fan.ip,
-        settings.shelly.fan.gen,
-        "webShellyFanIP",
-        KEY_SHELLYFANIP,
-        "Fan IP",
-        "webShellyFanGen",
-        KEY_SHELLYFANGEN,
-        "Fan Gen"
-    );
-
-    saveShellyDevice(
-        settings.shelly.exhaust.ip,
-        settings.shelly.exhaust.gen,
-        "webShellyExhaustIP",
-        KEY_SHELLYEXHAUSTIP,
-        "Exhaust IP",
-        "webShellyExhaustGen",
-        KEY_SHELLYEXHAUSTGEN,
-        "Exhaust Gen"
-    );
-
-    // Heating mat is monitoring-only. It is saved like a Shelly device but is never
-    // referenced by switch, schedule or control handlers.
-    saveShellyDevice(
-        settings.shelly.heatmat.ip,
-        settings.shelly.heatmat.gen,
-        "webShellyHeatMatIP",
-        KEY_SHELLYHEATMATIP,
-        "Heat Mat IP",
-        "webShellyHeatMatGen",
-        KEY_SHELLYHEATMATGEN,
-        "Heat Mat Gen"
-    );
-
-    // Flood S Gen4 webhook settings. The Flood IP is deliberately not stored.
-    settings.flood.enabled = server.hasArg("webFloodEnabled");
-    if (server.hasArg("webFloodToken")) {
-        String token = server.arg("webFloodToken");
-        token.trim();
-        if (token.isEmpty() && settings.flood.enabled) token = generateFloodWebhookToken();
-        if (!token.isEmpty() && !isValidFloodWebhookToken(token)) {
-            server.send(400, "text/plain", "Invalid Flood webhook token");
-            return;
-        }
-        settings.flood.webhookToken = token;
-    }
-    if (settings.flood.enabled && settings.flood.webhookToken.isEmpty()) {
-        settings.flood.webhookToken = generateFloodWebhookToken();
-    }
-    preferences.putBool(KEY_FLOOD_ENABLED, settings.flood.enabled);
-    preferences.putString(KEY_FLOOD_TOKEN, settings.flood.webhookToken);
-
-    // Other settings
-    saveGrowLightSettings();
-    saveAuthSettings();
-
-    // Update runtime values immediately
-    lightOnTime = settings.grow.lightOnTime;
-    lightDayHours = settings.grow.lightDayHours;
-    applyGrowLightSchedule();
-
-    // Re-open 3-minute schedule discovery window after Shelly settings change
-    g_scheduleResolved = false;
-    g_scheduleInitStartMs = millis();
-    g_lastScheduleFetchMs = 0;
-
-
-    // Redirect back to status page
-    server.sendHeader("Location", "/");
-    server.send(303);
-}
-
 // Helper function to save a string preference to a C-style string if the corresponding argument is present
-void savePrefStringToCString(
-  const char* argName,
-  const char* prefKey,
-  char*& targetPtr,
-  bool logValue = true,
-  const char* logLabel = nullptr
-) {
-  if (!server.hasArg(argName)) return;
-
-  String v = server.arg(argName);
-  preferences.putString(prefKey, v);
-
-  // 🔥 alten Speicher freigeben
-  if (targetPtr != nullptr) {
-    free(targetPtr);
-    targetPtr = nullptr;
-  }
-
-  targetPtr = strdup(v.c_str());
-
-  if (logLabel == nullptr) logLabel = prefKey;
-
-  if (logValue) {
-    logPrint("[PREFERENCES] " + String(logLabel) + " = " + v);
-  } else {
-    logPrint("[PREFERENCES] " + String(logLabel) + " updated");
-  }
-}
-
 // Handle general settings save
-void handleSaveSettings() {
-  // Open the Preferences namespace with write access (readOnly = false)
-  // Only call begin() once — calling it twice can cause writes to fail!
-  if (!preferences.begin(PREF_NS)) {
-    logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.");
-    server.send(500, "text/plain", "Failed to open Preferences");
-    return;
-  }
-
-  savePrefBool("webDebugEnable", KEY_DEBUG_ENABLED, debugLog, true, "Debug Enable");
-  savePrefInt("webRelayCount", KEY_RELAYCOUNT, activeRelayCount, true, "Relay Count");
-  savePrefString("webBoxName", KEY_NAME, settings.ui.boxName, "Boxname");
-  savePrefString("webNTPServer", KEY_NTPSRV, ntpServer);
-  savePrefString("webTimeZoneInfo", KEY_TZINFO, tzInfo);
-  savePrefString("webLanguage", KEY_LANG, language);
-  savePrefString("webTheme", KEY_THEME, theme);
-  savePrefString("webTimeFormat", KEY_TFMT, timeFormat);
-  savePrefString("webTempUnit", KEY_UNIT, unit);
-  savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
-  savePrefBool("webDS18B20Enable", KEY_DS18B20ENABLE, DS18B20, "DS18B20 Enable");
-  savePrefFloat("webPowerPriceKwh", KEY_POWER_PRICE_KWH, powerPriceKwhEur, true, "Power Price €/kWh");
-  savePrefString("webDS18B20Name", KEY_DS18NAME, DS18B20Name);
-  savePrefString("webRelayName1", KEY_RELAY_1, relayNames[0], "Relay 1 Name");
-  savePrefString("webRelayName2", KEY_RELAY_2, relayNames[1], "Relay 2 Name");
-  savePrefString("webRelayName3", KEY_RELAY_3, relayNames[2], "Relay 3 Name");
-  savePrefString("webRelayName4", KEY_RELAY_4, relayNames[3], "Relay 4 Name");
-  if (activeRelayCount == 8) {
-    savePrefString("webRelayName5", KEY_RELAY_5, relayNames[4], "Relay 5 Name");
-  }
-
-  preferences.end(); // always close Preferences handle
-
-  // 11) Send redirect response and restart the ESP
-  server.sendHeader("Location", "/");
-  server.send(303);
-  requestSafeRestart(1500);
-}
-
-void handleSaveMessageSettings() {
-  if (!preferences.begin(PREF_NS)) {
-    logPrint("[PREFERENCES][ERROR] preferences.begin() failed. "
-             "Check that PREF_NS length <= 15 characters.");
-    server.send(500, "text/plain", "Failed to open Preferences");
-    return;
-  }
-
-  if (server.arg("webPushoverEnabled") == "on") {
-    pushoverEnabled = "checked";
-  } else {
-    pushoverEnabled = "";
-  }
-
-  pushoverSent = (pushoverEnabled == "checked");
-  preferences.putString(KEY_PUSHOVER, pushoverEnabled);
-
-  savePrefString("webPushoverUserKey", KEY_PUSHOVERUSER, pushoverUserKey, "Pushover User Key");
-  savePrefString("webPushoverAppKey", KEY_PUSHOVERAPP, pushoverAppKey, "Pushover App Key");
-  savePrefString("webPushoverDevice", KEY_PUSHOVERDEVICE, pushoverDevice, "Pushover Device");
-  
-  if (server.arg("webGotifyEnabled") == "on") {
-    gotifyEnabled = "checked";
-  } else {
-    gotifyEnabled = "";
-  }
-  logPrint("[PREFERENCES] Gotify " + String(gotifyEnabled));
-  preferences.putString(KEY_GOTIFY, gotifyEnabled);
-
-  savePrefString("webGotifyURL", KEY_GOTIFYSERVER, gotifyServer, "Gotify Server URL");
-  savePrefString("webGotifyToken", KEY_GOTIFYTOKEN, gotifyToken, "Gotify Token");
-
-
-  if (pushoverEnabled == "checked") {
-    if (language == "de") {
-      sendPushover("Testnachricht", "Die Pushover-Benachrichtigungen wurden erfolgreich eingerichtet.");
-    } else {
-      sendPushover("Test Message", "Pushover notifications have been set up successfully.");
-    }
-  }
-
-  if (gotifyEnabled == "checked") {
-    if (language == "de") {
-      sendGotify("Testnachricht", "Die Gotify-Benachrichtigungen wurden erfolgreich eingerichtet.", 5);
-    } else {
-      sendGotify("Test Message", "Gotify notifications have been set up successfully.", 5);
-    }
-  }
-  
-  gotifySent = (gotifyEnabled == "checked");
-  preferences.putString(KEY_GOTIFY, gotifyEnabled);
-
-  preferences.end(); // always close Preferences handle
-
-  // 11) Send redirect response and restart the ESP
-  server.sendHeader("Location", "/");
-  server.send(303);  // HTTP redirect to status page
-  delay(250);
-  ESP.restart();
-}
-
 // Handle form submission save WIFI credentials
-void handleSaveWiFi() {
-  if (server.hasArg("ssid") && server.hasArg("password")) {
-    String ssid = server.arg("ssid");
-    String password = server.arg("password");
-
-    preferences.begin(PREF_NS, false);
-    preferences.putString("ssid", ssid);
-    preferences.putString("password", password);
-    preferences.end();
-
-    server.send(200, "text/html", "<h1>Saved! Restarting...</h1>");
-    requestSafeRestart(2000);
-  } else {
-    server.send(400, "text/plain", "Missing data");
-  }
-}
-
 // key, detailsJson = "{}"
 void pushHintKey(const String& key, const String& detailsJson = "{}") {
   hintKey = key;
@@ -1243,29 +362,6 @@ void pushHintKey(const String& key, const String& detailsJson = "{}") {
 }
 
 // API: /get hint
-void handleHint() {
-  // {"id":1,"key":"hint.saved","details":{"percent":12}}
-  String json = "{\"id\":" + String(hintId) + ",\"key\":\"";
-
-  // escape quotes/backslashes in key
-  String escapedKey = hintKey;
-  escapedKey.replace("\\", "\\\\");
-  escapedKey.replace("\"", "\\\"");
-  json += escapedKey + "\",\"details\":" + hintDetailsJson + "}";
-
-  server.send(200, "application/json", json);
-}
-
-// Handle factory reset
-void handleFactoryReset() {
-  preferences.begin(PREF_NS, false);
-  preferences.clear();  // Deletes all keys in the namespace"
-  preferences.end();
-
-  server.send(200, "text/html", "<h1>Saved! Restarting...</h1>");
-  requestSafeRestart(2000);
-}
-
 // initial NTP sync (called at boot)
 void initialSyncBlocking() {
   logPrint("[BOOT] Initial NTP sync...");
@@ -1513,58 +609,6 @@ float pingTankLevel(uint8_t trigPin, uint8_t echoPin,
   return sum / ok;
 }
 
-void handleApiLogBuffer() {
-  server.sendHeader("Cache-Control", "no-store");
-
-  if (!logBufferMutex || xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-    server.send(503, "text/plain; charset=utf-8", "log busy");
-    return;
-  }
-
-  // Heap-friendly streaming: avoid building one large String for every poll.
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/plain; charset=utf-8", "");
-
-  for (const auto& line : logBuffer) {
-    server.sendContent(line);
-    server.sendContent("\n");
-  }
-
-  xSemaphoreGive(logBufferMutex);
-  server.sendContent("");
-}
-
-void handleClearLog() {
-  if (logBufferMutex && xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    logBuffer.clear();
-    xSemaphoreGive(logBufferMutex);
-    server.send(204);
-  } else {
-    server.send(503, "text/plain; charset=utf-8", "log busy");
-  }
-}
-
-void handleDownloadLog() {
-  if (!logBufferMutex || xSemaphoreTake(logBufferMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-    server.send(503, "text/plain; charset=utf-8", "log busy");
-    return;
-  }
-
-  // Heap-friendly streaming download: avoid an 8 KB temporary String.
-  server.sendHeader("Content-Type", "text/plain; charset=utf-8");
-  server.sendHeader("Content-Disposition", "attachment; filename=weblog.txt");
-  server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  server.send(200, "text/plain; charset=utf-8", "");
-
-  for (const auto& line : logBuffer) {
-    server.sendContent(line);
-    server.sendContent("\n");
-  }
-
-  xSemaphoreGive(logBufferMutex);
-  server.sendContent("");
-}
-
 // helper: read actual relay pin and convert to bool  
 bool isRelayOn(int idx) {
   if (idx < 0 || idx >= NUM_RELAYS) return false;
@@ -1589,31 +633,6 @@ void setRelay(int idx, bool on) {
     digitalWrite(relayPins[idx], on ? HIGH : LOW);
     relayStates[idx] = on;
   }
-}
-
-// toggle relay state by index and return new state as JSON
-void handleRelayToggleIdx(int idx) {
-  bool cur = isRelayOn(idx);
-  bool next = !cur;
-  setRelay(idx, next);
-
-  String res = "{";
-  res += "\"id\":" + String(idx + 1);
-  res += ",\"state\":" + String(next ? "true" : "false");
-  res += "}";
-  server.send(200, "application/json", res);
-}
-
-void handleRelayIrrigationIdx(int idx) {
-  setRelay(idx, true);
-  relayOffTime[idx] = millis() + 10000;
-  relayActive[idx] = true;
-
-  String res = "{";
-  res += "\"id\":" + String(idx + 1);
-  res += ",\"state\":true";
-  res += "}";
-  server.send(200, "application/json", res);
 }
 
 // Send notification via Pushover
@@ -2230,11 +1249,142 @@ static bool httpGetGen1(
 }
 
 // =======================
+// SHELLY GENERATION DISCOVERY
+// /shelly is exposed by classic Gen1 and Shelly Gen2+ devices. Gen2+ returns
+// a numeric `gen`; classic Gen1 uses the legacy device-info schema without it.
+// This helper performs network I/O and must only be called from normal runtime
+// context (never directly from an AsyncWebServer callback).
+// =======================
+static bool detectShellyGeneration(
+  const String& host, uint16_t port,
+  const String& user, const String& pass,
+  int& detectedGen, String& detectedModel,
+  int& httpCode
+) {
+  detectedGen = 0;
+  detectedModel = "";
+  httpCode = -1;
+
+  if (WiFi.status() != WL_CONNECTED || !hasValidIPv4(host)) return false;
+
+  String body;
+  // `/shelly` is normally readable without authentication. Start without
+  // credentials so generation discovery does not depend on the configured auth.
+  bool ok = httpGetGen1(host, port, "/shelly", "", "", httpCode, body);
+
+  // Some installations may protect the endpoint. Try Classic Basic first,
+  // then the Gen2+ Digest path. Credentials are never written to the log.
+  if (!ok && httpCode == 401 && user.length() > 0) {
+    ok = httpGetGen1(host, port, "/shelly", user, pass, httpCode, body);
+    if (!ok) {
+      ok = httpGetWithDigestAutoAuth(host, port, "/shelly", user, pass, httpCode, body);
+    }
+  }
+
+  if (!ok || body.isEmpty()) return false;
+
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, body);
+  if (err) return false;
+
+  if (doc["gen"].is<int>()) {
+    const int gen = doc["gen"].as<int>();
+    // Runtime control uses the same RPC family for Gen2+; Gen4 is accepted as
+    // well so a future switch device is not artificially rejected.
+    if (gen < 2 || gen > 4) return false;
+    detectedGen = gen;
+    if (doc["model"].is<const char*>()) detectedModel = doc["model"].as<String>();
+    else if (doc["app"].is<const char*>()) detectedModel = doc["app"].as<String>();
+    return true;
+  }
+
+  // Classic Gen1 /shelly response: no numeric gen, but device type + MAC are
+  // present in the legacy identity document.
+  if (doc["type"].is<const char*>() && doc["mac"].is<const char*>()) {
+    detectedGen = 1;
+    detectedModel = doc["type"].as<String>();
+    return true;
+  }
+
+  return false;
+}
+
+// =======================
 // MAIN: GET VALUES
 // =======================
 static bool readShellyScheduleList(ShellyDevice& dev, int switchId, int port) {
+  if (dev.gen == 1) {
+    if (dev.ip.length() == 0) return false;
+    if (!hasValidIPv4(dev.ip)) {
+      logPrint("[SHELLY] Gen1 schedule skipped: invalid IP '" + dev.ip + "'");
+      return false;
+    }
+
+    for (int i = 0; i < 7; i++) {
+      dev.schedules.days[i].onHour = -1;
+      dev.schedules.days[i].onMinute = -1;
+      dev.schedules.days[i].offHour = -1;
+      dev.schedules.days[i].offMinute = -1;
+    }
+
+    int code = 0;
+    String body;
+    const String path = "/settings/relay/" + String(switchId);
+    const bool ok = httpGetGen1(dev.ip, port, path,
+                                settings.shelly.username, settings.shelly.password,
+                                code, body);
+    if (!ok || body.length() == 0) {
+      logPrint("[SHELLY] Gen1 schedule read failed HTTP=" + String(code) +
+               " " + dev.ip + ":" + String(port) + path);
+      return false;
+    }
+
+    JsonDocument doc;
+    const DeserializationError err = deserializeJson(doc, body);
+    if (err) {
+      logPrint("[SHELLY] Gen1 schedule JSON parse error: " + String(err.c_str()));
+      return false;
+    }
+
+    bool haveOn = false;
+    bool haveOff = false;
+    int onHour = -1, onMinute = -1, offHour = -1, offMinute = -1;
+    JsonArray rules = doc["schedule_rules"].as<JsonArray>();
+    for (JsonVariant v : rules) {
+      if (!v.is<const char*>()) continue;
+      String rule = v.as<String>();
+      const int firstDash = rule.indexOf('-');
+      const int lastDash = rule.lastIndexOf('-');
+      if (firstDash != 4 || lastDash <= firstDash) continue;
+      const String hhmm = rule.substring(0, 4);
+      if (!isDigit(hhmm[0]) || !isDigit(hhmm[1]) || !isDigit(hhmm[2]) || !isDigit(hhmm[3])) continue;
+      const int hh = hhmm.substring(0, 2).toInt();
+      const int mm = hhmm.substring(2, 4).toInt();
+      if (hh < 0 || hh > 23 || mm < 0 || mm > 59) continue;
+      String action = rule.substring(lastDash + 1);
+      action.toLowerCase();
+      if (action == "on" && !haveOn) { haveOn = true; onHour = hh; onMinute = mm; }
+      if (action == "off" && !haveOff) { haveOff = true; offHour = hh; offMinute = mm; }
+      if (haveOn && haveOff) break;
+    }
+
+    for (int i = 0; i < 7; ++i) {
+      if (haveOn) { dev.schedules.days[i].onHour = onHour; dev.schedules.days[i].onMinute = onMinute; }
+      if (haveOff) { dev.schedules.days[i].offHour = offHour; dev.schedules.days[i].offMinute = offMinute; }
+    }
+    String onStr = haveOn
+      ? (String(onHour) + ":" + (onMinute < 10 ? "0" : "") + String(onMinute))
+      : String("unset");
+    String offStr = haveOff
+      ? (String(offHour) + ":" + (offMinute < 10 ? "0" : "") + String(offMinute))
+      : String("unset");
+    logPrint("[SHELLY] Gen1 schedule read " + dev.ip +
+             " ON=" + onStr + " OFF=" + offStr);
+    return true;
+  }
+
   if (dev.gen < 2) {
-    logPrint("[SHELLY] Schedule.List skipped: Gen2+ required");
+    logPrint("[SHELLY] Schedule.List skipped: invalid generation " + String(dev.gen));
     return false;
   }
 
@@ -2391,44 +1541,31 @@ static bool refreshShellyLightSchedule(bool force) {
   return ok;
 }
 
-static void sendShellyScheduleRefreshResponse(ShellyDevice& dev, bool ok) {
-  const DailySchedule& ds = dev.schedules.days[0];
-  String resp = "{";
-  resp += "\"ok\":" + String(ok ? "true" : "false");
-  resp += ",\"on\":\"";
-  resp += (ds.onHour >= 0 && ds.onMinute >= 0) ? _fmtHHMM(ds.onHour, ds.onMinute) : String("");
-  resp += "\"";
-  resp += ",\"off\":\"";
-  resp += (ds.offHour >= 0 && ds.offMinute >= 0) ? _fmtHHMM(ds.offHour, ds.offMinute) : String("");
-  resp += "\"";
-  resp += "}";
-
-  server.send(ok ? 200 : 502, "application/json; charset=utf-8", resp);
+static const char* shellyGenerationPreferenceKey(const ShellyDevice& dev) {
+  if (&dev == &settings.shelly.main) return KEY_SHELLYMAINGEN;
+  if (&dev == &settings.shelly.light) return KEY_SHELLYLIGHTGEN;
+  if (&dev == &settings.shelly.humidifier) return KEY_SHELLYHUMGEN;
+  if (&dev == &settings.shelly.heater) return KEY_SHELLYHEATERGEN;
+  if (&dev == &settings.shelly.fan) return KEY_SHELLYFANGEN;
+  if (&dev == &settings.shelly.exhaust) return KEY_SHELLYEXHAUSTGEN;
+  if (&dev == &settings.shelly.heatmat) return KEY_SHELLYHEATMATGEN;
+  return nullptr;
 }
 
-void handleRefreshShellyLightSchedule() {
-  const bool ok = refreshShellyLightSchedule(true);
-  sendShellyScheduleRefreshResponse(settings.shelly.light, ok);
-}
-
-void handleRefreshShellyHumidifierSchedule() {
-  const bool ok = readShellyScheduleList(settings.shelly.humidifier, 0, 80);
-  sendShellyScheduleRefreshResponse(settings.shelly.humidifier, ok);
-}
-
-void handleRefreshShellyHeaterSchedule() {
-  const bool ok = readShellyScheduleList(settings.shelly.heater, 0, 80);
-  sendShellyScheduleRefreshResponse(settings.shelly.heater, ok);
-}
-
-void handleRefreshShellyFanSchedule() {
-  const bool ok = readShellyScheduleList(settings.shelly.fan, 0, 80);
-  sendShellyScheduleRefreshResponse(settings.shelly.fan, ok);
-}
-
-void handleRefreshShellyExhaustSchedule() {
-  const bool ok = readShellyScheduleList(settings.shelly.exhaust, 0, 80);
-  sendShellyScheduleRefreshResponse(settings.shelly.exhaust, ok);
+static bool persistAutoDetectedShellyGeneration(ShellyDevice& dev, int detectedGen) {
+  const char* key = shellyGenerationPreferenceKey(dev);
+  if (!key || detectedGen < 1 || detectedGen > 4) return false;
+  Preferences prefs;
+  if (!prefs.begin(PREF_NS, false)) return false;
+  const int current = prefs.getInt(key, -99);
+  if (current == detectedGen) {
+    prefs.end();
+    return true;
+  }
+  prefs.putInt(key, detectedGen);
+  const bool ok = prefs.getInt(key, -99) == detectedGen;
+  prefs.end();
+  return ok;
 }
 
 ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
@@ -2445,15 +1582,38 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
     return v;
   }
 
-  String path = (dev.gen == 1)
+  int configuredGen = dev.gen;
+  bool autoDetectedUnknownGeneration = false;
+  if (configuredGen == 0) {
+    int detectedGen = 0;
+    int detectHttpCode = -1;
+    String detectedModel;
+    if (!detectShellyGeneration(dev.ip, port,
+                                settings.shelly.username, settings.shelly.password,
+                                detectedGen, detectedModel, detectHttpCode)) {
+      logPrint("[SHELLY][DETECT] unresolved generation for " + dev.ip +
+               " HTTP=" + String(detectHttpCode));
+      return v;
+    }
+    configuredGen = detectedGen;
+    dev.gen = detectedGen;
+    autoDetectedUnknownGeneration = true;
+    logPrint("[SHELLY][DETECT] runtime recovered " + dev.ip + " as Gen" + String(detectedGen) +
+             (detectedModel.length() ? " model=" + detectedModel : String("")));
+  }
+
+  bool parseAsGen1 = (configuredGen == 1);
+  bool autoDetectedGen1 = false;
+  String path = parseAsGen1
     ? "/status"
     : ("/rpc/Switch.GetStatus?id=" + String(switchId));
+  (void)autoDetectedUnknownGeneration;
 
   int code = 0;
   String body;
   bool ok = false;
 
-  if (dev.gen == 1) {
+  if (parseAsGen1) {
     ok = httpGetGen1(dev.ip, port, path,
                      settings.shelly.username, settings.shelly.password,
                      code, body);
@@ -2463,8 +1623,26 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
                                    code, body);
   }
 
+  // A legacy Gen1 may have been saved as Gen2/3 in older dashboard versions.
+  // If RPC status fails, probe the read-only Gen1 /status endpoint once.
+  if (!ok && configuredGen >= 2) {
+    int fallbackCode = 0;
+    String fallbackBody;
+    const bool fallbackOk = httpGetGen1(dev.ip, port, "/status",
+                                        settings.shelly.username, settings.shelly.password,
+                                        fallbackCode, fallbackBody);
+    if (fallbackOk && fallbackBody.length() > 0) {
+      ok = true;
+      code = fallbackCode;
+      body = fallbackBody;
+      path = "/status";
+      parseAsGen1 = true;
+      autoDetectedGen1 = true;
+    }
+  }
+
   if (!ok) {
-    logPrint("[SHELLY] request failed gen=" + String(dev.gen) +
+    logPrint("[SHELLY] request failed gen=" + String(configuredGen) +
              " HTTP=" + String(code) + " " + dev.ip + ":" + String(port) + path);
     if (body.length()) logPrint("[SHELLY] body(first200): " + body.substring(0, 200));
     return v;
@@ -2484,11 +1662,24 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
     return v;
   }
 
-  if (dev.gen == 1) {
+  if (parseAsGen1) {
     // Gen1: relays[x].ison, meters[x].power, meters[x].total
+    if (!doc["relays"][switchId].is<JsonObject>()) {
+      logPrint("[SHELLY] Gen1 probe rejected: missing relays[" + String(switchId) + "] on " + dev.ip);
+      return v;
+    }
     v.isOn     = doc["relays"][switchId]["ison"] | false;
     v.powerW   = doc["meters"][switchId]["power"] | NAN;
     v.energyWh = doc["meters"][switchId]["total"] | NAN;
+
+    if (autoDetectedGen1) {
+      dev.gen = 1;
+      // Detection may run from the Shelly polling task. Keep NVS writes out of
+      // that task; the normal main-loop action path persists the corrected
+      // generation before it performs a user-requested operation.
+      logPrint("[SHELLY] auto-detected Gen1 for " + dev.ip +
+               " (configured Gen" + String(configuredGen) + ") runtime corrected");
+    }
   } else {
     // Gen2+: Switch.GetStatus
     v.isOn     = doc["output"] | false;
@@ -2547,7 +1738,7 @@ static bool shellyResetEnergyCounters(ShellyDevice &dev, uint8_t switchId = 0, u
 }
 
 // =======================
-// Uses the same Digest auto-auth mechanism.
+// Generation-aware switch command: Gen1 uses legacy REST/Basic Auth; Gen2/3 use RPC/Digest.
 // =======================
 static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t switchId = 0, uint16_t port = 80) {
   if (WiFi.status() != WL_CONNECTED) return false;
@@ -2571,10 +1762,17 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
   int code = -1;
   String body;
 
-  bool ok = httpGetWithDigestAutoAuth(host, port, path,
-                                     settings.shelly.username,
-                                     settings.shelly.password,
-                                     code, body);
+  bool ok = false;
+  if (gen == 1) {
+    ok = httpGetGen1(host, port, path,
+                     settings.shelly.username, settings.shelly.password,
+                     code, body);
+  } else {
+    ok = httpGetWithDigestAutoAuth(host, port, path,
+                                   settings.shelly.username,
+                                   settings.shelly.password,
+                                   code, body);
+  }
   logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
   return ok && (code == 200);
 }
@@ -2669,7 +1867,7 @@ static bool applyShellyLightSchedule(const String& onTimeHHMM, int dayHours){
     const String rules = on4 + "-0123456-on," + off4 + "-0123456-off";
     const String path = String("/settings/relay/0?schedule=true&schedule_rules=") + _urlEncodeQS(rules);
 
-    const bool ok = httpGetWithDigestAutoAuth(ip, 80, path, user, pass, status, body);
+    const bool ok = httpGetGen1(ip, 80, path, user, pass, status, body);
     Serial.printf("[SHELLY][LIGHT][SCHEDULE] Gen1 set rules=%s status=%d ok=%d\n", rules.c_str(), status, (int)ok);
     return ok && (status >= 200 && status < 300);
   }
@@ -2751,11 +1949,13 @@ static void controlHeaterByTemperature() {
     // Abort if there is no valid temperature reading
     if (isnan(cur.temperatureC)) return;
 
-    // Control tuning
-    const float HYST = 0.25f;
-    const float PREDICT_SEC = 180.0f;
-    const uint32_t MIN_ON_MS = 120000UL;
-    const uint32_t MIN_OFF_MS = 120000UL;
+    // Control tuning. These defaults were historically fixed at
+    // 0.25 C / 180 s / 120 s / 120 s. v0.2.66 keeps those defaults but
+    // allows the persisted values to be applied safely from the main loop.
+    const float HYST = settings.heating.hysteresisC;
+    const float PREDICT_SEC = settings.heating.predictSeconds;
+    const uint32_t MIN_ON_MS = (uint32_t)settings.heating.minOnSeconds * 1000UL;
+    const uint32_t MIN_OFF_MS = (uint32_t)settings.heating.minOffSeconds * 1000UL;
 
     // Persistent controller state
     static float lastTemp = NAN;
@@ -3013,65 +2213,6 @@ static int clampInt(int v, int lo, int hi) {
 }
 
 // Resets Shelly energy counters for both main and light devices (if configured).
-static void handleResetShellyEnergy() {
-    if (!preferences.begin(PREF_NS, false)) {
-        server.send(500, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"prefs\"}");
-        return;
-    }
-
-    auto resetOne = [&](ShellyDevice& device, const char* offsetKey) -> bool {
-        if (device.ip.isEmpty()) {
-            return false;
-        }
-
-        device.energyOffsetWh = 0.0f;
-
-        const ShellyValues values = getShellyValues(device, 0, 80);
-        const float rawEnergyWh = isnan(values.energyWh) ? 0.0f : values.energyWh;
-
-        device.energyOffsetWh = rawEnergyWh;
-        preferences.putFloat(offsetKey, rawEnergyWh);
-
-        const bool resetSucceeded = shellyResetEnergyCounters(device, 0, 80);
-
-        if (resetSucceeded) {
-            device.energyOffsetWh = 0.0f;
-            preferences.putFloat(offsetKey, 0.0f);
-        }
-
-        return resetSucceeded;
-    };
-
-    const bool mainResetOk  = resetOne(settings.shelly.main, KEY_SHELLYMAINOFF);
-    const bool lightResetOk = resetOne(settings.shelly.light, KEY_SHELLYLIGHTOFF);
-    const bool humidifierResetOk = resetOne(settings.shelly.humidifier, KEY_SHELLYHUMOFF);
-    const bool heaterResetOk = resetOne(settings.shelly.heater, KEY_SHELLYHEATEROFF);
-    const bool fanResetOk = resetOne(settings.shelly.fan, KEY_SHELLYFANOFF);
-    const bool exhaustResetOk = resetOne(settings.shelly.exhaust, KEY_SHELLYEXHAUSTOFF);
-    const bool heatmatResetOk = resetOne(settings.shelly.heatmat, KEY_SHELLYHEATMATOFF);
-
-    preferences.end();
-
-    String response =
-        String("{\"ok\":true,\"main\":") +
-        (mainResetOk ? "true" : "false") +
-        ",\"light\":" +
-        (lightResetOk ? "true" : "false") +
-        ",\"humidifier\":" +
-        (humidifierResetOk ? "true" : "false") +
-        ",\"heater\":" +
-        (heaterResetOk ? "true" : "false") +
-        ",\"fan\":" +
-        (fanResetOk ? "true" : "false") +
-        ",\"exhaust\":" +
-        (exhaustResetOk ? "true" : "false") +
-        ",\"heatmat\":" +
-        (heatmatResetOk ? "true" : "false") +
-        "}";
-
-    server.send(200, "application/json; charset=utf-8", response);
-}
-
 // Humidifier control:
 // Trigger Shelly humidifier ON when VPD is above target.
 // Shelly auto-off handles the OFF time on the Shelly device.
@@ -3161,57 +2302,6 @@ static size_t enabledIrrigationPumpCount() {
 }
 
 // Handles a pump pulse request for a zero-based relay index.
-void handlePumpPulseIdx(int idx, uint32_t ms = 10000UL) {
-    const int pumpSlot = irrigationPumpSlotFromRelayIndex(idx);
-
-    if (pumpSlot < 0) {
-        server.send(
-            400,
-            "application/json",
-            "{\"ok\":false,\"err\":\"invalid_pump_idx\"}"
-        );
-        return;
-    }
-
-    // Reject relays that are not available on the currently selected relay board.
-    if (idx < 0 || idx >= NUM_RELAYS || idx >= activeRelayCount || relayPins[idx] < 0) {
-        server.send(
-            400,
-            "application/json",
-            "{\"ok\":false,\"err\":\"out_of_range\"}"
-        );
-        return;
-    }
-
-    // A disabled pump must not run through the manual 10-second test endpoint.
-    if (!irrigation.pumpEnabled[pumpSlot]) {
-        server.send(
-            409,
-            "application/json",
-            "{\"ok\":false,\"err\":\"pump_disabled\"}"
-        );
-        logPrint("[PUMP] Relay " + String(idx + 1) + " ignored because the pump is disabled.");
-        return;
-    }
-
-    // Turn the selected pump on now.
-    setRelay(idx, true);
-
-    // arm auto-off timer
-    relayOffTime[idx] = millis() + ms;
-    relayActive[idx] = true;
-
-    String res = "{";
-    res += "\"ok\":true";
-    res += ",\"id\":" + String(idx + 1);
-    res += ",\"state\":true";
-    res += ",\"pulseMs\":" + String(ms);
-    res += "}";
-
-    server.send(200, "application/json", res);
-    logPrint("[PUMP] Relay " + String(idx + 1) + " ON for " + String(ms) + "ms");
-}
-
 static void processPumpAutoOff() {
   const uint32_t now = millis();
 
@@ -3251,6 +2341,7 @@ static void stopAllIrrigationPumps() {
 // does not continue with the next pump/run after an interruptible wait.
 static void requestIrrigationStop(const char* source) {
     irrigationStopRequested = true;
+    irrigationStartNotifyPending = false;
     irrigation.irrigationRuns = 0;
     irrigation.wTimeLeft = "00:00";
     stopAllIrrigationPumps();
@@ -3265,162 +2356,9 @@ static void requestIrrigationStop(const char* source) {
 // Starts an irrigation cycle from either the API endpoint or the dashboard.
 // The source flag is used only for diagnostics/notifications; all safety and
 // configuration checks are shared so no start path can bypass them.
-static void handleStartWateringInternal(bool startedViaApi) {
-    // Do not start a new cycle while one is already running
-    if (irrigation.irrigationRuns > 0) {
-        logPrint("[IRRIGATION] Already running. Start request ignored.");
-        server.sendHeader("Location", "/");
-        server.send(303);
-        return;
-    }
-
-    // When the optional Flood irrigation safety interlock is enabled, a known
-    // active Flood alarm blocks every automatic irrigation start path. The same
-    // condition already aborts a running cycle in the Flood webhook handler.
-    if (
-        irrigation.stopOnFloodAlarm &&
-        settings.flood.enabled &&
-        floodState.known &&
-        floodState.alarm
-    ) {
-        logPrint(
-            String("[IRRIGATION] Start blocked: Flood alarm is active. source=") +
-            (startedViaApi ? "api" : "dashboard")
-        );
-        irrigation.wTimeLeft = "00:00";
-        server.sendHeader("Location", "/");
-        server.send(303);
-        return;
-    }
-
-    const size_t activePumpCount = enabledIrrigationPumpCount();
-
-    // Do not start a watering cycle when every pump is disabled.
-    if (activePumpCount == 0) {
-        logPrint("[IRRIGATION] Aborted: no irrigation pumps are enabled.");
-        irrigation.wTimeLeft = "00:00";
-        server.sendHeader("Location", "/");
-        server.send(303);
-        return;
-    }
-
-    // Validate configuration
-    if (
-        irrigation.timePerTask <= 0 ||
-        irrigation.betweenTasks <= 0 ||
-        irrigation.amountOfWater <= 0.0f ||
-        irrigation.amount <= 0.0f
-    ) {
-        logPrint(
-            "[IRRIGATION] Invalid configuration. Check timePerTask, "
-            "betweenTasks, amountOfWater, irrigationAmount."
-        );
-        server.sendHeader("Location", "/");
-        server.send(303);
-        return;
-    }
-
-    // amountOfWater = ml delivered in 10 seconds PER POT / PER RELAY
-    // timePerTask   = seconds watering time per task
-    // amount        = target total ml PER POT
-    const float mlPerSecondPerPot = irrigation.amountOfWater / 10.0f;
-    const float mlPerTaskPerPot =
-        mlPerSecondPerPot * (float)irrigation.timePerTask;
-
-    if (mlPerTaskPerPot <= 0.0f) {
-        logPrint("[IRRIGATION] Computed mlPerTaskPerPot <= 0. Aborting.");
-        server.sendHeader("Location", "/");
-        server.send(303);
-        return;
-    }
-
-    // A new cycle explicitly clears a previous stop request.
-    irrigationStopRequested = false;
-
-    // Number of tasks needed so that each pot reaches the configured target amount
-    irrigation.irrigationRuns =
-        (int)ceilf(irrigation.amount / mlPerTaskPerPot);
-
-    if (irrigation.irrigationRuns <= 0) {
-        logPrint("[IRRIGATION] Computed runs <= 0. Aborting.");
-        server.sendHeader("Location", "/");
-        server.send(303);
-        return;
-    }
-
-    // Initialize remaining time display
-    irrigation.wTimeLeft = calculateEndtimeWatering();
-
-    logPrint(
-        "[IRRIGATION] Starting watering: targetPerPot=" +
-        String(irrigation.amount, 1) +
-        " ml, mlPerTaskPerPot=" + String(mlPerTaskPerPot, 1) +
-        ", runs=" + String(irrigation.irrigationRuns) +
-        ", activePumps=" + String(activePumpCount) +
-        ", plannedPerPot=" + String(irrigation.irrigationRuns * mlPerTaskPerPot, 1) + " ml" +
-        ", source=" + String(startedViaApi ? "api" : "dashboard")
-    );
-
-    if (language == "de") {
-        if (startedViaApi) {
-            sendPushover(
-                boxName + "Bewässerung über API gestartet. Dauer: " + calculateEndtimeWatering(),
-                boxName + "Bewässerung über API gestartet."
-            );
-        } else {
-            sendPushover(
-                boxName + "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
-                boxName + "Bewässerung startet."
-            );
-        }
-        sendGotify(
-            boxName + "Bewässerung startet. Dauer: " + calculateEndtimeWatering(),
-            boxName + "Bewässerung startet."
-        );
-    } else {
-        if (startedViaApi) {
-            sendPushover(
-                boxName + "Irrigation started via API. Duration: " + calculateEndtimeWatering(),
-                boxName + "Irrigation started via API."
-            );
-        } else {
-            sendPushover(
-                boxName + "Irrigation started. Duration: " + calculateEndtimeWatering(),
-                boxName + "Irrigation started."
-            );
-        }
-        sendGotify(
-            boxName + "Irrigation started. Duration: " + calculateEndtimeWatering(),
-            boxName + "Irrigation started."
-        );
-    }
-
-    server.sendHeader("Location", "/");
-    server.send(303);
-}
-
 // Public API route handler. Calls the shared start path with an explicit API source.
-void handleStartWatering() {
-    handleStartWateringInternal(true);
-}
-
 // True dashboard toggle: stop an active watering cycle immediately, otherwise
 // start a new cycle through the same validations/safety interlocks as the API.
-void handleToggleWatering() {
-    if (irrigation.irrigationRuns > 0) {
-        requestIrrigationStop("dashboard");
-
-        server.send(
-            200,
-            "application/json",
-            "{\"ok\":true,\"action\":\"stopped\",\"running\":false}"
-        );
-        return;
-    }
-
-    handleStartWateringInternal(false);
-}
-
 // Calculates fill percentage from ultrasonic distance:
 // minTank = full tank / smallest distance, maxTank = empty tank / largest distance.
 float calculateTankPercent(float current, float minTank, float maxTank) {
@@ -3431,22 +2369,6 @@ float calculateTankPercent(float current, float minTank, float maxTank) {
 }
 
 // Reads the tank level using an ultrasonic sensor and updates the internal state and logs the result.
-void readTankLevel() {
-  tankLevelCm = pingTankLevel(TRIG, ECHO);
-  if (!isnan(tankLevelCm)) {
-    logPrint("[TANK LEVEL] Current distance to water: " + String(tankLevelCm, 0) + " cm");
-    server.sendHeader("Location", "/");
-    server.send(303);
-    if (irrigation.tank.max == 0 || irrigation.tank.max == irrigation.tank.min) return;
-    tankLevel = calculateTankPercent(tankLevelCm, irrigation.tank.min, irrigation.tank.max);
-    logPrint("[TANK LEVEL] Current tank level: " + String(tankLevel) + " %");
-  } else {
-    logPrint("[TANK LEVEL] Error reading tank level.");
-    server.sendHeader("Location", "/");
-    server.send(303);
-  }
-}
-
 // Calculates the estimated end time for the watering process based on the number of runs, time per task, and pause between tasks.
 String calculateEndtimeWatering() {
     const unsigned long runs =
