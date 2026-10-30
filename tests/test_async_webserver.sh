@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.5 / phase 32 fallback-AP lifecycle fix
+# Test build: v0.4.6 / phase 32 OTA request-status lifecycle fix
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -153,7 +153,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.5 / Async phase 32 fallback-AP lifecycle fix"
+log "Test build target: v0.4.6 / Async phase 32 fallback-AP lifecycle fix"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -163,7 +163,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.5"
+EXPECTED_FW_VERSION="v0.4.6"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -231,7 +231,7 @@ for spec in "root|/|GET" "style|/style.css|GET" "script|/script.js|GET" "favicon
     LEGACY_UI_FAILURES=$((LEGACY_UI_FAILURES + 1))
   fi
 done
-# v0.4.5: when STA is connected, a boot-time fallback AP must already have
+# v0.4.6: when STA is connected, a boot-time fallback AP must already have
 # released DNS/TCP80 and returned to STA-only mode. This check catches the
 # v0.3.08 lifecycle bug directly instead of relying only on port probes.
 phase0a_health="$(curl -sS --http1.1 --max-time 5 "$BASE8080/api/async/health" 2>>"$LOGFILE" || true)"
@@ -3587,7 +3587,7 @@ else
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
 fi
 
-phase32_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=0.4.2&phase32=contract" 2>>"$LOGFILE" || true)"
+phase32_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=0.4.6&phase32=contract" 2>>"$LOGFILE" || true)"
 if [[ "$phase32_js" == *"/savemessagesettings"* &&       "$phase32_js" == *"/api/settings/message-status?requestId="* &&       "$phase32_js" == *"/api/newgrow/status?requestId="* &&       "$phase32_js" == *"/api/ota/check-status?requestId="* &&       "$phase32_js" == *"/api/ota/update-status?requestId="* &&       "$phase32_js" == *'"message.saving": { de:'* &&       "$phase32_js" == *'"ota.checking": { de:'* && \
       "$phase32_js" == *'"ota.reinstallButton": { de:'* && \
       "$phase32_js" == *"window.checkForOtaUpdate = async function"* && \
@@ -3607,8 +3607,8 @@ if [[ "$phase32_html" == *'id="otaCheckBtn"'* && \
       "$phase32_html" == *'id="otaInstallBtn"'* && \
       "$phase32_html" != *'onclick="checkForOtaUpdate()"'* && \
       "$phase32_html" != *'onclick="startOtaUpdate()"'* && \
-      "$phase32_html" == *'/script.js?v=0.4.2'* ]]; then
-  log "PASS OTA dashboard buttons use DOM event binding and v0.4.5 script cache-buster; no inline onclick dependency remains"
+      "$phase32_html" == *'/script.js?v=0.4.6'* ]]; then
+  log "PASS OTA dashboard buttons use DOM event binding and v0.4.6 script cache-buster; no inline onclick dependency remains"
 else
   log "FAIL OTA dashboard button binding/cache-buster contract missing"
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
@@ -3721,6 +3721,17 @@ IFS=$'\t' read -r phase32_ota_real_http _ _ <<< "$phase32_ota_real_meta"
 phase32_ota_real_resp="$(cat "$phase32_ota_real_body" 2>/dev/null || true)"
 phase32_ota_real_id="$(json_uint_field "$phase32_ota_real_resp" requestId)"
 if [[ "$phase32_ota_real_rc" -eq 0 && "$phase32_ota_real_http" == "202" && -n "$phase32_ota_real_id" && "$phase32_ota_real_resp" == *'"dryRun":false'* ]]; then
+  # v0.4.6 regression: queueing a new OTA job must not invalidate the terminal
+  # requestId of the previous OTA check. The old dry-run request must remain
+  # queryable instead of returning request_not_found.
+  phase32_ota_archived_status="$(curl -sS --max-time 3 "$BASE8080/api/ota/check-status?requestId=${phase32_ota_check_id}" 2>>"$LOGFILE" || true)"
+  if [[ "$(json_bool_field "$phase32_ota_archived_status" ok)" == "true" &&         "$(json_string_field "$phase32_ota_archived_status" state)" == "done" &&         "$phase32_ota_archived_status" != *'"request_not_found"'* ]]; then
+    log "PASS OTA terminal requestId remains queryable after next OTA job queue: oldId=$phase32_ota_check_id newId=$phase32_ota_real_id"
+  else
+    log "FAIL OTA terminal requestId archive regression: $phase32_ota_archived_status"
+    PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
+  fi
+
   phase32_ota_real_status=""
   for _ in $(seq 1 180); do
     phase32_ota_real_status="$(curl -sS --max-time 3 "$BASE8080/api/ota/check-status?requestId=${phase32_ota_real_id}" 2>>"$LOGFILE" || true)"

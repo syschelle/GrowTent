@@ -50,8 +50,30 @@ struct OtaRuntimeStatus {
   int manifestReceivedLength = 0;
 };
 
+struct OtaTerminalSnapshot {
+  bool valid = false;
+  OtaJobType type = OtaJobType::None;
+  OtaJobState state = OtaJobState::Idle;
+  uint32_t requestId = 0;
+  bool dryRun = false;
+  int percent = 0;
+  int currentBytes = 0;
+  int totalBytes = 0;
+  String message;
+  String error;
+  String latestVersion;
+  String firmwareUrl;
+  bool updateAvailable = false;
+  int checkAttempt = 0;
+  int manifestHttpCode = 0;
+  int manifestContentLength = -1;
+  int manifestReceivedLength = 0;
+};
+
 static SemaphoreHandle_t g_otaMutex = nullptr;
 static OtaRuntimeStatus g_otaStatus;
+static OtaTerminalSnapshot g_otaLastCheckStatus;
+static OtaTerminalSnapshot g_otaLastUpdateStatus;
 static uint32_t g_otaNextRequestId = 0;
 static TaskHandle_t g_otaWorkerTask = nullptr;
 static volatile bool g_otaJobQueued = false;
@@ -627,6 +649,42 @@ void otaInit() {
   if (!g_otaMutex) g_otaMutex = xSemaphoreCreateMutex();
 }
 
+static bool otaStateIsTerminal(OtaJobState state) {
+  return state == OtaJobState::Done || state == OtaJobState::Failed;
+}
+
+static void otaArchiveCurrentTerminalLocked() {
+  if (!otaStateIsTerminal(g_otaStatus.state) || g_otaStatus.requestId == 0) return;
+
+  OtaTerminalSnapshot* target = nullptr;
+  if (g_otaStatus.type == OtaJobType::Check) target = &g_otaLastCheckStatus;
+  else if (g_otaStatus.type == OtaJobType::Update) target = &g_otaLastUpdateStatus;
+  if (!target) return;
+
+  target->valid = true;
+  target->type = g_otaStatus.type;
+  target->state = g_otaStatus.state;
+  target->requestId = g_otaStatus.requestId;
+  target->dryRun = g_otaStatus.dryRun;
+  target->percent = g_otaStatus.percent;
+  target->currentBytes = g_otaStatus.currentBytes;
+  target->totalBytes = g_otaStatus.totalBytes;
+  target->message = g_otaStatus.message;
+  target->error = g_otaStatus.error;
+  target->latestVersion = g_otaStatus.latestVersion;
+  target->firmwareUrl = g_otaStatus.firmwareUrl;
+  target->updateAvailable = g_otaStatus.updateAvailable;
+  target->checkAttempt = g_otaStatus.checkAttempt;
+  target->manifestHttpCode = g_otaStatus.manifestHttpCode;
+  target->manifestContentLength = g_otaStatus.manifestContentLength;
+  target->manifestReceivedLength = g_otaStatus.manifestReceivedLength;
+
+  Serial.printf("[OTA STATUS] archived type=%s id=%lu state=%s\n",
+                g_otaStatus.type == OtaJobType::Check ? "check" : "update",
+                (unsigned long)g_otaStatus.requestId,
+                otaStateName(g_otaStatus.state));
+}
+
 static bool otaQueue(OtaJobType type, bool dryRun, uint32_t& requestId, String& errorOut) {
   errorOut = "";
   otaInit();
@@ -644,6 +702,11 @@ static bool otaQueue(OtaJobType type, bool dryRun, uint32_t& requestId, String& 
     errorOut = "ota_busy";
     return false;
   }
+
+  // v0.4.6: preserve the previous terminal result before reusing the single
+  // active-job slot. This keeps its requestId queryable while the next OTA job
+  // is already queued/running, without retaining the large changelog buffer.
+  otaArchiveCurrentTerminalLocked();
 
   requestId = ++g_otaNextRequestId;
   g_otaStatus = OtaRuntimeStatus();
@@ -675,10 +738,56 @@ static String otaStatusJsonFor(OtaJobType expectedType, uint32_t requestId) {
   if (xSemaphoreTake(g_otaMutex, pdMS_TO_TICKS(250)) != pdTRUE)
     return "{\"ok\":false,\"error\":\"handoff_busy\"}";
 
-  const bool matches = requestId != 0 && g_otaStatus.requestId == requestId && g_otaStatus.type == expectedType;
-  if (!matches) {
+  const bool liveMatch =
+      requestId != 0 &&
+      g_otaStatus.requestId == requestId &&
+      g_otaStatus.type == expectedType;
+
+  const OtaTerminalSnapshot* archived = nullptr;
+  if (!liveMatch && requestId != 0) {
+    OtaTerminalSnapshot* candidate =
+        expectedType == OtaJobType::Check ? &g_otaLastCheckStatus : &g_otaLastUpdateStatus;
+    if (candidate->valid &&
+        candidate->requestId == requestId &&
+        candidate->type == expectedType) {
+      archived = candidate;
+    }
+  }
+
+  if (!liveMatch && !archived) {
     xSemaphoreGive(g_otaMutex);
     return "{\"ok\":false,\"error\":\"request_not_found\"}";
+  }
+
+  if (archived) {
+    String json;
+    json.reserve(640);
+    json = "{\"ok\":true,\"requestId\":" + String(archived->requestId);
+    json += ",\"state\":\"" + String(otaStateName(archived->state)) + "\"";
+    json += ",\"dryRun\":" + String(archived->dryRun ? "true" : "false");
+    json += ",\"percent\":" + String(archived->percent);
+    json += ",\"current\":" + String(archived->currentBytes);
+    json += ",\"total\":" + String(archived->totalBytes);
+    if (expectedType == OtaJobType::Check) {
+      json += ",\"attempt\":" + String(archived->checkAttempt);
+      json += ",\"manifestHttpCode\":" + String(archived->manifestHttpCode);
+      json += ",\"manifestContentLength\":" + String(archived->manifestContentLength);
+      json += ",\"manifestReceivedLength\":" + String(archived->manifestReceivedLength);
+    }
+    json += ",\"message\":\"" + otaJsonEscape(archived->message) + "\"";
+    if (archived->error.length()) json += ",\"error\":\"" + otaJsonEscape(archived->error) + "\"";
+    if (expectedType == OtaJobType::Check && archived->state == OtaJobState::Done) {
+      json += ",\"currentVersion\":\"" + String(FW_VERSION) + "\"";
+      json += ",\"latestVersion\":\"" + otaJsonEscape(archived->latestVersion) + "\"";
+      json += ",\"updateAvailable\":" + String(archived->updateAvailable ? "true" : "false");
+      // Deliberately do not duplicate/archive the potentially multi-kilobyte
+      // changelog. Late pollers still receive the complete state/result contract.
+      json += ",\"changelog\":\"\"";
+      json += ",\"firmwareUrl\":\"" + otaJsonEscape(archived->firmwareUrl) + "\"";
+    }
+    json += "}";
+    xSemaphoreGive(g_otaMutex);
+    return json;
   }
 
   int statusPercent = g_otaStatus.percent;
