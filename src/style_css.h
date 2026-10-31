@@ -849,7 +849,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
 
     .runsettings-top-grid{
       display:grid;
-      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+      grid-template-columns:repeat(4,minmax(0,1fr));
       gap:14px;
       align-items:start;
     }
@@ -889,9 +889,9 @@ const char cssContent[] PROGMEM = R"rawliteral(
     }
 
     .runsettings-grow-fields{
-      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+      grid-template-columns:minmax(0,1fr);
     }
-    .runsettings-field-span-2{ grid-column:1 / -1; }
+    .runsettings-field-span-2{ grid-column:auto; }
 
     .runsettings-field{
       min-width:0;
@@ -1096,6 +1096,10 @@ const char cssContent[] PROGMEM = R"rawliteral(
       min-width:190px;
       padding-inline:22px;
       font-weight:700;
+    }
+
+    @media (max-width:1450px){
+      .runsettings-top-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 
     @media (max-width:1100px){

@@ -1,7 +1,7 @@
-GrowTent v0.4.23 Operating Settings phase-header refinement package
+GrowTent v0.4.24 Operating Settings phase-header refinement package
 
 Expected src/build_version.h:
-#define FW_VERSION "v0.4.23"
+#define FW_VERSION "v0.4.24"
 
 Release focus:
 - move Current Phase control into the Operating Settings page header
