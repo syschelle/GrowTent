@@ -849,14 +849,12 @@ const char cssContent[] PROGMEM = R"rawliteral(
 
     .runsettings-top-grid{
       display:grid;
-      /* Wide desktop / Full-HD: keep all four cards on one row, but give the
-         compact Temperature card extremely little width and reserve the extra space for
-         Irrigation, which has the densest controls. */
+      /* Wide desktop / Full-HD: Grow periods, Temperature and VPD share the top row.
+         Irrigation, its parameters and Heating are grouped in one dedicated row below. */
       grid-template-columns:
-        minmax(300px,1.1fr)
-        minmax(120px,.24fr)
-        minmax(320px,1fr)
-        minmax(500px,1.66fr);
+        minmax(330px,1.15fr)
+        minmax(150px,.42fr)
+        minmax(360px,1.15fr);
       gap:14px;
       align-items:stretch;
     }
@@ -981,6 +979,20 @@ const char cssContent[] PROGMEM = R"rawliteral(
       opacity:.7;
     }
 
+    .runsettings-operations-row{
+      display:grid;
+      grid-template-columns:minmax(280px,.9fr) minmax(620px,2.15fr) minmax(300px,1fr);
+      gap:14px;
+      align-items:stretch;
+      margin-bottom:14px;
+    }
+    .runsettings-operations-row > .runsettings-panel{
+      height:100%;
+      margin-bottom:0;
+    }
+    .runsettings-irrigation-checks-stacked{
+      grid-template-columns:1fr;
+    }
     .runsettings-irrigation-params{
       margin-top:0;
     }
@@ -988,6 +1000,10 @@ const char cssContent[] PROGMEM = R"rawliteral(
       display:grid;
       grid-template-columns:repeat(4,minmax(0,1fr));
       gap:14px 18px;
+    }
+    .runsettings-param-grid-inline{
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:12px 14px;
     }
 
     .runsettings-heating-panel{
@@ -997,6 +1013,10 @@ const char cssContent[] PROGMEM = R"rawliteral(
       display:grid;
       grid-template-columns:minmax(0,1fr) minmax(0,1fr);
       gap:16px;
+    }
+    .runsettings-heating-grid-stacked{
+      grid-template-columns:1fr;
+      gap:12px;
     }
 
     #runsettings .relay-sched{
@@ -1114,11 +1134,18 @@ const char cssContent[] PROGMEM = R"rawliteral(
        space for the Irrigation card. */
     @media (max-width:1500px){
       .runsettings-top-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .runsettings-operations-row{ grid-template-columns:minmax(260px,.85fr) minmax(0,1.65fr); }
+      .runsettings-operations-row .runsettings-heating-panel{ grid-column:1 / -1; }
+      .runsettings-heating-grid-stacked{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 
     @media (max-width:1100px){
-      .runsettings-param-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .runsettings-operations-row{ grid-template-columns:1fr; }
+      .runsettings-operations-row .runsettings-heating-panel{ grid-column:auto; }
+      .runsettings-param-grid,
+      .runsettings-param-grid-inline{ grid-template-columns:repeat(2,minmax(0,1fr)); }
       .runsettings-vpd-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .runsettings-heating-grid-stacked{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 
     @media (max-width:760px){
@@ -1138,10 +1165,13 @@ const char cssContent[] PROGMEM = R"rawliteral(
       }
       .runsettings-energy-reset{ width:100% !important; }
       .runsettings-top-grid,
+      .runsettings-operations-row,
       .runsettings-grow-fields,
       .runsettings-heating-grid,
+      .runsettings-heating-grid-stacked,
       .runsettings-irrigation-checks,
       .runsettings-param-grid,
+      .runsettings-param-grid-inline,
       .runsettings-vpd-grid{
         grid-template-columns:1fr;
       }

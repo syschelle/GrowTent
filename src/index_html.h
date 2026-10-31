@@ -557,10 +557,13 @@ const char* htmlPage = R"rawliteral(
           </div>
         </div>
 
-        <div class="runsettings-panel relay-extra" id="irrigationSettingsSection" style="display:none;">
+      </div>
+
+      <div class="runsettings-operations-row">
+        <div class="runsettings-panel relay-extra runsettings-irrigation-settings-card" id="irrigationSettingsSection" style="display:none;">
           <h2 class="runsettings-panel-title" data-i18n="runsetting.wateringSettings">Bewässerungseinstellung</h2>
           <p class="hint runsettings-panel-hint" data-i18n="runsetting.pumpsHint">Aktivieren Sie nur die Pumpen für tatsächlich verwendete Töpfe.</p>
-          <div class="runsettings-irrigation-checks">
+          <div class="runsettings-irrigation-checks runsettings-irrigation-checks-stacked">
             <div class="runsettings-pumps-box">
               <label class="inline-checkbox">
                 <input type="checkbox" name="webPump1Enabled" id="webPump1Enabled" %PUMP1_ENABLED_CHECKED%>
@@ -584,62 +587,63 @@ const char* htmlPage = R"rawliteral(
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="runsettings-panel runsettings-irrigation-params relay-extra" id="irrigationParameterSection" style="display:none;">
-        <div class="runsettings-param-grid">
-          <div class="runsettings-field runsettings-field-unit">
-            <label for="webTimePerTask" data-i18n="runsetting.timePerTask">Bewässerungszeit pro Task:</label>
-            <div class="runsettings-control-unit"><input name="webTimePerTask" id="webTimePerTask" type="number" step="1" min="1" max="10" value="%TIMEPERTASK%"><span>s</span></div>
-            <small>(min 1s, max 10s, step 1s)</small>
-          </div>
-          <div class="runsettings-field runsettings-field-unit">
-            <label for="webBetweenTasks" data-i18n="runsetting.betweenTasks">Pause zwischen Bewässerungen:</label>
-            <div class="runsettings-control-unit"><input name="webBetweenTasks" id="webBetweenTasks" type="number" step="1" min="1" max="10" value="%BETWEENTASKS%"><span>Min</span></div>
-            <small>(min 1Min, max 10Min, step 1Min)</small>
-          </div>
-          <div class="runsettings-field runsettings-field-unit">
-            <label for="webAmountOfWater" data-i18n="runsetting.amountOfWater">Wassermenge nach 10 Sekunden:</label>
-            <div class="runsettings-control-unit"><input name="webAmountOfWater" id="webAmountOfWater" type="number" step="5" min="10" max="500" value="%AMOUNTOFWATER%"><span>ml</span></div>
-            <small>(min 10ml, max 500ml, step 5ml)</small>
-          </div>
-          <div class="runsettings-field runsettings-field-unit">
-            <label for="webIrrigation" data-i18n="runsetting.irrigation">Gesamte Bewässerungsmenge:</label>
-            <div class="runsettings-control-unit"><input name="webIrrigation" id="webIrrigation" type="number" step="10" min="100" max="3000" value="%IRRIGATION%"><span>ml</span></div>
-            <small>(min 100ml, max 3000ml, step 10ml)</small>
-          </div>
-          <div class="runsettings-field runsettings-field-unit">
-            <label for="webMaxTank">0% Tank:</label>
-            <div class="runsettings-control-unit"><input name="webMaxTank" id="webMaxTank" type="number" value="%MAXTANK%"><span>cm</span></div>
-          </div>
-          <div class="runsettings-field runsettings-field-unit">
-            <label for="webMinTank">100% Tank:</label>
-            <div class="runsettings-control-unit"><input name="webMinTank" id="webMinTank" type="number" value="%MINTANK%"><span>cm</span></div>
+        <div class="runsettings-panel runsettings-irrigation-params relay-extra" id="irrigationParameterSection" style="display:none;">
+          <h2 class="runsettings-panel-title" data-i18n="runsetting.irrigationParameters">Bewässerungsparameter</h2>
+          <div class="runsettings-param-grid runsettings-param-grid-inline">
+            <div class="runsettings-field runsettings-field-unit">
+              <label for="webTimePerTask" data-i18n="runsetting.timePerTask">Bewässerungszeit pro Task:</label>
+              <div class="runsettings-control-unit"><input name="webTimePerTask" id="webTimePerTask" type="number" step="1" min="1" max="10" value="%TIMEPERTASK%"><span>s</span></div>
+              <small>(min 1s, max 10s, step 1s)</small>
+            </div>
+            <div class="runsettings-field runsettings-field-unit">
+              <label for="webBetweenTasks" data-i18n="runsetting.betweenTasks">Pause zwischen Bewässerungen:</label>
+              <div class="runsettings-control-unit"><input name="webBetweenTasks" id="webBetweenTasks" type="number" step="1" min="1" max="10" value="%BETWEENTASKS%"><span>Min</span></div>
+              <small>(min 1Min, max 10Min, step 1Min)</small>
+            </div>
+            <div class="runsettings-field runsettings-field-unit">
+              <label for="webAmountOfWater" data-i18n="runsetting.amountOfWater">Wassermenge nach 10 Sekunden:</label>
+              <div class="runsettings-control-unit"><input name="webAmountOfWater" id="webAmountOfWater" type="number" step="5" min="10" max="500" value="%AMOUNTOFWATER%"><span>ml</span></div>
+              <small>(min 10ml, max 500ml, step 5ml)</small>
+            </div>
+            <div class="runsettings-field runsettings-field-unit">
+              <label for="webIrrigation" data-i18n="runsetting.irrigation">Gesamte Bewässerungsmenge:</label>
+              <div class="runsettings-control-unit"><input name="webIrrigation" id="webIrrigation" type="number" step="10" min="100" max="3000" value="%IRRIGATION%"><span>ml</span></div>
+              <small>(min 100ml, max 3000ml, step 10ml)</small>
+            </div>
+            <div class="runsettings-field runsettings-field-unit">
+              <label for="webMaxTank">0% Tank:</label>
+              <div class="runsettings-control-unit"><input name="webMaxTank" id="webMaxTank" type="number" value="%MAXTANK%"><span>cm</span></div>
+            </div>
+            <div class="runsettings-field runsettings-field-unit">
+              <label for="webMinTank">100% Tank:</label>
+              <div class="runsettings-control-unit"><input name="webMinTank" id="webMinTank" type="number" value="%MINTANK%"><span>cm</span></div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="runsettings-panel runsettings-heating-panel">
-        <h2 class="runsettings-panel-title" data-i18n="runsetting.relayHeating">ESP32 Relay for heating</h2>
-        <p class="relay-heating-hint" data-i18n="runsetting.relay.heatingHint">Wird ein Relay für die Heizung verwendet, kann es hier konfigutiert werden.</p>
-        <div class="runsettings-heating-grid">
-          <div class="runsettings-field">
-            <label for="heatingSource" data-i18n="runsetting.relay.heatingSource">Heizungsquelle</label>
-            <select name="webHeatingSource" id="heatingSource">
-              <option value="0" %HEATSRC0_SEL%>Disabled</option>
-              <option value="1" %HEATSRC1_SEL%>ESP Relay</option>
-              <option value="2" %HEATSRC2_SEL%>Shelly Plug</option>
-            </select>
-          </div>
-          <div class="runsettings-field" id="heatingRelayRow">
-            <label for="heatingRelay" data-i18n="runsetting.relay.heatingRelay">Heizungs-Relay</label>
-            <select name="webHeatingRelay" id="heatingRelay">
-              <option value="" %HEATRELAY0_SEL% data-i18n="runsetting.relay.none">Keines</option>
-              <option value="1" %HEATRELAY1_SEL%>%RELAYNAMES1%</option>
-              <option value="2" %HEATRELAY2_SEL%>%RELAYNAMES2%</option>
-              <option value="3" %HEATRELAY3_SEL%>%RELAYNAMES3%</option>
-              <option value="4" %HEATRELAY4_SEL%>%RELAYNAMES4%</option>
-            </select>
+        <div class="runsettings-panel runsettings-heating-panel">
+          <h2 class="runsettings-panel-title" data-i18n="runsetting.relayHeating">ESP32 Relay for heating</h2>
+          <p class="relay-heating-hint" data-i18n="runsetting.relay.heatingHint">Wird ein Relay für die Heizung verwendet, kann es hier konfigutiert werden.</p>
+          <div class="runsettings-heating-grid runsettings-heating-grid-stacked">
+            <div class="runsettings-field">
+              <label for="heatingSource" data-i18n="runsetting.relay.heatingSource">Heizungsquelle</label>
+              <select name="webHeatingSource" id="heatingSource">
+                <option value="0" %HEATSRC0_SEL%>Disabled</option>
+                <option value="1" %HEATSRC1_SEL%>ESP Relay</option>
+                <option value="2" %HEATSRC2_SEL%>Shelly Plug</option>
+              </select>
+            </div>
+            <div class="runsettings-field" id="heatingRelayRow">
+              <label for="heatingRelay" data-i18n="runsetting.relay.heatingRelay">Heizungs-Relay</label>
+              <select name="webHeatingRelay" id="heatingRelay">
+                <option value="" %HEATRELAY0_SEL% data-i18n="runsetting.relay.none">Keines</option>
+                <option value="1" %HEATRELAY1_SEL%>%RELAYNAMES1%</option>
+                <option value="2" %HEATRELAY2_SEL%>%RELAYNAMES2%</option>
+                <option value="3" %HEATRELAY3_SEL%>%RELAYNAMES3%</option>
+                <option value="4" %HEATRELAY4_SEL%>%RELAYNAMES4%</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
