@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.18 / phase 32
+# Test build: v0.4.19 / phase 32
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -14,7 +14,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ESP_IP="$1"
-TEST_FW_VERSION="v0.4.18"
+TEST_FW_VERSION="v0.4.19"
 TEST_CACHE_BUSTER="${TEST_FW_VERSION#v}"
 BASE80="http://${ESP_IP}"
 BASE8080="http://${ESP_IP}:8080"
@@ -155,7 +155,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.18 / Async phase 32"
+log "Test build target: v0.4.19 / Async phase 32"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -165,7 +165,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.18"
+EXPECTED_FW_VERSION="v0.4.19"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -4145,6 +4145,16 @@ log "===== PHASE 5D: REAL ASYNC WRITE ROUTE /api/logbuffer/clear ====="
 preclear_file="${OUTDIR}/weblog-before-async-clear.txt"
 curl -sS --max-time 5 "$BASE8080/api/logbuffer" -o "$preclear_file" 2>>"$LOGFILE" || true
 preclear_bytes="$(wc -c < "$preclear_file" | tr -d ' ')"
+
+# v0.4.19 credential-log hardening: labels may be present, values must not be.
+# Do not print the matching line on failure because an older/incompatible build
+# could contain a real credential after "read =".
+if grep -Eq '\[PREFERENCES LOAD\] (pushoverAppKey|pushoverUserKey|pushoverDevice|gotifyToken) read = ' "$preclear_file"; then
+  log "FAIL notification credential value detected in system log"
+  LOGCLEAR_FAILURES=$((LOGCLEAR_FAILURES + 1))
+else
+  log "PASS notification credential values are hidden in system log"
+fi
 health_before_clear="$(fetch_async_health 5 || true)"
 clear_count_before="$(printf '%s' "$health_before_clear" | sed -n 's/.*"logClearRequests":\([0-9][0-9]*\).*/\1/p')"
 clear_count_before="${clear_count_before:-0}"

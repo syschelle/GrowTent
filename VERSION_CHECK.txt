@@ -1,17 +1,17 @@
-GrowTent v0.4.17 verified USB build package
+GrowTent v0.4.19 credential-log-hardening package
 
 Expected firmware definition:
 src/build_version.h
-#define FW_VERSION "v0.4.17"
+#define FW_VERSION "v0.4.19"
 
-Temperature-unit fix markers:
-- BME280 / dashboard absolute temperature: Celsius -> Fahrenheit display conversion
-- DS18B20 / external temperature: Celsius -> Fahrenheit display conversion
-- Running Settings target temperature: Celsius <-> Fahrenheit display/input conversion
-- Running Settings leaf-temperature offset: delta Celsius <-> delta Fahrenheit conversion
-- API/control/storage remain Celsius-native
+Security markers:
+- Pushover app token is hidden during Preferences load
+- Pushover user key is hidden during Preferences load
+- Pushover device identifier is hidden during Preferences load
+- Gotify app token is hidden during Preferences load
+- Pushover/Gotify raw HTTP response bodies are not written to Serial or the system log
+- Gotify token-bearing request URL is never logged
+- Notification request bodies are never logged
+- /api/state notification token fields remain masked
 
-IMPORTANT:
-Extract this package into a NEW folder.
-Do not merge it over an existing v0.4.16 project directory.
-Run `pio run -t clean` before building/uploading.
+No climate-control, relay, irrigation, Shelly-control, OTA-install or temperature-unit behavior is changed.

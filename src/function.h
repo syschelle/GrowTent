@@ -666,10 +666,13 @@ bool sendPushover(const String& message, const String& title) {
 
     int code = https.POST(body);
     String resp = https.getString();
+    const size_t responseBytes = resp.length();
     https.end();
 
-    logPrint("[MESSAGE] Pushover HTTP send code: " + String(code));
-    logPrint("[MESSAGE] " + resp);
+    // Never log the request body, credentials, or raw provider response.
+    // Serial and the system log share logPrint(), so this summary is safe for both.
+    logPrint("[MESSAGE] Pushover HTTP send code: " + String(code) +
+             " responseBytes=" + String(responseBytes));
 
     return (code == 200);
   } else {
@@ -701,10 +704,13 @@ bool sendGotify(const String& msg, const String& title, int priority) {
 
     int code = http.POST(body);
     String resp = http.getString();
+    const size_t responseBytes = resp.length();
     http.end();
 
-    logPrint("[MESSAGE] Gotify HTTP send code: " + String(code));
-    logPrint("[MESSAGE] " + resp);
+    // GOTIFY_URL contains the app token as a query parameter. Never log the URL,
+    // request body, token, or raw provider response.
+    logPrint("[MESSAGE] Gotify HTTP send code: " + String(code) +
+             " responseBytes=" + String(responseBytes));
     return (code >= 200 && code < 300);
   } else {
     logPrint("[MESSAGE] Gotify notification not sent: disabled");

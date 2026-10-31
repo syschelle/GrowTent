@@ -450,13 +450,13 @@ void readPreferences() {
   // notification settings
   loadPrefString(KEY_PUSHOVER, pushoverEnabled, "", true, "pushoverEnabled");
   if (pushoverEnabled == "checked") pushoverSent = true;
-  loadPrefString(KEY_PUSHOVERAPP, pushoverAppKey, "", true, "pushoverAppKey");
-  loadPrefString(KEY_PUSHOVERUSER, pushoverUserKey, "", true, "pushoverUserKey");
-  loadPrefString(KEY_PUSHOVERDEVICE, pushoverDevice, "", true, "pushoverDevice");
+  loadPrefString(KEY_PUSHOVERAPP, pushoverAppKey, "", false, "pushoverAppKey");
+  loadPrefString(KEY_PUSHOVERUSER, pushoverUserKey, "", false, "pushoverUserKey");
+  loadPrefString(KEY_PUSHOVERDEVICE, pushoverDevice, "", false, "pushoverDevice");
   loadPrefString(KEY_GOTIFY, gotifyEnabled, "", true, "gotifyEnabled");
   if (gotifyEnabled == "checked") gotifySent = true;
   loadPrefString(KEY_GOTIFYSERVER, gotifyServer, "", true, "gotifyServer");
-  loadPrefString(KEY_GOTIFYTOKEN, gotifyToken, "", true, "gotifyToken");
+  loadPrefString(KEY_GOTIFYTOKEN, gotifyToken, "", false, "gotifyToken");
 
   preferences.end();
 }
