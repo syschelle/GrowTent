@@ -849,7 +849,14 @@ const char cssContent[] PROGMEM = R"rawliteral(
 
     .runsettings-top-grid{
       display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
+      /* Wide desktop / Full-HD: keep all four cards on one row, but give the
+         compact Temperature card much less width and reserve the space for
+         Irrigation, which has the densest controls. */
+      grid-template-columns:
+        minmax(300px,1.05fr)
+        minmax(210px,.55fr)
+        minmax(320px,1fr)
+        minmax(430px,1.4fr);
       gap:14px;
       align-items:stretch;
     }
@@ -954,8 +961,8 @@ const char cssContent[] PROGMEM = R"rawliteral(
 
     .runsettings-irrigation-checks{
       display:grid;
-      grid-template-columns:minmax(180px,.75fr) minmax(260px,1.25fr);
-      gap:14px;
+      grid-template-columns:minmax(145px,.65fr) minmax(0,1.35fr);
+      gap:12px;
     }
     .runsettings-pumps-box,
     .runsettings-flood-box{
@@ -1102,10 +1109,10 @@ const char cssContent[] PROGMEM = R"rawliteral(
       font-weight:700;
     }
 
-    /* A Full-HD browser viewport is too narrow for four useful cards once the
-       navigation sidebar and page padding are taken into account. Keep the
-       compact four-card row for genuinely wide displays only. */
-    @media (max-width:2100px){
+    /* Below desktop widths, fall back to a balanced 2 x 2 layout. Full-HD
+       remains four columns because the asymmetric tracks above free enough
+       space for the Irrigation card. */
+    @media (max-width:1500px){
       .runsettings-top-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 
