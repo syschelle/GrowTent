@@ -856,11 +856,12 @@ const char cssContent[] PROGMEM = R"rawliteral(
         minmax(150px,.42fr)
         minmax(360px,1.15fr);
       gap:14px;
-      align-items:stretch;
+      align-items:start;
     }
 
     .runsettings-top-grid > .runsettings-panel{
-      height:100%;
+      height:auto;
+      margin-bottom:0;
     }
 
     .runsettings-panel{
@@ -984,6 +985,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
       grid-template-columns:minmax(280px,.9fr) minmax(620px,2.15fr) minmax(300px,1fr);
       gap:14px;
       align-items:stretch;
+      margin-top:14px;
       margin-bottom:14px;
     }
     .runsettings-operations-row > .runsettings-panel{
