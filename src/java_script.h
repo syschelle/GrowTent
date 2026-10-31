@@ -141,6 +141,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   /* -------------------- runsetting.* -------------------- */
   "runsetting.title": { de: "Betriebseinstellungen", en: "Operating settings" },
+  "runsetting.section.growPhase": { de: "Grow / Phase", en: "Grow / Phase" },
+  "runsetting.section.temperature": { de: "Temperatur", en: "Temperature" },
   "runsetting.resetkWh": { de: "kWh Zähler zurücksetzen", en: "Reset kWh counter" },
   "runsetting.newGrowError": {"de": "Fehler: Neuer Grow konnte nicht gesetzt werden.", "en": "Error: could not set new grow."},
   "runsetting.newGrowDone": {"de": "Neuer Grow wurde gesetzt.", "en": "New grow has been set."},
@@ -202,6 +204,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "runsetting.relay.onMinute": { de: "Einschaltminute", en: "On minute" },
   "runsetting.relay.offMinute": { de: "Ausschaltminute", en: "Off minute" },
   "runsetting.relay.enabledShort": { de: "Aktiv", en: "Enabled" },
+  "runsetting.relay.name": { de: "Bezeichnung", en: "Name" },
 
   /* -------------------- shelly.* -------------------- */
   "shelly.title": { de: "Shelly Einstellungen", en: "Shelly Settings" },
@@ -540,6 +543,9 @@ function applyRelayVisibility(relayCount) {
 
   const irrSettings = document.getElementById('irrigationSettingsSection');
   if (irrSettings) irrSettings.style.display = (count === 8) ? '' : 'none';
+
+  const irrParams = document.getElementById('irrigationParameterSection');
+  if (irrParams) irrParams.style.display = (count === 8) ? '' : 'none';
 }
 
 function updateHeatingSourceUi() {

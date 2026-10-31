@@ -801,4 +801,345 @@ const char cssContent[] PROGMEM = R"rawliteral(
       display:block;
     }
     #otaProgressDetail{margin-top:6px;font-size:.9rem}
+
+
+    /* -------------------- Operating settings compact layout -------------------- */
+    #runsettings.runsettings-page{
+      padding:18px;
+    }
+
+    .runsettings-page-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:16px;
+    }
+    .runsettings-page-head h1{ margin:0; }
+    .runsettings-energy-reset{
+      width:auto !important;
+      min-width:210px;
+      padding-inline:16px !important;
+      white-space:nowrap;
+    }
+
+    .runsettings-top-grid{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+      gap:14px;
+      align-items:start;
+    }
+
+    .runsettings-panel{
+      min-width:0;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      background:var(--bg);
+      padding:14px 16px 16px;
+      margin:0 0 14px;
+    }
+
+    .runsettings-panel-title{
+      margin:-14px -16px 14px;
+      padding:9px 13px;
+      border-radius:calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+      background:var(--header);
+      color:#fff;
+      opacity:1;
+      font-size:1.05rem;
+      font-weight:700;
+    }
+
+    .runsettings-panel-hint,
+    .runsettings-panel .relay-heating-hint,
+    .runsettings-panel .relay-sched-hint{
+      margin:0 0 12px;
+      font-size:.88rem;
+      opacity:.78;
+    }
+
+    .runsettings-fields{
+      display:grid;
+      grid-template-columns:minmax(0,1fr);
+      gap:10px 16px;
+    }
+
+    .runsettings-grow-fields{
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    }
+
+    .runsettings-field{
+      min-width:0;
+      margin:0;
+    }
+    .runsettings-field label{
+      margin:0 0 5px;
+      font-size:.9rem;
+      font-weight:600;
+    }
+    .runsettings-field input,
+    .runsettings-field select{
+      width:100%;
+      min-height:38px;
+      padding:7px 9px;
+    }
+    .runsettings-field small{
+      display:block;
+      margin-top:4px;
+      font-size:.76rem;
+      line-height:1.3;
+      opacity:.68;
+    }
+
+    .runsettings-control-unit{
+      display:grid;
+      grid-template-columns:minmax(78px,1fr) auto;
+      align-items:center;
+      gap:8px;
+    }
+    .runsettings-control-unit > span{
+      min-width:30px;
+      font-size:.88rem;
+      opacity:.84;
+    }
+
+    .runsettings-compact-grid{
+      display:grid;
+      gap:12px;
+    }
+    .runsettings-vpd-grid{
+      grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+    .runsettings-vpd-enable{
+      padding-bottom:11px;
+      margin-bottom:12px;
+      border-bottom:1px solid var(--border);
+    }
+
+    #runsettings input[type="checkbox"]{
+      width:auto;
+      min-height:0;
+      padding:0;
+      accent-color:var(--header);
+    }
+
+    .runsettings-irrigation-checks{
+      display:grid;
+      grid-template-columns:minmax(180px,.75fr) minmax(260px,1.25fr);
+      gap:14px;
+    }
+    .runsettings-pumps-box,
+    .runsettings-flood-box{
+      display:flex;
+      flex-direction:column;
+      gap:9px;
+      padding:11px 12px;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:var(--muted);
+    }
+    .runsettings-flood-box small{
+      padding-left:26px;
+      font-size:.78rem;
+      line-height:1.35;
+      opacity:.7;
+    }
+
+    .runsettings-irrigation-params{
+      margin-top:0;
+    }
+    .runsettings-param-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:14px 18px;
+    }
+
+    .runsettings-heating-panel{
+      margin-top:0;
+    }
+    .runsettings-heating-grid{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+      gap:16px;
+    }
+
+    #runsettings .relay-sched{
+      margin-top:0;
+      padding-top:14px;
+      border-top:1px solid var(--border);
+    }
+    #runsettings.runsettings-page > .relay-sched,
+    #runsettings .runsettings-relay-panel{
+      border-top:1px solid var(--border);
+    }
+
+    .runsettings-relay-table-wrap{
+      width:100%;
+      overflow-x:auto;
+      border:1px solid var(--border);
+      border-radius:8px;
+      background:var(--muted);
+    }
+    .runsettings-relay-table{
+      display:block;
+      min-width:820px;
+    }
+    .runsettings-relay-head,
+    #runsettings .runsettings-relay-row{
+      display:grid;
+      grid-template-columns:42px minmax(150px,1.4fr) minmax(90px,.7fr) minmax(155px,1.05fr) minmax(135px,.9fr) minmax(135px,.9fr);
+      gap:0;
+      align-items:center;
+    }
+    .runsettings-relay-head{
+      background:var(--header);
+      color:#fff;
+      font-weight:700;
+      font-size:.82rem;
+    }
+    .runsettings-relay-head > div{
+      padding:9px 10px;
+      text-align:left;
+    }
+    #runsettings .runsettings-relay-row{
+      padding:0;
+      border:0;
+      border-radius:0;
+      background:transparent;
+      color:var(--text);
+      min-height:48px;
+    }
+    #runsettings .runsettings-relay-row + .runsettings-relay-row{
+      border-top:1px solid var(--border);
+    }
+    #runsettings .runsettings-relay-row > div{
+      min-width:0;
+      padding:7px 10px;
+    }
+    #runsettings .runsettings-relay-row label{ color:var(--text); }
+    .runsettings-relay-number{
+      text-align:center;
+      font-weight:700;
+      opacity:.72;
+    }
+    #runsettings .runsettings-relay-row .relay-sched-name{
+      min-width:0;
+      max-width:none;
+      width:auto;
+    }
+    #runsettings .runsettings-relay-row .relay-sched-name-label{
+      display:none;
+    }
+    #runsettings .runsettings-relay-row .relay-sched-name-value{
+      font-weight:600;
+    }
+    #runsettings .runsettings-relay-row .sched-field.chk{
+      min-width:0;
+    }
+    #runsettings .runsettings-relay-row .sched-field.chk .inline-checkbox{
+      gap:0;
+      justify-content:flex-start;
+    }
+    #runsettings .runsettings-relay-row .sched-field.chk span,
+    #runsettings .runsettings-relay-row .sched-field.minute label{
+      display:none;
+    }
+    #runsettings .runsettings-relay-row .sched-field.minute{
+      min-width:0;
+      width:auto;
+    }
+    #runsettings .runsettings-relay-row .sched-field.minute input[type="number"]{
+      width:100%;
+      max-width:110px;
+      min-height:34px;
+      padding:6px 8px;
+      background:var(--muted);
+      color:var(--text);
+    }
+    :root[data-theme='dark'] #runsettings .runsettings-relay-row .sched-field.minute input[type="number"]{
+      background:var(--muted);
+      color:var(--text);
+    }
+
+    .runsettings-actions{
+      display:flex;
+      justify-content:flex-end;
+      padding-top:2px;
+    }
+    .runsettings-actions .primary{
+      width:auto;
+      min-width:190px;
+      padding-inline:22px;
+      font-weight:700;
+    }
+
+    @media (max-width:1100px){
+      .runsettings-param-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .runsettings-vpd-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+
+    @media (max-width:760px){
+      #runsettings.runsettings-page{ padding:12px; }
+      .runsettings-page-head{ align-items:stretch; flex-direction:column; }
+      .runsettings-energy-reset{ width:100% !important; }
+      .runsettings-top-grid,
+      .runsettings-grow-fields,
+      .runsettings-heating-grid,
+      .runsettings-irrigation-checks,
+      .runsettings-param-grid,
+      .runsettings-vpd-grid{
+        grid-template-columns:1fr;
+      }
+      .runsettings-panel{ padding:12px; }
+      .runsettings-panel-title{ margin:-12px -12px 12px; }
+      .runsettings-actions .primary{ width:100%; }
+
+      .runsettings-relay-table-wrap{
+        overflow:visible;
+        border:0;
+        background:transparent;
+      }
+      .runsettings-relay-table{ min-width:0; }
+      .runsettings-relay-head{ display:none; }
+      #runsettings .runsettings-relay-row{
+        display:grid;
+        grid-template-columns:34px 1fr;
+        gap:8px 10px;
+        padding:10px;
+        margin-bottom:10px;
+        border:1px solid var(--border);
+        border-radius:8px;
+        background:var(--muted);
+      }
+      #runsettings .runsettings-relay-row + .runsettings-relay-row{ border-top:1px solid var(--border); }
+      #runsettings .runsettings-relay-row > div{ padding:2px 0; }
+      #runsettings .runsettings-relay-row .relay-sched-name{
+        grid-column:2;
+      }
+      #runsettings .runsettings-relay-row .relay-sched-name-label{
+        display:block;
+        font-size:.76rem;
+        opacity:.65;
+      }
+      #runsettings .runsettings-relay-row .sched-field{
+        grid-column:2;
+      }
+      #runsettings .runsettings-relay-row .sched-field.chk span,
+      #runsettings .runsettings-relay-row .sched-field.minute label{
+        display:inline;
+      }
+      #runsettings .runsettings-relay-row .sched-field.chk .inline-checkbox{
+        gap:8px;
+      }
+      #runsettings .runsettings-relay-row .sched-field.minute{
+        display:grid;
+        grid-template-columns:minmax(130px,1fr) 100px;
+        gap:8px;
+        align-items:center;
+      }
+      #runsettings .runsettings-relay-row .sched-field.minute input[type="number"]{
+        max-width:none;
+      }
+    }
+
 )rawliteral";

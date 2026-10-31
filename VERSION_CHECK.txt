@@ -1,11 +1,12 @@
-GrowTent v0.4.21 page-aware UI polling package
+GrowTent v0.4.22 compact Operating Settings layout package
 
 Expected src/build_version.h:
-#define FW_VERSION "v0.4.21"
+#define FW_VERSION "v0.4.22"
 
 Release focus:
-- periodic /api/state polling only on Status
-- periodic log polling only on System Log
-- no periodic Shelly/settings-page polling
-- Shelly settings still refresh once when opened
-- existing unsaved-input dirty guards remain active
+- compact responsive Operating Settings layout
+- neutral GrowTent dark-blue / white-grey visual language
+- grouped Grow/Phase, Temperature, VPD, Irrigation and Heating sections
+- compact desktop relay schedule table with mobile fallback rows
+- unchanged field IDs, save logic and API contracts
+- retained v0.4.21 page-aware polling behavior
