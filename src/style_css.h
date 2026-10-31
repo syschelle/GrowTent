@@ -851,7 +851,11 @@ const char cssContent[] PROGMEM = R"rawliteral(
       display:grid;
       grid-template-columns:repeat(4,minmax(0,1fr));
       gap:14px;
-      align-items:start;
+      align-items:stretch;
+    }
+
+    .runsettings-top-grid > .runsettings-panel{
+      height:100%;
     }
 
     .runsettings-panel{
@@ -1098,7 +1102,10 @@ const char cssContent[] PROGMEM = R"rawliteral(
       font-weight:700;
     }
 
-    @media (max-width:1450px){
+    /* A Full-HD browser viewport is too narrow for four useful cards once the
+       navigation sidebar and page padding are taken into account. Keep the
+       compact four-card row for genuinely wide displays only. */
+    @media (max-width:2100px){
       .runsettings-top-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 

@@ -1,11 +1,9 @@
-GrowTent v0.4.24 Operating Settings phase-header refinement package
+GrowTent v0.4.25 Full-HD Operating Settings responsive refinement package
 
-Expected src/build_version.h:
-#define FW_VERSION "v0.4.24"
+Expected firmware version:
+#define FW_VERSION "v0.4.25"
 
-Release focus:
-- move Current Phase control into the Operating Settings page header
-- place Current Phase immediately left of the kWh reset action
-- simplify the Grow panel to date/period settings only
-- rename Grow / Phase panel to Grow periods / Grow-Zeiträume
-- preserve all existing field IDs, save logic, APIs and page-aware polling behavior
+Operating Settings top layout:
+- wide displays (>2100px viewport): 4 columns
+- Full HD / medium desktop: 2 columns
+- mobile: 1 column
