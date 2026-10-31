@@ -426,6 +426,7 @@ void readPreferences() {
   loadPrefString(KEY_LANG, language, "de", true, "language");
   loadPrefString(KEY_THEME, theme, "light", true, "theme");
   loadPrefString(KEY_UNIT, unit, "metric", true, "unit");
+  settings.ui.unit = unit;
   loadPrefString(KEY_TFMT, timeFormat, "24h", true, "timeFormat");
   loadPrefBool(KEY_DS18B20ENABLE, DS18B20, false, true, "DS18B20Enable");
   DS18B20Enable = DS18B20 ? "checked" : "";

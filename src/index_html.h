@@ -40,8 +40,8 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.4.16">
-<body>
+  <link rel="stylesheet" href="/style.css?v=0.4.17">
+<body data-temp-unit="%UNIT%">
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
     <div class="title-stack">
@@ -94,7 +94,7 @@ const char* htmlPage = R"rawliteral(
           <div class="twoinone-label">
             <div class="metric-label" data-i18n="status.temperature">Temperatur</div>
             <div class="metric-value">
-              <span id="tempSpan">–</span><span class="unit">°C</span>
+              <span id="tempSpan">–</span><span class="unit" data-temp-unit-label>°C</span>
             </div>
           </div>
           <div class="spacer"></div>
@@ -102,7 +102,7 @@ const char* htmlPage = R"rawliteral(
             <div class="twoinone-label">
               <span data-i18n="status.targetTemp">Soll</span>
               <div class="metric-value">
-                <span id="targetTempStatus">%TARGETTEMPERATURE%</span> <span class="unit">°C</span>
+                <span id="targetTempStatus" data-celsius-value="%TARGETTEMPERATURE%">%TARGETTEMPERATURE%</span> <span class="unit" data-temp-unit-label>°C</span>
               </div>
             </div>
           </div>
@@ -111,7 +111,7 @@ const char* htmlPage = R"rawliteral(
             <div class="twoinone-label">
               <div class="metric-label">%DS18B20NAME%</div>
               <div class="metric-value">
-                <span id="ext1TempSpan">%WATERTEMPERATURE%</span><span class="unit">°C</span>
+                <span id="ext1TempSpan" data-celsius-value="%WATERTEMPERATURE%">%WATERTEMPERATURE%</span><span class="unit" data-temp-unit-label>°C</span>
             </div>
           </div>
         </div>
@@ -147,7 +147,7 @@ const char* htmlPage = R"rawliteral(
             <div class="twoinone-label">
               <span data-i18n="runsetting.offsetLeafTemperature">Offset Blatttemperatur:</span>
               <div class="metric-value">
-                <span id="leafTempStatus">%LEAFTEMPERATURE%</span> <span class="unit">°C</span>
+                <span id="leafTempStatus" data-celsius-value="%LEAFTEMPERATURE%">%LEAFTEMPERATURE%</span> <span class="unit" data-temp-unit-label>°C</span>
               </div>
             </div>
           </div>
@@ -502,12 +502,12 @@ const char* htmlPage = R"rawliteral(
 
       <div class="form-group">
         <label for="targetTemp" data-i18n="runsetting.targetTemp">Soll-Temperatur:</label>
-        <input name="webTargetTemp" id="webTargetTemp" style="width: 65px;" type="number" step="0.1" min="18" max="30" value="%TARGETTEMPERATURE%">&nbsp;°C
+        <input name="webTargetTemp" id="webTargetTemp" style="width: 65px;" type="number" step="0.1" min="18" max="30" value="%TARGETTEMPERATURE%" data-celsius-value="%TARGETTEMPERATURE%">&nbsp;<span class="unit" data-temp-unit-label>°C</span>
       </div>
 
       <div class="form-group">
         <label for="leafTemp" data-i18n="runsetting.offsetLeafTemperature">Offset Blatttemperatur:</label>
-        <input name="webOffsetLeafTemp" id="webOffsetLeafTemp" style="width: 65px;" type="number" step="0.1" min="-3.0" max="0.0" value="%LEAFTEMPERATURE%">&nbsp;°C
+        <input name="webOffsetLeafTemp" id="webOffsetLeafTemp" style="width: 65px;" type="number" step="0.1" min="-3.0" max="0.0" value="%LEAFTEMPERATURE%" data-celsius-value="%LEAFTEMPERATURE%">&nbsp;<span class="unit" data-temp-unit-label>°C</span>
       </div>
 
       <div class="tile-row relay-extra" id="vpdSettingsSection">
@@ -1069,7 +1069,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.4.16"></script>
+ <script src="/script.js?v=0.4.17"></script>
 </body>
 </html>
 )rawliteral";

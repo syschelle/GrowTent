@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.16 / phase 32 OTA request-status lifecycle fix
+# Test build: v0.4.17 / phase 32 OTA request-status lifecycle fix
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -14,7 +14,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ESP_IP="$1"
-TEST_FW_VERSION="v0.4.16"
+TEST_FW_VERSION="v0.4.17"
 TEST_CACHE_BUSTER="${TEST_FW_VERSION#v}"
 BASE80="http://${ESP_IP}"
 BASE8080="http://${ESP_IP}:8080"
@@ -155,7 +155,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.16 / Async phase 32 fallback-AP lifecycle fix"
+log "Test build target: v0.4.17 / Async phase 32 fallback-AP lifecycle fix"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -165,7 +165,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.16"
+EXPECTED_FW_VERSION="v0.4.17"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -233,7 +233,7 @@ for spec in "root|/|GET" "style|/style.css|GET" "script|/script.js|GET" "favicon
     LEGACY_UI_FAILURES=$((LEGACY_UI_FAILURES + 1))
   fi
 done
-# v0.4.16: when STA is connected, a boot-time fallback AP must already have
+# v0.4.17: when STA is connected, a boot-time fallback AP must already have
 # released DNS/TCP80 and returned to STA-only mode. This check catches the
 # v0.3.08 lifecycle bug directly instead of relying only on port probes.
 phase0a_health="$(curl -sS --http1.1 --max-time 5 "$BASE8080/api/async/health" 2>>"$LOGFILE" || true)"
@@ -278,15 +278,15 @@ check_asset() {
 
 log "===== PHASE 0B: STATIC ASSET INTEGRITY ====="
 check_asset "async-root" "$BASE8080/" 45000
-check_asset "async-css" "$BASE8080/style.css?v=0.4.8" 19000
-check_asset "async-js" "$BASE8080/script.js?v=0.4.8" 100000
+check_asset "async-css" "$BASE8080/style.css?v=${TEST_CACHE_BUSTER}" 19000
+check_asset "async-js" "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}" 100000
 if [[ "$ASSET_FAILURES" -eq 0 ]]; then
   log "STATIC ASSET CHECK: PASS"
 else
   log "STATIC ASSET CHECK: FAIL ($ASSET_FAILURES problem(s))"
 fi
 
-relay_ui_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=0.4.8&relay-ui-ack=1" 2>>"$LOGFILE" || true)"
+relay_ui_js="$(curl -sS --max-time 10 "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}&relay-ui-ack=1" 2>>"$LOGFILE" || true)"
 if [[ "$relay_ui_js" == *"waitForRelayApply"* && "$relay_ui_js" == *"refreshRelayStatesDirect"* && "$relay_ui_js" == *"Manual relays 1..5 are deliberately excluded"* && "$relay_ui_js" == *"sensorRefreshQueued"* ]]; then
   log "PASS relay dashboard uses direct runtime state ownership and stale-refresh suppression"
 else
@@ -312,6 +312,17 @@ else
   log "FAIL dashboard heating payload can still serialize an empty relay as null"
   ASSET_FAILURES=$((ASSET_FAILURES + 1))
 fi
+if [[ "$relay_ui_js" == *"function tempCToDisplay"* && \
+      "$relay_ui_js" == *"function tempDeltaCToDisplay"* && \
+      "$relay_ui_js" == *"function tempDisplayToC"* && \
+      "$relay_ui_js" == *"function tempDeltaDisplayToC"* && \
+      "$relay_ui_js" == *"targetTemperature: targetTemperatureC"* && \
+      "$relay_ui_js" == *"offsetLeafTemperature: offsetLeafTemperatureC"* ]]; then
+  log "PASS dashboard temperature-unit contract keeps API Celsius-native and converts absolute/delta values in UI"
+else
+  log "FAIL dashboard temperature-unit conversion/API contract markers missing"
+  ASSET_FAILURES=$((ASSET_FAILURES + 1))
+fi
 log ""
 
 CACHE_FAILURES=0
@@ -335,8 +346,8 @@ check_cache_header() {
 
 log "===== PHASE 0C: CACHE HEADER POLICY ====="
 check_cache_header "async-root" "$BASE8080/" "no-store"
-check_cache_header "async-css" "$BASE8080/style.css?v=0.4.8" "public, max-age=31536000, immutable"
-check_cache_header "async-js" "$BASE8080/script.js?v=0.4.8" "public, max-age=31536000, immutable"
+check_cache_header "async-css" "$BASE8080/style.css?v=${TEST_CACHE_BUSTER}" "public, max-age=31536000, immutable"
+check_cache_header "async-js" "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}" "public, max-age=31536000, immutable"
 if [[ "$CACHE_FAILURES" -eq 0 ]]; then
   log "CACHE HEADER CHECK: PASS"
 else
@@ -403,10 +414,6 @@ log ""
 # byte-buffer asset path aggressively. This guards both the old chunked 13-byte
 # tail stall and the v0.2.75 callback-response 5-byte tail stall seen during a
 # mixed cold-dashboard load. The external GrowTent-backend may continue polling.
-EXPECTED_JS_BYTES=130766
-EXPECTED_CSS_BYTES=20470
-EXPECTED_JS_SHA256="807a6f0255e433d1e93cce3bbee4cf7db717ab37c639d8c33dadbc2d7ca7d7a4"
-EXPECTED_CSS_SHA256="9498d7a41926a5638f77eb3b9bf61cabd4026bce19e64f21ec4d9758bf97e3f6"
 ASSET_TRANSPORT_FAILURES=0
 ASSET_TRANSPORT_TIMEOUTS=0
 ASSET_TRANSPORT_INCOMPLETE=0
@@ -468,10 +475,93 @@ collect_asset_transport() {
 log "===== PHASE 0E: STATIC ASSET DIRECT-BUFFER FIXED-LENGTH TRANSPORT REGRESSION ====="
 log "Stress: 10 rounds x (4 JS + 2 CSS) concurrent downloads; exact length + SHA-256; external backend polling may continue."
 log "Transport correctness hard-timeout: ${ASSET_TRANSPORT_MAX_TIME}s; transfers >=3s are still counted as slow diagnostics."
+
+# Build the integrity baseline from the assets served by the firmware under test.
+# This makes Phase 0E independent of firmware-specific JS/CSS sizes while still
+# detecting truncation, corruption, inconsistent Content-Length, chunked
+# transport regressions and body changes during the concurrent stress run.
+phase0e_baseline_dir="${OUTDIR}/phase0e-baseline"
+mkdir -p "$phase0e_baseline_dir"
+
+phase0e_capture_baseline() {
+  local label="$1" url="$2" body="$3" headers="$4"
+  local meta rc http reported_bytes actual_bytes content_length transfer transport sha
+
+  meta="$(curl -sS --http1.1 --max-time "$ASSET_TRANSPORT_MAX_TIME" \
+    -D "$headers" -o "$body" \
+    -w '%{http_code}\t%{time_total}\t%{size_download}' \
+    "$url" 2>>"$LOGFILE")"
+  rc=$?
+
+  IFS=$'\t' read -r http _ reported_bytes <<< "$meta"
+  http="${http:-000}"
+  reported_bytes="${reported_bytes:-0}"
+  actual_bytes="$(wc -c <"$body" 2>/dev/null || echo 0)"
+  content_length="$(awk 'tolower($1)=="content-length:" {gsub("\r","",$2); v=$2} END{print v}' "$headers" 2>/dev/null || true)"
+  transfer="$(awk 'tolower($1)=="transfer-encoding:" {gsub("\r","",$2); v=$2} END{print v}' "$headers" 2>/dev/null || true)"
+  transport="$(awk 'tolower($1)=="x-growtent-asset-transport:" {sub(/^[^:]*:[[:space:]]*/, ""); sub(/\r$/, ""); v=$0} END{print v}' "$headers" 2>/dev/null || true)"
+  sha="$(sha256sum "$body" 2>/dev/null | awk '{print $1}')"
+
+  if [[ "$rc" -ne 0 || "$http" != "200" ]]; then
+    log "FAIL Phase 0E dynamic baseline $label: HTTP=$http rc=$rc"
+    return 1
+  fi
+  if [[ "$actual_bytes" -le 0 || "$reported_bytes" -ne "$actual_bytes" ]]; then
+    log "FAIL Phase 0E dynamic baseline $label: body=$actual_bytes reported=$reported_bytes"
+    return 1
+  fi
+  if [[ -z "$content_length" || "$content_length" -ne "$actual_bytes" ]]; then
+    log "FAIL Phase 0E dynamic baseline $label: Content-Length='${content_length:-missing}' body=$actual_bytes"
+    return 1
+  fi
+  if [[ -n "$transfer" ]]; then
+    log "FAIL Phase 0E dynamic baseline $label: unexpected Transfer-Encoding='$transfer'"
+    return 1
+  fi
+  if [[ "$transport" != "direct-buffer-fixed-length" ]]; then
+    log "FAIL Phase 0E dynamic baseline $label: transport='${transport:-missing}'"
+    return 1
+  fi
+  if [[ -z "$sha" ]]; then
+    log "FAIL Phase 0E dynamic baseline $label: SHA-256 unavailable"
+    return 1
+  fi
+
+  printf '%s\t%s\n' "$actual_bytes" "$sha"
+  return 0
+}
+
+phase0e_js_body="${phase0e_baseline_dir}/script.js"
+phase0e_js_headers="${phase0e_baseline_dir}/script.headers"
+phase0e_css_body="${phase0e_baseline_dir}/style.css"
+phase0e_css_headers="${phase0e_baseline_dir}/style.headers"
+
+if ! phase0e_js_ref="$(phase0e_capture_baseline \
+    "script.js" \
+    "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}&phase0e=baseline" \
+    "$phase0e_js_body" "$phase0e_js_headers")"; then
+  log "STATIC ASSET DIRECT-BUFFER FIXED-LENGTH TRANSPORT: FAIL (dynamic JS baseline)"
+  exit 1
+fi
+
+if ! phase0e_css_ref="$(phase0e_capture_baseline \
+    "style.css" \
+    "$BASE8080/style.css?v=${TEST_CACHE_BUSTER}&phase0e=baseline" \
+    "$phase0e_css_body" "$phase0e_css_headers")"; then
+  log "STATIC ASSET DIRECT-BUFFER FIXED-LENGTH TRANSPORT: FAIL (dynamic CSS baseline)"
+  exit 1
+fi
+
+IFS=$'\t' read -r EXPECTED_JS_BYTES EXPECTED_JS_SHA256 <<< "$phase0e_js_ref"
+IFS=$'\t' read -r EXPECTED_CSS_BYTES EXPECTED_CSS_SHA256 <<< "$phase0e_css_ref"
+
+log "PASS Phase 0E dynamic baseline: script.js bytes=$EXPECTED_JS_BYTES sha256=$EXPECTED_JS_SHA256"
+log "PASS Phase 0E dynamic baseline: style.css bytes=$EXPECTED_CSS_BYTES sha256=$EXPECTED_CSS_SHA256"
+
 asset_baseline_headers="${OUTDIR}/asset-transport-baseline.headers"
 asset_baseline_body="${OUTDIR}/asset-transport-baseline.js"
 asset_baseline_meta="$(curl -sS --http1.1 --max-time "$ASSET_TRANSPORT_MAX_TIME" -D "$asset_baseline_headers" -o "$asset_baseline_body" \
-  -w '%{http_code}\t%{time_total}\t%{size_download}' "$BASE8080/script.js?v=0.4.8&phase16=baseline" 2>>"$LOGFILE")"
+  -w '%{http_code}\t%{time_total}\t%{size_download}' "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}&phase16=baseline" 2>>"$LOGFILE")"
 asset_baseline_rc=$?
 IFS=$'\t' read -r asset_baseline_http asset_baseline_seconds asset_baseline_bytes <<< "$asset_baseline_meta"
 asset_baseline_actual="$(wc -c <"$asset_baseline_body" 2>/dev/null || echo 0)"
@@ -493,12 +583,12 @@ for round in $(seq 1 10); do
   pids=(); files=(); labels=(); expects=(); hashes=()
   for n in $(seq 1 4); do
     f="${OUTDIR}/asset16-r${round}-js${n}.tmp"
-    asset_transport_request_to_file "$BASE8080/script.js?v=0.4.8&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
+    asset_transport_request_to_file "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
     files+=("$f"); labels+=("async-js-flow"); expects+=("$EXPECTED_JS_BYTES"); hashes+=("$EXPECTED_JS_SHA256")
   done
   for n in $(seq 1 2); do
     f="${OUTDIR}/asset16-r${round}-css${n}.tmp"
-    asset_transport_request_to_file "$BASE8080/style.css?v=0.4.8&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
+    asset_transport_request_to_file "$BASE8080/style.css?v=${TEST_CACHE_BUSTER}&phase16=${round}-${n}" "$f" "$ASSET_TRANSPORT_MAX_TIME" & pids+=("$!")
     files+=("$f"); labels+=("async-css-flow"); expects+=("$EXPECTED_CSS_BYTES"); hashes+=("$EXPECTED_CSS_SHA256")
   done
   for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
@@ -3723,7 +3813,7 @@ IFS=$'\t' read -r phase32_ota_real_http _ _ <<< "$phase32_ota_real_meta"
 phase32_ota_real_resp="$(cat "$phase32_ota_real_body" 2>/dev/null || true)"
 phase32_ota_real_id="$(json_uint_field "$phase32_ota_real_resp" requestId)"
 if [[ "$phase32_ota_real_rc" -eq 0 && "$phase32_ota_real_http" == "202" && -n "$phase32_ota_real_id" && "$phase32_ota_real_resp" == *'"dryRun":false'* ]]; then
-  # v0.4.16 regression: queueing a new OTA job must not invalidate the terminal
+  # v0.4.17 regression: queueing a new OTA job must not invalidate the terminal
   # requestId of the previous OTA check. The old dry-run request must remain
   # queryable instead of returning request_not_found.
   phase32_ota_archived_status="$(curl -sS --max-time 3 "$BASE8080/api/ota/check-status?requestId=${phase32_ota_check_id}" 2>>"$LOGFILE" || true)"
@@ -3978,8 +4068,8 @@ log "Cold-cache stress: HTML, CSS, JS, state, stats, hint and logbuffer concurre
 for round in $(seq 1 5); do
   urls=(
     "$BASE8080/"
-    "$BASE8080/style.css?v=0.4.8"
-    "$BASE8080/script.js?v=0.4.8"
+    "$BASE8080/style.css?v=${TEST_CACHE_BUSTER}"
+    "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}"
     "$BASE8080/api/state"
     "$BASE8080/api/stats"
     "$BASE8080/api/hint"
@@ -4383,14 +4473,14 @@ else
   log "tar not found; upload the .txt and requests.tsv files from $OUTDIR instead."
 fi
 
-# v0.4.16 HTTPUpdate transport source guards
+# v0.4.17 HTTPUpdate transport source guards
 grep -q '#include <HTTPUpdate.h>' "$PROJECT_DIR/src/ota.cpp" || fail "HTTPUpdate include missing"
 grep -q 'client.setInsecure();' "$PROJECT_DIR/src/ota.cpp" || fail "v0.2.46 WiFiClientSecure transport setup missing"
 grep -q 'otaUpdater.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);' "$PROJECT_DIR/src/ota.cpp" || fail "HTTPUpdate redirect handling missing"
 grep -q 'g_otaUpdateStreaming = true;' "$PROJECT_DIR/src/ota.cpp" || fail "OTA progress streaming flag missing"
 
 
-# v0.4.16 exclusive OTA maintenance source contract
+# v0.4.17 exclusive OTA maintenance source contract
 TEST_REPO_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)"
 if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" ]]; then
   grep -q 'OTA_EXCLUSIVE_QUIESCE_TIMEOUT_MS = 20000UL' "$TEST_REPO_ROOT/src/ota.cpp" || fail "exclusive OTA quiesce timeout missing"
@@ -4404,7 +4494,7 @@ grep -q 'ota_in_progress' "$TEST_REPO_ROOT/src/main.cpp" || fail "OTA maintenanc
 fi
 
 
-# v0.4.16 non-flashing OTA transport diagnostic source contract
+# v0.4.17 non-flashing OTA transport diagnostic source contract
 TEST_REPO_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)"
 if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" && -f "$TEST_REPO_ROOT/src/main.cpp" ]]; then
   grep -q 'runOtaTransportTest' "$TEST_REPO_ROOT/src/ota.cpp" || fail "OTA transport diagnostic worker missing"
@@ -4416,7 +4506,7 @@ if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" && -f "$TEST_REPO
 fi
 
 
-# v0.4.16 HTTPUpdate preflight diagnostic source contract
+# v0.4.17 HTTPUpdate preflight diagnostic source contract
 TEST_REPO_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)"
 if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" ]]; then
   grep -q 'otaRunHttpUpdatePreflight' "$TEST_REPO_ROOT/src/ota.cpp" || fail "HTTPUpdate preflight diagnostic missing"
@@ -4428,7 +4518,7 @@ if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" ]]; then
 fi
 
 
-# v0.4.16 cold-first HTTPUpdate preflight diagnostic source contract
+# v0.4.17 cold-first HTTPUpdate preflight diagnostic source contract
 TEST_REPO_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)"
 if [[ -n "$TEST_REPO_ROOT" && -f "$TEST_REPO_ROOT/src/ota.cpp" ]]; then
   grep -q 'cold_httpupdate_preflight' "$TEST_REPO_ROOT/src/ota.cpp" || fail "cold-first HTTPUpdate preflight stage missing"

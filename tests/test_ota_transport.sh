@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent OTA transport diagnostic (non-flashing)
-# Firmware target: v0.4.16+
+# Firmware target: v0.4.17+
 #
 # Usage:
 #   ./tests/test_ota_transport.sh <ESP-IP>

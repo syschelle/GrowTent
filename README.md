@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.16.md`](RELEASE_NOTES_v0.4.16.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The completed staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.16.md`](RELEASE_NOTES_v0.4.16.md); the current v0.4.17 changes are documented in [`RELEASE_NOTES_v0.4.17.md`](RELEASE_NOTES_v0.4.17.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -281,10 +281,10 @@ pio run -e nodemcu-32s -t upload
 
 The release workflow is triggered by a `v*` Git tag.
 
-For release `v0.4.16`, the authoritative release-notes file is:
+For release `v0.4.17`, the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.4.16.md
+RELEASE_NOTES_v0.4.17.md
 ```
 
 The workflow:
@@ -321,7 +321,7 @@ src/
 tests/test_async_webserver.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.4.16.md
+RELEASE_NOTES_v0.4.17.md
 LICENSE
 ```
 
@@ -342,11 +342,11 @@ Important source files:
 
 ## Release information
 
-The complete v0.4.16 release documentation and AsyncWebServer migration history, including Phases 1-32 and the final corrective validation builds, is documented in:
+The current v0.4.17 release changes are documented in:
 
-[`RELEASE_NOTES_v0.4.16.md`](RELEASE_NOTES_v0.4.16.md)
+[`RELEASE_NOTES_v0.4.17.md`](RELEASE_NOTES_v0.4.17.md)
 
-Historical per-version release notes and internal migration patch/validation files are intentionally not kept in the release source package.
+`RELEASE_NOTES_v0.4.16.md` is retained because it contains the complete AsyncWebServer migration and OTA validation history. Older per-version migration patch/validation files are not kept in the release source package.
 
 ---
 
@@ -376,3 +376,8 @@ In exclusive mode the diagnostic now runs the HTTPUpdate-equivalent preflight as
 ### v0.4.16 full OTA validation release
 
 v0.4.16 intentionally keeps the v0.4.15 OTA implementation unchanged. Its purpose is to provide a new GitHub release target for a clean end-to-end `HTTPUpdate` hardware validation from the installed diagnostic build. The non-flashing transport diagnostics remain available unchanged.
+
+
+### v0.4.17 temperature-unit conversion fix
+
+v0.4.17 keeps all firmware, API and control values in Celsius but applies the selected °C/°F unit consistently in the dashboard. BME280 and DS18B20 temperatures, Status-page target/leaf-offset values and the corresponding Running Settings inputs are converted for display. Fahrenheit Running Settings values are converted back to Celsius before they are written to the existing grow-target API.

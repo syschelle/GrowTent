@@ -1261,12 +1261,156 @@ function clampInt(x, lo, hi){
   })();
 
   // ---------- Temperature unit ----------
-  function getTempUnit(){ return localStorage.getItem('tempUnit') || (currentLang === 'en' ? 'F' : 'C'); }
-  function setTempUnit(unit){
-    localStorage.setItem('tempUnit', unit);
-    const sel=$('tempUnit'); if(sel && sel.value !== unit) sel.value = unit;
+  // The firmware/API remains Celsius-native. Fahrenheit is a UI-only
+  // representation so VPD/control logic and persisted grow targets keep their
+  // existing Celsius contract.
+  function normalizeTempUnit(unit){
+    const raw = String(unit ?? '').trim().toLowerCase();
+    return (raw === 'f' || raw === 'imperial') ? 'F' : 'C';
   }
+  function getServerTempUnit(){
+    const raw = document.body?.dataset?.tempUnit;
+    return raw ? normalizeTempUnit(raw) : null;
+  }
+  let tempUnitBootstrapped = false;
+  function getTempUnit(){
+    const saved = localStorage.getItem('tempUnit');
+    if (saved) return normalizeTempUnit(saved);
+    return getServerTempUnit() || (currentLang === 'en' ? 'F' : 'C');
+  }
+  function finiteTempNumber(value){
+    if (value === null || value === undefined || value === '') return NaN;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function tempCToDisplay(value, unit = getTempUnit()){
+    const n = finiteTempNumber(value);
+    if (!Number.isFinite(n)) return NaN;
+    return normalizeTempUnit(unit) === 'F' ? (n * 9 / 5) + 32 : n;
+  }
+  function tempDeltaCToDisplay(value, unit = getTempUnit()){
+    const n = finiteTempNumber(value);
+    if (!Number.isFinite(n)) return NaN;
+    return normalizeTempUnit(unit) === 'F' ? n * 9 / 5 : n;
+  }
+  function tempDisplayToC(value, unit = getTempUnit()){
+    const n = finiteTempNumber(value);
+    if (!Number.isFinite(n)) return NaN;
+    return normalizeTempUnit(unit) === 'F' ? (n - 32) * 5 / 9 : n;
+  }
+  function tempDeltaDisplayToC(value, unit = getTempUnit()){
+    const n = finiteTempNumber(value);
+    if (!Number.isFinite(n)) return NaN;
+    return normalizeTempUnit(unit) === 'F' ? n * 5 / 9 : n;
+  }
+  function roundTempTenths(value){
+    const n = finiteTempNumber(value);
+    return Number.isFinite(n) ? Math.round(n * 10) / 10 : NaN;
+  }
+  function formatTempUi(value){
+    const n = finiteTempNumber(value);
+    return Number.isFinite(n) ? n.toFixed(1) : 'n/a';
+  }
+  function captureTemperatureInputs(displayUnit = getTempUnit()){
+    const target = $('webTargetTemp');
+    if (target && target.value !== '') {
+      const c = tempDisplayToC(target.value, displayUnit);
+      if (Number.isFinite(c)) target.dataset.celsiusValue = String(roundTempTenths(c));
+    }
+    const leaf = $('webOffsetLeafTemp');
+    if (leaf && leaf.value !== '') {
+      const c = tempDeltaDisplayToC(leaf.value, displayUnit);
+      if (Number.isFinite(c)) leaf.dataset.celsiusValue = String(roundTempTenths(c));
+    }
+  }
+  function renderTemperatureInputs(unit = getTempUnit()){
+    const normalized = normalizeTempUnit(unit);
+    const target = $('webTargetTemp');
+    if (target) {
+      const c = Number(target.dataset.celsiusValue);
+      if (Number.isFinite(c)) target.value = tempCToDisplay(c, normalized).toFixed(1);
+      target.min = normalized === 'F' ? '64.4' : '18.0';
+      target.max = normalized === 'F' ? '86.0' : '30.0';
+      target.step = '0.1';
+    }
+    const leaf = $('webOffsetLeafTemp');
+    if (leaf) {
+      const c = Number(leaf.dataset.celsiusValue);
+      if (Number.isFinite(c)) leaf.value = tempDeltaCToDisplay(c, normalized).toFixed(1);
+      leaf.min = normalized === 'F' ? '-5.4' : '-3.0';
+      leaf.max = '0.0';
+      leaf.step = '0.1';
+    }
+  }
+  function renderTemperatureStatus(data = null, unit = getTempUnit()){
+    const normalized = normalizeTempUnit(unit);
+    const setStatusTemp = (id, celsiusValue, isDelta = false) => {
+      const el = $(id);
+      if (!el) return;
+      const c = finiteTempNumber(celsiusValue);
+      if (!Number.isFinite(c)) {
+        el.textContent = 'n/a';
+        return;
+      }
+      el.dataset.celsiusValue = String(c);
+      const shown = isDelta ? tempDeltaCToDisplay(c, normalized) : tempCToDisplay(c, normalized);
+      el.textContent = formatTempUi(shown);
+    };
+
+    if (data) {
+      setStatusTemp('tempSpan', data['sensors.cur.temperatureC']);
+      setStatusTemp('ext1TempSpan', data['sensors.cur.extTempC']);
+      setStatusTemp('targetTempStatus', data['settings.grow.targetTemperature']);
+      setStatusTemp('leafTempStatus', data['settings.grow.offsetLeafTemperature'], true);
+    } else {
+      for (const [id, isDelta] of [['ext1TempSpan', false], ['targetTempStatus', false], ['leafTempStatus', true]]) {
+        const el = $(id);
+        if (!el) continue;
+        const c = Number(el.dataset.celsiusValue);
+        if (!Number.isFinite(c)) continue;
+        const shown = isDelta ? tempDeltaCToDisplay(c, normalized) : tempCToDisplay(c, normalized);
+        el.textContent = formatTempUi(shown);
+      }
+    }
+  }
+  function renderTemperatureUnitUi(data = window._lastApiState || null){
+    const unit = getTempUnit();
+    document.querySelectorAll('[data-temp-unit-label]').forEach(el => {
+      el.textContent = unit === 'F' ? '°F' : '°C';
+    });
+    renderTemperatureInputs(unit);
+    renderTemperatureStatus(data, unit);
+  }
+  function setTempUnit(unit){
+    const previous = getTempUnit();
+    captureTemperatureInputs(previous);
+    const normalized = normalizeTempUnit(unit);
+    localStorage.setItem('tempUnit', normalized);
+    const sel=$('tempUnit'); if(sel && sel.value !== normalized) sel.value = normalized;
+    renderTemperatureUnitUi();
+  }
+
+  // Keep canonical Celsius values in data attributes while the visible form is
+  // allowed to use Fahrenheit. This also preserves unsaved edits when the unit
+  // is toggled before saving.
+  $('webTargetTemp')?.addEventListener('input', e => {
+    const c = tempDisplayToC(e.target.value, getTempUnit());
+    if (Number.isFinite(c)) e.target.dataset.celsiusValue = String(roundTempTenths(c));
+  });
+  $('webOffsetLeafTemp')?.addEventListener('input', e => {
+    const c = tempDeltaDisplayToC(e.target.value, getTempUnit());
+    if (Number.isFinite(c)) e.target.dataset.celsiusValue = String(roundTempTenths(c));
+  });
   $('tempUnit')?.addEventListener('change', e => setTempUnit(e.target.value));
+
+  // Save handlers live outside this DOMContentLoaded scope. Expose only the
+  // pure conversion helpers they need to convert UI values back to Celsius.
+  window.growTentTemperature = {
+    getUnit: getTempUnit,
+    toC: (value) => roundTempTenths(tempDisplayToC(value, getTempUnit())),
+    deltaToC: (value) => roundTempTenths(tempDeltaDisplayToC(value, getTempUnit())),
+    render: renderTemperatureUnitUi
+  };
 
   // ---------- i18n ----------
   let manifest=null, I18N_RAW={}, I18N={}, currentLang='de';
@@ -1296,6 +1440,7 @@ function clampInt(x, lo, hi){
     const tf=$('timeFormat');
     if(tf){ const saved=localStorage.getItem('timeFormat')||getDefaultTimeFormatFor(currentLang); if(tf.value!==saved) tf.value=saved; }
     const tu=$('tempUnit'); if(tu){ const savedTU=getTempUnit(); if(tu.value!==savedTU) tu.value=savedTU; }
+    renderTemperatureUnitUi();
     renderHeaderDateTime();
 
     // Dynamic pump button tooltips are generated by JavaScript and therefore
@@ -1324,7 +1469,17 @@ function clampInt(x, lo, hi){
     localStorage.setItem('lang', currentLang);
     if(!localStorage.getItem('dateFormat')) localStorage.setItem('dateFormat', getDefaultDateFormatFor(currentLang));
     if(!localStorage.getItem('timeFormat')) localStorage.setItem('timeFormat', getDefaultTimeFormatFor(currentLang));
-    if(!localStorage.getItem('tempUnit'))   localStorage.setItem('tempUnit', currentLang === 'en' ? 'F' : 'C');
+    if(!tempUnitBootstrapped) {
+      const serverUnit = getServerTempUnit();
+      if (serverUnit) {
+        // The temperature unit is a device setting. On each page load the
+        // persisted ESP value wins over stale browser-local preferences.
+        localStorage.setItem('tempUnit', serverUnit);
+      } else if(!localStorage.getItem('tempUnit')) {
+        localStorage.setItem('tempUnit', currentLang === 'en' ? 'F' : 'C');
+      }
+      tempUnitBootstrapped = true;
+    }
 
     validateI18n();
     applyTranslations();
@@ -1763,8 +1918,9 @@ async function startNewGrow(){
       if (getActivePageId() !== 'status') return;
 
       // Render sensor values first. Pump UI problems must never suppress sensor data.
-      setTextById('tempSpan', formatNum(data['sensors.cur.temperatureC'], 1));
-      setTextById('ext1TempSpan', formatNum(data['sensors.cur.extTempC'], 1));
+      // Temperature values from /api/state are always Celsius; convert only for
+      // the selected dashboard display unit.
+      renderTemperatureStatus(data);
       setTextById('humSpan', formatNum(data['sensors.cur.humidityPct'], 1));
       setTextById('vpdSpan', formatNum(data['sensors.cur.vpdKpa'], 2));
 
@@ -2959,11 +3115,29 @@ window.saveRunsettingsAll = async function () {
       vpdHysteresis: num('webHysteresis')
     });
 
+    const tempCodec = window.growTentTemperature;
+    const targetTemperatureC = tempCodec?.toC
+      ? tempCodec.toC(num('webTargetTemp'))
+      : num('webTargetTemp');
+    const offsetLeafTemperatureC = tempCodec?.deltaToC
+      ? tempCodec.deltaToC(num('webOffsetLeafTemp'))
+      : num('webOffsetLeafTemp');
+
     await postAndWait('/api/settings/grow-targets', '/api/settings/grow-targets', {
-      targetTemperature: num('webTargetTemp'),
+      // API contract remains Celsius even when the dashboard displays °F.
+      targetTemperature: targetTemperatureC,
       targetVPD: num('webTargetVPD'),
-      offsetLeafTemperature: num('webOffsetLeafTemp')
+      offsetLeafTemperature: offsetLeafTemperatureC
     });
+
+    const targetTempInput = document.getElementById('webTargetTemp');
+    if (targetTempInput && Number.isFinite(targetTemperatureC)) {
+      targetTempInput.dataset.celsiusValue = String(targetTemperatureC);
+    }
+    const leafTempInput = document.getElementById('webOffsetLeafTemp');
+    if (leafTempInput && Number.isFinite(offsetLeafTemperatureC)) {
+      leafTempInput.dataset.celsiusValue = String(offsetLeafTemperatureC);
+    }
 
     await postAndWait('/api/settings/irrigation', '/api/settings/irrigation', {
       amountOfWater: num('webAmountOfWater'),
