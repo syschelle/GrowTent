@@ -856,11 +856,11 @@ const char cssContent[] PROGMEM = R"rawliteral(
         minmax(150px,.42fr)
         minmax(360px,1.15fr);
       gap:14px;
-      align-items:start;
+      align-items:stretch;
     }
 
     .runsettings-top-grid > .runsettings-panel{
-      height:auto;
+      height:100%;
       margin-bottom:0;
     }
 

@@ -1,7 +1,7 @@
-GrowTent v0.4.29 Full-HD Operating Settings responsive refinement package
+GrowTent v0.4.30 Full-HD Operating Settings responsive refinement package
 
 Expected firmware version:
-#define FW_VERSION "v0.4.29"
+#define FW_VERSION "v0.4.30"
 
 Operating Settings top layout:
 - wide displays (>2100px viewport): 4 columns
