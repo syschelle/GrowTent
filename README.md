@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The completed staged migration from the former synchronous `WebServer` implementation is documented in [`RELEASE_NOTES_v0.4.16.md`](RELEASE_NOTES_v0.4.16.md); the current v0.4.17 changes are documented in [`RELEASE_NOTES_v0.4.17.md`](RELEASE_NOTES_v0.4.17.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current release changes are documented in [`RELEASE_NOTES_v0.4.18.md`](RELEASE_NOTES_v0.4.18.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -281,10 +281,10 @@ pio run -e nodemcu-32s -t upload
 
 The release workflow is triggered by a `v*` Git tag.
 
-For release `v0.4.17`, the authoritative release-notes file is:
+For release `v0.4.18`, the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.4.17.md
+RELEASE_NOTES_v0.4.18.md
 ```
 
 The workflow:
@@ -299,15 +299,39 @@ This keeps the GitHub Release and the changelog shown by the ESP32 OTA page sync
 
 ---
 
-## AsyncWebServer regression test
+## Diagnostics and regression tests
 
-The repository contains one current migration/regression test:
+The `tests/` directory contains three shell diagnostics for real GrowTent hardware.
 
-```text
-tests/test_async_webserver.sh
+### `test_async_webserver.sh`
+
+Full release/regression test for the AsyncWebServer firmware. It checks the firmware/phase, TCP/80 isolation, dashboard assets and transport headers, `/api/state` and `/api/stats`, settings/action handoffs, provisioning behavior, OTA check/status handling, burst/load behavior and recovery after load.
+
+> This is **not a read-only test**. Run it only when configuration/action tests are acceptable on the target controller.
+
+```bash
+./tests/test_async_webserver.sh <ESP-IP>
 ```
 
-It is intended to be run against a real ESP32 after flashing and covers the final AsyncWebServer architecture, including state transport, settings/actions, provisioning lifecycle, OTA check and load/regression checks.
+### `test_async_transport_stress.sh`
+
+Focused **read-only** transport stress test. It sends parallel bursts to `/api/state`, `/api/stats`, `/api/diary/list` and `/api/diary.csv`, records HTTP/curl errors and response lengths, and captures health data without retries so sporadic transport stalls remain visible.
+
+```bash
+./tests/test_async_transport_stress.sh <ESP-IP>
+```
+
+### `test_ota_transport.sh`
+
+Non-flashing OTA transport diagnostic. It checks the OTA network path through DNS, TLS, GitHub redirects and release-asset response headers in normal and/or exclusive maintenance mode. No firmware bytes are written.
+
+```bash
+./tests/test_ota_transport.sh <ESP-IP>
+./tests/test_ota_transport.sh <ESP-IP> --normal
+./tests/test_ota_transport.sh <ESP-IP> --exclusive
+```
+
+Exclusive mode intentionally reboots the ESP after the diagnostic because application tasks are stopped for the maintenance environment.
 
 ---
 
@@ -319,9 +343,11 @@ include/
 lib/
 src/
 tests/test_async_webserver.sh
+tests/test_async_transport_stress.sh
+tests/test_ota_transport.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.4.17.md
+RELEASE_NOTES_v0.4.18.md
 LICENSE
 ```
 
@@ -342,42 +368,14 @@ Important source files:
 
 ## Release information
 
-The current v0.4.17 release changes are documented in:
+The current release changes are documented in:
 
-[`RELEASE_NOTES_v0.4.17.md`](RELEASE_NOTES_v0.4.17.md)
+[`RELEASE_NOTES_v0.4.18.md`](RELEASE_NOTES_v0.4.18.md)
 
-`RELEASE_NOTES_v0.4.16.md` is retained because it contains the complete AsyncWebServer migration and OTA validation history. Older per-version migration patch/validation files are not kept in the release source package.
+The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
 
 ---
 
 ## License
 
 Licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE).
-
-
-### OTA transport diagnostic
-
-`tests/test_ota_transport.sh <ESP-IP>` runs a non-flashing OTA network diagnostic against the ESP32 itself. By default it compares normal runtime against the exclusive OTA maintenance environment. The ESP performs DNS, direct TLS, GitHub release redirect, redirect-host TLS and signed asset response-header probes using the same Arduino networking stack as OTA. v0.4.14 additionally reproduces HTTPUpdate's sketch MD5/SHA-256 work, ESP-specific headers, HTTP/1.0 mode, 8-second HTTP timeout and forced redirect behavior without starting the updater. The signed release URL/JWT is never returned or logged.
-
-```bash
-./tests/test_ota_transport.sh 192.168.178.58
-./tests/test_ota_transport.sh 192.168.178.58 --normal
-./tests/test_ota_transport.sh 192.168.178.58 --exclusive
-```
-
-The exclusive mode intentionally reboots the ESP after publishing the diagnostic result because application tasks have been self-deleted, exactly as in a real exclusive OTA attempt.
-
-
-### v0.4.15 cold-first OTA transport probe
-
-In exclusive mode the diagnostic now runs the HTTPUpdate-equivalent preflight as the **first network operation after maintenance shutdown**, before any separate DNS/TLS/redirect warm-up probe. This isolates whether the earlier v0.4.12 `start_ssl_client: -1` failure depended on a cold first TLS connection.
-
-
-### v0.4.16 full OTA validation release
-
-v0.4.16 intentionally keeps the v0.4.15 OTA implementation unchanged. Its purpose is to provide a new GitHub release target for a clean end-to-end `HTTPUpdate` hardware validation from the installed diagnostic build. The non-flashing transport diagnostics remain available unchanged.
-
-
-### v0.4.17 temperature-unit conversion fix
-
-v0.4.17 keeps all firmware, API and control values in Celsius but applies the selected °C/°F unit consistently in the dashboard. BME280 and DS18B20 temperatures, Status-page target/leaf-offset values and the corresponding Running Settings inputs are converted for display. Fahrenheit Running Settings values are converted back to Celsius before they are written to the existing grow-target API.

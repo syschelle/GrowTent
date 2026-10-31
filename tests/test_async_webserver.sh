@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.17 / phase 32 OTA request-status lifecycle fix
+# Test build: v0.4.18 / phase 32
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -14,7 +14,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ESP_IP="$1"
-TEST_FW_VERSION="v0.4.17"
+TEST_FW_VERSION="v0.4.18"
 TEST_CACHE_BUSTER="${TEST_FW_VERSION#v}"
 BASE80="http://${ESP_IP}"
 BASE8080="http://${ESP_IP}:8080"
@@ -155,7 +155,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.17 / Async phase 32 fallback-AP lifecycle fix"
+log "Test build target: v0.4.18 / Async phase 32"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -165,7 +165,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.17"
+EXPECTED_FW_VERSION="v0.4.18"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
