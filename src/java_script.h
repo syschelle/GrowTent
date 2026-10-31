@@ -471,7 +471,7 @@ window.showToast = function (message, type = "info", duration = 2600) {
 
 // ---------- Sensor polling ----------
 window.sensorTimer = null;
-// Sensor poll interval (ms). We'll dynamically slow down when Status page is not visible.
+// Sensor poll interval (ms). Periodic polling runs only while Status is active.
 window._sensorPollMs = 10000;
 
 // ---- relay state (firmware can be 4 or 8) ----
@@ -492,6 +492,11 @@ window._stopSensorPoll = function () {
 };
 
 window._startSensorPoll = function () {
+  // Periodic /api/state polling is intentionally limited to the Status page.
+  // Settings pages must never be refreshed underneath an active user edit.
+  const statusActive = document.getElementById('status')?.classList.contains('active');
+  if (!statusActive || document.visibilityState === 'hidden') return;
+
   if (!window.sensorTimer && typeof window.updateSensorValues === 'function') {
     window.sensorTimer = setInterval(window.updateSensorValues, window._sensorPollMs || 10000);
   }
@@ -2045,9 +2050,9 @@ async function startNewGrow(){
 
   window.updateSensorValues = updateSensorValues;
 
-  // ---------- Shelly light schedule poll (only active on Shelly page) ----------
-  window._shellyLightTimer = null;
-
+  // ---------- Page-aware polling ----------
+  // Only Status and System Log use periodic polling. Settings pages are loaded
+  // once when opened and remain stable while the user edits their controls.
   function getActivePageId(){
     const p = document.querySelector('.page.active');
     return p ? p.id : '';
@@ -2061,8 +2066,7 @@ async function startNewGrow(){
     setTextById('capturedSpan', 'N/A');
     // averages optional
   }
-  window._startSensorPoll();     // intervall start
-  window.updateSensorValues();
+  // Polling is started by onPageChanged() only when Status is active.
   updateRelayButtons();
 
   
@@ -2133,16 +2137,21 @@ async function startNewGrow(){
     logTimer = null;
   }
 
-  // Pause polling when tab/page is hidden; resume only on logging page
+  // Pause all periodic browser polling while the tab is hidden. Resume only
+  // the polling owned by the currently active page.
   document.addEventListener('visibilitychange', () => {
-    const loggingActive =
-        document.getElementById('logging')?.classList.contains('active');
+    const activeId = getActivePageId();
+    const visible = document.visibilityState === 'visible';
 
-    if (document.visibilityState === 'visible' && loggingActive) {
-        startWebLog();
+    if (visible && activeId === 'status') {
+      window.updateSensorValues?.();
+      window._startSensorPoll?.();
     } else {
-        stopWebLog();
+      window._stopSensorPoll?.();
     }
+
+    if (visible && activeId === 'logging') startWebLog();
+    else stopWebLog();
   });
 
 
@@ -2182,44 +2191,34 @@ async function startNewGrow(){
 
   // SPA navigation handler: called when switching pages via sidebar links
   function onPageChanged(activeId) {
-    // Status page has lots of grid cards; keep sensor polling fast there,
-    // slow down elsewhere to reduce layout work.
+    // Periodic /api/state polling belongs exclusively to the Status page.
+    // Every settings page stays static after its one-time load so background
+    // refreshes cannot overwrite unsaved user input.
     if (activeId === 'status') {
       window._setSensorPollInterval?.(10000);
-      // refresh immediately when returning to status
       window.updateSensorValues?.();
+      window._startSensorPoll?.();
     } else {
-      window._setSensorPollInterval?.(60000);
+      window._stopSensorPoll?.();
     }
 
-    if (activeId === 'logging') startWebLog(); else stopWebLog();
+    // The System Log owns its own periodic 10-second poll.
+    if (activeId === 'logging') startWebLog();
+    else stopWebLog();
 
-    // SHELLY light schedule poll: keep UI in sync (fixes sporadic updates)
+    // Shelly settings are refreshed once when the page is opened. No periodic
+    // Shelly timer is used; this protects light schedule/IP edits from being
+    // replaced by the previously stored values while the user is editing.
     if (activeId === 'shelly') {
       try { initLightScheduleControls(); } catch(e) {}
-      // Immediate update (no waiting for timer)
       try { fetchStateAndUpdateShellyUI(); } catch(e) {}
       try { window.refreshShellyDetectedGenerations?.(); } catch(e) {}
-      if (!window._shellyLightTimer) {
-        window._shellyLightTimer = setInterval(() => {
-          // Immediate update (no waiting for timer)
-      try { fetchStateAndUpdateShellyUI(); } catch(e) {}
-        }, 15000);
-      }
-    } else {
-      if (window._shellyLightTimer) {
-        clearInterval(window._shellyLightTimer);
-        window._shellyLightTimer = null;
-      }
-    }
-
-    if (activeId === 'shelly') {
-      // Load Shelly summary lines (IP | Gen | ON | OFF) from /api/state
+      // Load Shelly summary lines (IP | Gen | ON | OFF) once from /api/state.
       loadShellyLines();
     }
 
     if (activeId === 'vars') {
-      // Load once when opening the page (and on refresh)
+      // Load once when opening the page (and on manual refresh).
       loadVars();
     }
 
@@ -3216,10 +3215,6 @@ window.startOtaUpdate = async function () {
   // available exclusively so this page can keep polling OTA status.
   window._otaExclusiveUiActive=true;
   window._stopSensorPoll?.();
-  if(window._shellyLightTimer){
-    clearInterval(window._shellyLightTimer);
-    window._shellyLightTimer=null;
-  }
 
   setProgress(0,otaTr('ota.title','OTA Update'),otaTr('ota.exclusivePreparing','Preparing exclusive OTA mode. Application tasks are being stopped.'));
   status.textContent=otaTr('ota.exclusivePreparing','Preparing exclusive OTA mode.');

@@ -1,12 +1,11 @@
-GrowTent v0.4.20 dashboard credential-output hardening package
+GrowTent v0.4.21 page-aware UI polling package
 
-Expected build version:
-#define FW_VERSION "v0.4.20"
+Expected src/build_version.h:
+#define FW_VERSION "v0.4.21"
 
-Security behavior:
-- Pushover App Token: write-only in dashboard
-- Pushover User Key: write-only in dashboard
-- Gotify App Token: write-only in dashboard
-- Shelly password: write-only in dashboard
-- Shelly Flood webhook token: intentionally visible
-- Empty secret fields preserve the stored credential
+Release focus:
+- periodic /api/state polling only on Status
+- periodic log polling only on System Log
+- no periodic Shelly/settings-page polling
+- Shelly settings still refresh once when opened
+- existing unsaved-input dirty guards remain active

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.20 / phase 32
+# Test build: v0.4.21 / phase 32
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -14,7 +14,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ESP_IP="$1"
-TEST_FW_VERSION="v0.4.20"
+TEST_FW_VERSION="v0.4.21"
 TEST_CACHE_BUSTER="${TEST_FW_VERSION#v}"
 BASE80="http://${ESP_IP}"
 BASE8080="http://${ESP_IP}:8080"
@@ -155,7 +155,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.20 / Async phase 32"
+log "Test build target: v0.4.21 / Async phase 32"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -165,7 +165,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.20"
+EXPECTED_FW_VERSION="v0.4.21"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -4471,6 +4471,24 @@ if [[ "$phase32_secret_rc" -eq 0 && "$phase32_secret_http" == "200" ]] &&
 else
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
   log "FAIL dashboard secret fields are not write-only"
+fi
+
+# v0.4.21 page-aware polling contract. Only Status and System Log may own
+# periodic browser polling; Shelly/settings pages must not start background timers.
+phase32_polling_js="${OUTDIR}/phase32-page-aware-polling.js"
+phase32_polling_meta="$(curl -sS -o "$phase32_polling_js" --max-time 10 \
+  -w '%{http_code}\t%{time_total}\t%{size_download}' "$BASE8080/script.js?v=${TEST_CACHE_BUSTER}&page-aware-polling=1" 2>>"$LOGFILE")"; phase32_polling_rc=$?
+record_result "phase32" "page-aware-polling" "$phase32_polling_meta" "$phase32_polling_rc"
+IFS=$'\t' read -r phase32_polling_http _ _ <<< "$phase32_polling_meta"
+if [[ "$phase32_polling_rc" -eq 0 && "$phase32_polling_http" == "200" ]] &&
+   grep -q "activeId === 'status'" "$phase32_polling_js" &&
+   grep -q "activeId === 'logging'" "$phase32_polling_js" &&
+   grep -q "window._stopSensorPoll" "$phase32_polling_js" &&
+   ! grep -q "_shellyLightTimer" "$phase32_polling_js"; then
+  log "PASS page-aware polling is limited to Status/System Log and Shelly timer is absent"
+else
+  PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
+  log "FAIL page-aware polling contract"
 fi
 
 PORT8080_REGRESSION_FAILURES=$((PHASE2_ASYNC_FAILURES + PHASE3_ASYNC_FAILURES + PHASE4_ASYNC_FAILURES + PHASE5A_ASYNC_FAILURES + PHASE5B_ASYNC_FAILURES + PHASE5C_ASYNC_FAILURES + PHASE6_ASYNC_FAILURES + ASSET_FAILURES + CACHE_FAILURES + READCACHE_FAILURES + LOGCLEAR_FAILURES + PREFWRITE_FAILURES + RUNTIME_GROW_FAILURES + RUNTIME_HEAT_FAILURES + RUNTIME_HEAT_OUTPUT_FAILURES + RUNTIME_LIGHT_FAILURES + RUNTIME_RELAY_SCHEDULE_FAILURES + RUNTIME_RELAY_ACTION_FAILURES + RUNTIME_WATERING_FAILURES + RUNTIME_STORAGE_FAILURES + PHASE26_SETTINGS_FAILURES + PHASE27_SHELLY_FAILURES + PHASE28_SHELLY_SETTINGS_FAILURES + PHASE29_SYSTEM_SETTINGS_FAILURES + PHASE30_FACTORY_RESET_FAILURES + PHASE31_WIFI_PROVISION_FAILURES + PHASE32_FINAL_WEB_FAILURES + ASSET_TRANSPORT_FAILURES + ASSET_TRANSPORT_TIMEOUTS + ASSET_TRANSPORT_INCOMPLETE + ASSET_TRANSPORT_HEADER_ERRORS + TRANSPORT_HEADER_FAILURES + TRANSPORT_REQUEST_FAILURES))

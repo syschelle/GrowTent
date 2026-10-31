@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current release changes are documented in [`RELEASE_NOTES_v0.4.20.md`](RELEASE_NOTES_v0.4.20.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current release changes are documented in [`RELEASE_NOTES_v0.4.21.md`](RELEASE_NOTES_v0.4.21.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -51,6 +51,10 @@ For centralized history, multi-tent management and higher-level coordination, Gr
 - **Release-specific static-asset cache busting**
 - **Fixed-length Async response transport for important API and asset responses**
 - **Designed for stable long-term unattended operation**
+- **Page-aware browser polling**
+  - periodic `/api/state` polling only on Status
+  - periodic log polling only on System Log
+  - settings pages remain static while edited
 
 ---
 
@@ -461,7 +465,7 @@ The release workflow is triggered by a `v*` Git tag.
 For the current release the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.4.20.md
+RELEASE_NOTES_v0.4.21.md
 ```
 
 The release workflow:
@@ -488,7 +492,7 @@ tests/test_async_transport_stress.sh
 tests/test_ota_transport.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.4.20.md
+RELEASE_NOTES_v0.4.21.md
 LICENSE
 ```
 
@@ -523,7 +527,7 @@ Important source files:
 
 The current release changes are documented in:
 
-[`RELEASE_NOTES_v0.4.20.md`](RELEASE_NOTES_v0.4.20.md)
+[`RELEASE_NOTES_v0.4.21.md`](RELEASE_NOTES_v0.4.21.md)
 
 The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
 
