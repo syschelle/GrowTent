@@ -2073,21 +2073,23 @@ static void controlHeaterByTemperature() {
 }
 
 void controlMinVPD() {
-  // --- static runtime state to avoid request spam ---
-  static bool exhaustStateKnown = false;
-  static bool exhaustStateCache = false; // last known ON/OFF
-  static uint32_t lastSwitchMs = 0;
-  const uint32_t minSwitchIntervalMs = 10000; // 10s Sperre zwischen Schaltvorgängen
+  // Min-VPD exhaust control must always compare against the most recent known
+  // Shelly state. A private static state cache can become stale when the
+  // exhaust is changed manually, by another client, or directly on the Shelly.
+  static uint32_t lastSwitchAttemptMs = 0;
+  static uint32_t lastStatusFailureLogMs = 0;
+  const uint32_t minSwitchIntervalMs = 10000UL;   // 10 s between switch attempts
+  const uint32_t statusFailureLogIntervalMs = 60000UL;
 
   if (!settings.grow.minVpdMonEnabled) return;
 
-  String ip = String(settings.shelly.exhaust.ip);
+  String ip = settings.shelly.exhaust.ip;
   ip.trim();
   if (ip.length() < 7 || ip.length() > 15) return;
 
   float currentVpd = cur.vpdKpa;
   float targetVpd = settings.grow.targetVPD;
-  float minOffset = settings.grow.minVPD; // target - offset
+  float minOffset = settings.grow.minVPD; // effective minimum = target - offset
   float hysteresis = settings.grow.vpdHysteresis;
 
   if (!isfinite(currentVpd) || !isfinite(targetVpd)) return;
@@ -2098,37 +2100,73 @@ void controlMinVPD() {
   float minEff = targetVpd - minOffset;
   if (minEff < 0.1f) minEff = 0.1f;
 
-  // inital request to fill cache (and check connectivity) 
-    if (!exhaustStateKnown) {
-    exhaustStateCache = getShellyValues(shelly.exhaust, 0, 80).isOn;
-    exhaustStateKnown = true;
+  // The regular Shelly worker refreshes settings.shelly.exhaust.values roughly
+  // every 10 seconds. Reuse that state instead of keeping a second, divergent
+  // state cache inside this controller. Only perform a direct read when no
+  // valid status is available yet (for example directly after boot).
+  ShellyValues exhaustValues = settings.shelly.exhaust.values;
+  if (!exhaustValues.ok || settings.shelly.exhaust.gen < 1 || settings.shelly.exhaust.gen > 4) {
+    ShellyValues refreshed = getShellyValues(settings.shelly.exhaust, 0, 80);
+    if (!refreshed.ok) {
+      const uint32_t now = millis();
+      if (lastStatusFailureLogMs == 0 ||
+          (uint32_t)(now - lastStatusFailureLogMs) >= statusFailureLogIntervalMs) {
+        lastStatusFailureLogMs = now;
+        logPrint("[minVPD][ERROR] Exhaust status unavailable current=" + String(currentVpd, 2) +
+                 " minEff=" + String(minEff, 2));
+      }
+      return;
+    }
+    exhaustValues = refreshed;
+    // Mirror the freshly read value into the display/runtime cache used by
+    // /api/state so the control path and UI agree immediately.
+    shelly.exhaust.values = refreshed;
   }
 
-  // Backend-gleiche Hysterese-Logik
-  bool shouldBeOn = exhaustStateCache
-  ? (currentVpd < (minEff + hysteresis))
-  : (currentVpd < minEff);
+  const bool actualOn = exhaustValues.isOn;
 
-  // Apply only if state must change (and avoid request spam with timing check)
-  if (shouldBeOn == exhaustStateCache) return;
+  // Hysteresis is based on the REAL last known exhaust state:
+  // - OFF -> switch ON below minEff
+  // - ON  -> stay ON until VPD reaches minEff + hysteresis
+  const bool shouldBeOn = actualOn
+    ? (currentVpd < (minEff + hysteresis))
+    : (currentVpd < minEff);
 
-  // Minimum interval check to avoid rapid toggling (e.g. due to sensor noise around threshold)
-  uint32_t now = millis();
-  if ((now - lastSwitchMs) < minSwitchIntervalMs) return;
+  if (shouldBeOn == actualOn) return;
 
-  bool ok = false;
-  if (shouldBeOn) {
-    ok = shellySwitchOn(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen, 0, 80);
-    if (ok) logPrint("[minVPD] Exhaust ON minEff=" + String(minEff, 2) + " current=" + String(currentVpd, 2));
-  } else {
-    ok = shellySwitchOff(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen, 0, 80);
-    if (ok) logPrint("[minVPD] Exhaust OFF minEff=" + String(minEff, 2) + " current=" + String(currentVpd, 2));
+  const uint32_t now = millis();
+  if (lastSwitchAttemptMs != 0 &&
+      (uint32_t)(now - lastSwitchAttemptMs) < minSwitchIntervalMs) {
+    return;
+  }
+  lastSwitchAttemptMs = now;
+
+  logPrint("[minVPD] current=" + String(currentVpd, 2) +
+           " minEff=" + String(minEff, 2) +
+           " hysteresis=" + String(hysteresis, 2) +
+           " exhaust=" + String(actualOn ? "ON" : "OFF") +
+           " -> " + String(shouldBeOn ? "ON" : "OFF"));
+
+  const bool ok = shouldBeOn
+    ? shellySwitchOn(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen, 0, 80)
+    : shellySwitchOff(settings.shelly.exhaust.ip, settings.shelly.exhaust.gen, 0, 80);
+
+  if (!ok) {
+    logPrint("[minVPD][ERROR] Exhaust switch " + String(shouldBeOn ? "ON" : "OFF") +
+             " failed current=" + String(currentVpd, 2) +
+             " minEff=" + String(minEff, 2));
+    return;
   }
 
-  if (ok) {
-    exhaustStateCache = shouldBeOn; // local cache update only on successful request
-    lastSwitchMs = now;
-  }
+  // Keep both caches synchronized immediately after a successful command.
+  settings.shelly.exhaust.values.ok = true;
+  settings.shelly.exhaust.values.isOn = shouldBeOn;
+  shelly.exhaust.values.ok = true;
+  shelly.exhaust.values.isOn = shouldBeOn;
+
+  logPrint("[minVPD] Exhaust " + String(shouldBeOn ? "ON" : "OFF") +
+           " successful current=" + String(currentVpd, 2) +
+           " minEff=" + String(minEff, 2));
 }
 
 // Returns true if current minute-of-hour is inside the schedule window (0..59).
