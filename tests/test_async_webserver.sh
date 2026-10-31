@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.19 / phase 32
+# Test build: v0.4.20 / phase 32
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -14,7 +14,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ESP_IP="$1"
-TEST_FW_VERSION="v0.4.19"
+TEST_FW_VERSION="v0.4.20"
 TEST_CACHE_BUSTER="${TEST_FW_VERSION#v}"
 BASE80="http://${ESP_IP}"
 BASE8080="http://${ESP_IP}:8080"
@@ -155,7 +155,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.19 / Async phase 32"
+log "Test build target: v0.4.20 / Async phase 32"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -165,7 +165,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.19"
+EXPECTED_FW_VERSION="v0.4.20"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -4146,7 +4146,7 @@ preclear_file="${OUTDIR}/weblog-before-async-clear.txt"
 curl -sS --max-time 5 "$BASE8080/api/logbuffer" -o "$preclear_file" 2>>"$LOGFILE" || true
 preclear_bytes="$(wc -c < "$preclear_file" | tr -d ' ')"
 
-# v0.4.19 credential-log hardening: labels may be present, values must not be.
+# v0.4.20 credential-log hardening: labels may be present, values must not be.
 # Do not print the matching line on failure because an older/incompatible build
 # could contain a real credential after "read =".
 if grep -Eq '\[PREFERENCES LOAD\] (pushoverAppKey|pushoverUserKey|pushoverDevice|gotifyToken) read = ' "$preclear_file"; then
@@ -4455,6 +4455,24 @@ else
   log "INFO source-contract check skipped (repository source not available)"
 fi
 
+# v0.4.20 dashboard credential-output hardening. Secret fields must be empty in
+# delivered HTML; the Flood webhook token is intentionally exempt.
+phase32_secret_html="${OUTDIR}/phase32-dashboard-secret-output.html"
+phase32_secret_meta="$(curl -sS -o "$phase32_secret_html" --max-time 10 \
+  -w '%{http_code}\t%{time_total}\t%{size_download}' "$BASE8080/" 2>>"$LOGFILE")"; phase32_secret_rc=$?
+record_result "phase32" "dashboard-secret-output" "$phase32_secret_meta" "$phase32_secret_rc"
+IFS=$'\t' read -r phase32_secret_http _ _ <<< "$phase32_secret_meta"
+if [[ "$phase32_secret_rc" -eq 0 && "$phase32_secret_http" == "200" ]] &&
+   grep -Eq 'id="webPushoverUserKey"[^>]*value=""' "$phase32_secret_html" &&
+   grep -Eq 'id="webPushoverAppKey"[^>]*value=""' "$phase32_secret_html" &&
+   grep -Eq 'id="webGotifyToken"[^>]*value=""' "$phase32_secret_html" &&
+   grep -Eq 'id="shellyPassword"[^>]*value=""' "$phase32_secret_html"; then
+  log "PASS dashboard does not return Pushover/Gotify/Shelly secrets"
+else
+  PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
+  log "FAIL dashboard secret fields are not write-only"
+fi
+
 PORT8080_REGRESSION_FAILURES=$((PHASE2_ASYNC_FAILURES + PHASE3_ASYNC_FAILURES + PHASE4_ASYNC_FAILURES + PHASE5A_ASYNC_FAILURES + PHASE5B_ASYNC_FAILURES + PHASE5C_ASYNC_FAILURES + PHASE6_ASYNC_FAILURES + ASSET_FAILURES + CACHE_FAILURES + READCACHE_FAILURES + LOGCLEAR_FAILURES + PREFWRITE_FAILURES + RUNTIME_GROW_FAILURES + RUNTIME_HEAT_FAILURES + RUNTIME_HEAT_OUTPUT_FAILURES + RUNTIME_LIGHT_FAILURES + RUNTIME_RELAY_SCHEDULE_FAILURES + RUNTIME_RELAY_ACTION_FAILURES + RUNTIME_WATERING_FAILURES + RUNTIME_STORAGE_FAILURES + PHASE26_SETTINGS_FAILURES + PHASE27_SHELLY_FAILURES + PHASE28_SHELLY_SETTINGS_FAILURES + PHASE29_SYSTEM_SETTINGS_FAILURES + PHASE30_FACTORY_RESET_FAILURES + PHASE31_WIFI_PROVISION_FAILURES + PHASE32_FINAL_WEB_FAILURES + ASSET_TRANSPORT_FAILURES + ASSET_TRANSPORT_TIMEOUTS + ASSET_TRANSPORT_INCOMPLETE + ASSET_TRANSPORT_HEADER_ERRORS + TRANSPORT_HEADER_FAILURES + TRANSPORT_REQUEST_FAILURES))
 if [[ "$PORT8080_REGRESSION_FAILURES" -eq 0 ]]; then
   log "OVERALL PORT-8080 REGRESSION RESULT: PASS"
@@ -4463,6 +4481,7 @@ else
 fi
 
 RELEASE_GATE_FAILURES=$((PORT8080_REGRESSION_FAILURES + LEGACY_UI_FAILURES))
+
 if [[ "$RELEASE_GATE_FAILURES" -eq 0 ]]; then
   log "OVERALL $EXPECTED_FW_VERSION RELEASE GATE: PASS"
 else

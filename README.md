@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current release changes are documented in [`RELEASE_NOTES_v0.4.18.md`](RELEASE_NOTES_v0.4.18.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current release changes are documented in [`RELEASE_NOTES_v0.4.20.md`](RELEASE_NOTES_v0.4.20.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -288,7 +288,7 @@ It includes areas such as:
 - Shelly power/energy telemetry
 - Flood sensor state
 
-Sensitive values such as Wi-Fi credentials, Shelly passwords and the Flood webhook token are not exposed through `/api/state`.
+Sensitive credentials such as Wi-Fi passwords, Shelly passwords, Pushover credentials and Gotify tokens are not exposed through `/api/state`. Notification credentials and the Shelly password are also treated as write-only in the dashboard and are never embedded back into the delivered HTML. The Shelly Flood webhook token is intentionally visible because it is required for webhook configuration.
 
 ### Relays
 
@@ -461,7 +461,7 @@ The release workflow is triggered by a `v*` Git tag.
 For the current release the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.4.18.md
+RELEASE_NOTES_v0.4.20.md
 ```
 
 The release workflow:
@@ -488,7 +488,7 @@ tests/test_async_transport_stress.sh
 tests/test_ota_transport.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.4.18.md
+RELEASE_NOTES_v0.4.20.md
 LICENSE
 ```
 
@@ -523,7 +523,7 @@ Important source files:
 
 The current release changes are documented in:
 
-[`RELEASE_NOTES_v0.4.18.md`](RELEASE_NOTES_v0.4.18.md)
+[`RELEASE_NOTES_v0.4.20.md`](RELEASE_NOTES_v0.4.20.md)
 
 The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
 

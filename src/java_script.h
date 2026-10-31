@@ -134,6 +134,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   "shelly.shellyAuthUser": { de: "Shelly Benutzername (optional):", en: "Shelly username (optional):" },
   "shelly.shellyAuthPassword": { de: "Shelly Passwort (optional):", en: "Shelly password (optional):" },
+  "shelly.shellyAuthPassword.ph": { de: "Leer lassen = gespeichertes Passwort behalten", en: "Leave empty to keep stored password" },
 
 
   "status.relayOn": { de: "einschalten (10s)", en: "turn on (10s)" },
@@ -302,10 +303,10 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   "message.pushoverSettings": { de: "Pushover Einstellungen", en: "Pushover settings" },
   "message.pushoverUserKey": { de: "Pushover Benutzer:", en: "Pushover User:" },
-  "message.pushoverUserKey.ph": { de: "Your User Key", en: "Your User Key" },
+  "message.pushoverUserKey.ph": { de: "Leer lassen = gespeicherten User Key behalten", en: "Leave empty to keep stored User Key" },
 
   "message.pushoverAppKey": { de: "Pushover App Token:", en: "Pushover App Token:" },
-  "message.pushoverAppKey.ph": { de: "API Token/Key", en: "API Token/Key" },
+  "message.pushoverAppKey.ph": { de: "Leer lassen = gespeicherten Token behalten", en: "Leave empty to keep stored token" },
 
   "message.pushoverDevice": {
     de: "Pushover Gerät (optional):",
@@ -321,7 +322,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   },
 
   "message.gotifyToken": { de: "Gotify App Token:", en: "Gotify App Token:" },
-  "message.gotifyToken.ph": { de: "z. B. a1b2c3", en: "e.g. a1b2c3" },
+  "message.gotifyToken.ph": { de: "Leer lassen = gespeicherten Token behalten", en: "Leave empty to keep stored token" },
 
   "message.saving": { de: "Nachrichteneinstellungen werden gespeichert…", en: "Saving message settings…" },
   "message.saved": { de: "Nachrichteneinstellungen gespeichert. Neustart läuft…", en: "Message settings saved. Restarting…" },
@@ -923,12 +924,15 @@ window.saveShellySettingsAll = async function(event) {
       heatmat:    { ip: value('shellyHeatMatIP') }
     },
     username: value('shellyUsername'),
-    password: document.getElementById('shellyPassword')?.value ?? '',
     floodEnabled: !!document.getElementById('floodEnabled')?.checked,
     floodToken: value('floodToken'),
     detectGenerations: true,
     programLightSchedule: false
   };
+
+
+  const shellyPassword = document.getElementById('shellyPassword')?.value ?? '';
+  if (shellyPassword.length > 0) payload.password = shellyPassword;
 
   // Do not couple a normal Shelly-device save to the light schedule. The
   // schedule is only sent when the user actually changed one of its controls.

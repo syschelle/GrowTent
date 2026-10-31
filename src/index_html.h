@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.4.19">
+  <link rel="stylesheet" href="/style.css?v=0.4.20">
 <body data-temp-unit="%UNIT%">
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -460,7 +460,7 @@ const char* htmlPage = R"rawliteral(
 
       <div class="form-group">
         <label for="shellyPassword" data-i18n="shelly.shellyAuthPassword">Shelly Passwort:</label>
-        <input name="webShellyPassword" id="shellyPassword" class="control-sm shelly-other" type="password" value="%SHPASSWORD%">
+        <input name="webShellyPassword" id="shellyPassword" class="control-sm shelly-other" type="password" autocomplete="new-password" data-i18n="shelly.shellyAuthPassword.ph" data-i18n-attr="placeholder" value="%SHPASSWORD%">
       </div>
       
       <div class="spacer"></div>
@@ -829,12 +829,12 @@ const char* htmlPage = R"rawliteral(
 
       <div class="form-group">
         <label for="webPushoverUserKey" data-i18n="message.pushoverUserKey">Pushover Benutzer:</label>
-        <input name="webPushoverUserKey" id="webPushoverUserKey" type="text" data-i18n="message.pushoverUserKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERUSERKEY%">
+        <input name="webPushoverUserKey" id="webPushoverUserKey" type="password" autocomplete="new-password" data-i18n="message.pushoverUserKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERUSERKEY%">
       </div>
 
       <div class="form-group">
         <label for="webPushoverAppKey" data-i18n="message.pushoverAppKey">Pushover Token:</label>
-        <input name="webPushoverAppKey" id="webPushoverAppKey" type="text" data-i18n="message.pushoverAppKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERAPPKEY%">
+        <input name="webPushoverAppKey" id="webPushoverAppKey" type="password" autocomplete="new-password" data-i18n="message.pushoverAppKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERAPPKEY%">
       </div>
 
       <div class="form-group">
@@ -858,7 +858,7 @@ const char* htmlPage = R"rawliteral(
 
       <div class="form-group">
         <label for="webGotifyToken" data-i18n="message.gotifyToken">Gotify Token:</label>
-        <input name="webGotifyToken" id="webGotifyToken" type="text" data-i18n="message.gotifyToken.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%GOTIFYTOKEN%">
+        <input name="webGotifyToken" id="webGotifyToken" type="password" autocomplete="new-password" data-i18n="message.gotifyToken.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%GOTIFYTOKEN%">
       </div>
 
       <button class="primary" id="saveMessageBtn" data-i18n="settings.save">Speichern</button>
@@ -1069,7 +1069,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.4.19"></script>
+ <script src="/script.js?v=0.4.20"></script>
 </body>
 </html>
 )rawliteral";

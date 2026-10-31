@@ -6136,13 +6136,16 @@ static void handleAsyncShellyDashboardSave(AsyncWebServerRequest* request) {
         400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"invalid_shelly_password\"}");
       addAsyncCommonHeaders(response, false); request->send(response); return;
     }
-    requested.password = doc["password"].as<String>();
-    if (!validateAsyncShellyCredentialString(requested.password)) {
+    String submittedPassword = doc["password"].as<String>();
+    if (!validateAsyncShellyCredentialString(submittedPassword)) {
       logPrint("[ASYNC][SHELLY-CONFIG] rejected err=invalid_shelly_password");
       AsyncWebServerResponse* response = request->beginResponse(
         400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"invalid_shelly_password\"}");
       addAsyncCommonHeaders(response, false); request->send(response); return;
     }
+    // v0.4.20: an empty password means "keep the stored password".
+    // This lets the dashboard stay write-only for the Shelly password.
+    if (!submittedPassword.isEmpty()) requested.password = submittedPassword;
   }
 
   requested.floodEnabled = doc["floodEnabled"].as<bool>();
@@ -6962,11 +6965,13 @@ static void processAsyncMessageSettingsApply() {
     } else {
       pushoverEnabled = action.pushoverEnabled ? "checked" : "";
       gotifyEnabled = action.gotifyEnabled ? "checked" : "";
-      pushoverUserKey = action.pushoverUser;
-      pushoverAppKey = action.pushoverApp;
+      // v0.4.20: notification credentials are write-only in the dashboard.
+      // Empty submitted secret fields keep the existing credential.
+      if (!action.pushoverUser.isEmpty()) pushoverUserKey = action.pushoverUser;
+      if (!action.pushoverApp.isEmpty()) pushoverAppKey = action.pushoverApp;
       pushoverDevice = action.pushoverDevice;
       gotifyServer = action.gotifyServer;
-      gotifyToken = action.gotifyToken;
+      if (!action.gotifyToken.isEmpty()) gotifyToken = action.gotifyToken;
       pushoverSent = action.pushoverEnabled;
       gotifySent = action.gotifyEnabled;
       preferences.putString(KEY_PUSHOVER, pushoverEnabled);

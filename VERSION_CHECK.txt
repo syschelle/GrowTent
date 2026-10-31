@@ -1,17 +1,12 @@
-GrowTent v0.4.19 credential-log-hardening package
+GrowTent v0.4.20 dashboard credential-output hardening package
 
-Expected firmware definition:
-src/build_version.h
-#define FW_VERSION "v0.4.19"
+Expected build version:
+#define FW_VERSION "v0.4.20"
 
-Security markers:
-- Pushover app token is hidden during Preferences load
-- Pushover user key is hidden during Preferences load
-- Pushover device identifier is hidden during Preferences load
-- Gotify app token is hidden during Preferences load
-- Pushover/Gotify raw HTTP response bodies are not written to Serial or the system log
-- Gotify token-bearing request URL is never logged
-- Notification request bodies are never logged
-- /api/state notification token fields remain masked
-
-No climate-control, relay, irrigation, Shelly-control, OTA-install or temperature-unit behavior is changed.
+Security behavior:
+- Pushover App Token: write-only in dashboard
+- Pushover User Key: write-only in dashboard
+- Gotify App Token: write-only in dashboard
+- Shelly password: write-only in dashboard
+- Shelly Flood webhook token: intentionally visible
+- Empty secret fields preserve the stored credential

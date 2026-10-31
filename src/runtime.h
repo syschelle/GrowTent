@@ -235,7 +235,7 @@ static void applyMainPageReplacements(String& html) {
   html.replace("%POWERPRICEKWH%", String(powerPriceKwhEur, 2));
 
   html.replace("%SHUSER%", settings.shelly.username);
-  html.replace("%SHPASSWORD%", settings.shelly.password);
+  html.replace("%SHPASSWORD%", "");
 
   html.replace("%FLOOD_ENABLED_CHECKED%", settings.flood.enabled ? "checked" : "");
   html.replace("%FLOOD_TOKEN%", settings.flood.webhookToken);
@@ -254,12 +254,12 @@ static void applyMainPageReplacements(String& html) {
   html.replace("%DS18B20NAME%", DS18B20Name);
 
   html.replace("%PUSHOVERENABLED%", pushoverEnabled);
-  html.replace("%PUSHOVERAPPKEY%", pushoverAppKey);
-  html.replace("%PUSHOVERUSERKEY%", pushoverUserKey);
+  html.replace("%PUSHOVERAPPKEY%", "");
+  html.replace("%PUSHOVERUSERKEY%", "");
   html.replace("%PUSHOVERDEVICE%", pushoverDevice);
   html.replace("%GOTIFYENABLED%", gotifyEnabled);
   html.replace("%GOTIFYURL%", gotifyServer);
-  html.replace("%GOTIFYTOKEN%", gotifyToken);
+  html.replace("%GOTIFYTOKEN%", "");
 
 }
 
