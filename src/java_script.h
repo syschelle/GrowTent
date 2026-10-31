@@ -141,7 +141,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   /* -------------------- runsetting.* -------------------- */
   "runsetting.title": { de: "Betriebseinstellungen", en: "Operating settings" },
-  "runsetting.section.growPhase": { de: "Grow / Phase", en: "Grow / Phase" },
+  "runsetting.section.growPhase": { de: "Grow-Zeiträume", en: "Grow periods" },
   "runsetting.section.temperature": { de: "Temperatur", en: "Temperature" },
   "runsetting.resetkWh": { de: "kWh Zähler zurücksetzen", en: "Reset kWh counter" },
   "runsetting.newGrowError": {"de": "Fehler: Neuer Grow konnte nicht gesetzt werden.", "en": "Error: could not set new grow."},

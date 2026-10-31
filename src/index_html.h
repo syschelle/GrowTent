@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.4.22">
+  <link rel="stylesheet" href="/style.css?v=0.4.23">
 <body data-temp-unit="%UNIT%">
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -472,12 +472,22 @@ const char* htmlPage = R"rawliteral(
     <section id="runsettings" class="page card runsettings-page">
       <div class="runsettings-page-head">
         <h1 data-i18n="runsetting.title">Betriebseinstellungen</h1>
-        <button type="button" class="primary runsettings-energy-reset" id="saverunsettingsBtn" data-i18n="runsetting.resetkWh" onclick="resetShellyEnergy(this)">Reset Shelly kWh</button>
+        <div class="runsettings-head-actions">
+          <div class="runsettings-phase-control">
+            <label for="phaseSelect" data-i18n="runsetting.phase">Aktuelle Phase:</label>
+            <select id="phaseSelect" name="webCurrentPhase">
+              <option value="1" %PHASE1_SEL% data-i18n="runsetting.phase.grow">Wuchs</option>
+              <option value="2" %PHASE2_SEL% data-i18n="runsetting.phase.flower">Blüte</option>
+              <option value="3" %PHASE3_SEL% data-i18n="runsetting.phase.dry">Trocknung</option>
+            </select>
+          </div>
+          <button type="button" class="primary runsettings-energy-reset" id="saverunsettingsBtn" data-i18n="runsetting.resetkWh" onclick="resetShellyEnergy(this)">Reset Shelly kWh</button>
+        </div>
       </div>
 
       <div class="runsettings-top-grid">
         <div class="runsettings-panel">
-          <h2 class="runsettings-panel-title" data-i18n="runsetting.section.growPhase">Grow / Phase</h2>
+          <h2 class="runsettings-panel-title" data-i18n="runsetting.section.growPhase">Grow-Zeiträume</h2>
           <div class="runsettings-fields runsettings-grow-fields">
             <div class="runsettings-field">
               <label for="webGrowStart" data-i18n="runsetting.startGrow">Start Grow Date:</label>
@@ -487,17 +497,9 @@ const char* htmlPage = R"rawliteral(
               <label for="webFloweringStart" data-i18n="runsetting.startFlower">Start Flowering Date:</label>
               <input id="webFloweringStart" name="webFloweringStart" type="date" value="%GROWFLOWERDATE%">
             </div>
-            <div class="runsettings-field">
+            <div class="runsettings-field runsettings-field-span-2">
               <label for="webDryingStart" data-i18n="runsetting.startDry">Start Drying Date:</label>
               <input id="webDryingStart" name="webDryingStart" type="date" value="%GROWDRAYINGDATE%">
-            </div>
-            <div class="runsettings-field">
-              <label for="phaseSelect" data-i18n="runsetting.phase">Phase:</label>
-              <select id="phaseSelect" name="webCurrentPhase">
-                <option value="1" %PHASE1_SEL% data-i18n="runsetting.phase.grow">Wuchs</option>
-                <option value="2" %PHASE2_SEL% data-i18n="runsetting.phase.flower">Blüte</option>
-                <option value="3" %PHASE3_SEL% data-i18n="runsetting.phase.dry">Trocknung</option>
-              </select>
             </div>
           </div>
         </div>
@@ -966,7 +968,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.4.22"></script>
+ <script src="/script.js?v=0.4.23"></script>
 </body>
 </html>
 )rawliteral";

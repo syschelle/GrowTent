@@ -816,6 +816,30 @@ const char cssContent[] PROGMEM = R"rawliteral(
       margin-bottom:16px;
     }
     .runsettings-page-head h1{ margin:0; }
+    .runsettings-head-actions{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:12px;
+      min-width:0;
+    }
+    .runsettings-phase-control{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+      white-space:nowrap;
+    }
+    .runsettings-phase-control label{
+      margin:0;
+      font-size:.9rem;
+      font-weight:600;
+    }
+    .runsettings-phase-control select{
+      width:auto;
+      min-width:150px;
+      margin:0;
+    }
     .runsettings-energy-reset{
       width:auto !important;
       min-width:210px;
@@ -867,6 +891,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
     .runsettings-grow-fields{
       grid-template-columns:minmax(0,1fr) minmax(0,1fr);
     }
+    .runsettings-field-span-2{ grid-column:1 / -1; }
 
     .runsettings-field{
       min-width:0;
@@ -1081,6 +1106,18 @@ const char cssContent[] PROGMEM = R"rawliteral(
     @media (max-width:760px){
       #runsettings.runsettings-page{ padding:12px; }
       .runsettings-page-head{ align-items:stretch; flex-direction:column; }
+      .runsettings-head-actions{
+        align-items:stretch;
+        flex-direction:column;
+      }
+      .runsettings-phase-control{
+        justify-content:space-between;
+        width:100%;
+      }
+      .runsettings-phase-control select{
+        min-width:0;
+        width:min(190px, 58vw);
+      }
       .runsettings-energy-reset{ width:100% !important; }
       .runsettings-top-grid,
       .runsettings-grow-fields,
