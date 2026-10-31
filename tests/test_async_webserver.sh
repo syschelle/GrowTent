@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.26 / phase 32
+# Test build: v0.4.27 / phase 32
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -14,7 +14,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ESP_IP="$1"
-TEST_FW_VERSION="v0.4.26"
+TEST_FW_VERSION="v0.4.27"
 TEST_CACHE_BUSTER="${TEST_FW_VERSION#v}"
 BASE80="http://${ESP_IP}"
 BASE8080="http://${ESP_IP}:8080"
@@ -155,7 +155,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.26 / Async phase 32"
+log "Test build target: v0.4.27 / Async phase 32"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -165,7 +165,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.26"
+EXPECTED_FW_VERSION="v0.4.27"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -4474,7 +4474,7 @@ else
 fi
 
 
-# v0.4.26 Operating Settings layout contract. This is a static asset check only;
+# v0.4.27 Operating Settings layout contract. This is a static asset check only;
 # it verifies the compact responsive structure without changing device state.
 if [[ "$phase32_html" == *'class="page card runsettings-page"'* && \
       "$phase32_html" == *'class="runsettings-head-actions"'* && \
@@ -4484,26 +4484,26 @@ if [[ "$phase32_html" == *'class="page card runsettings-page"'* && \
       "$phase32_html" == *'class="runsettings-param-grid"'* && \
       "$phase32_html" == *'class="runsettings-relay-table'* && \
       "$phase32_html" == *'id="irrigationParameterSection"'* ]]; then
-  log "PASS v0.4.26 compact Operating Settings layout contract"
+  log "PASS v0.4.27 compact Operating Settings layout contract"
 else
-  log "FAIL v0.4.26 compact Operating Settings layout contract"
+  log "FAIL v0.4.27 compact Operating Settings layout contract"
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
 fi
 
 
-# v0.4.26 asymmetric Full-HD Operating Settings contract.
+# v0.4.27 asymmetric Full-HD Operating Settings contract.
 phase32_css="$(curl -sS --max-time 10 "$BASE8080/style.css?v=${TEST_CACHE_BUSTER}&phase32=responsive" 2>>"$LOGFILE" || true)"
 if [[ "$phase32_css" == *'minmax(210px,.55fr)'* && \
       "$phase32_css" == *'minmax(430px,1.4fr)'* && \
       "$phase32_css" == *'@media (max-width:1500px)'* && \
       "$phase32_css" == *'.runsettings-top-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }'* ]]; then
-  log "PASS v0.4.26 asymmetric Full-HD Operating Settings contract"
+  log "PASS v0.4.27 asymmetric Full-HD Operating Settings contract"
 else
-  log "FAIL v0.4.26 asymmetric Full-HD Operating Settings contract"
+  log "FAIL v0.4.27 asymmetric Full-HD Operating Settings contract"
   failures=$((failures + 1))
 fi
 
-# v0.4.26 page-aware polling contract. Only Status and System Log may own
+# v0.4.27 page-aware polling contract. Only Status and System Log may own
 # periodic browser polling; Shelly/settings pages must not start background timers.
 phase32_polling_js="${OUTDIR}/phase32-page-aware-polling.js"
 phase32_polling_meta="$(curl -sS -o "$phase32_polling_js" --max-time 10 \

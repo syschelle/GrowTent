@@ -850,13 +850,13 @@ const char cssContent[] PROGMEM = R"rawliteral(
     .runsettings-top-grid{
       display:grid;
       /* Wide desktop / Full-HD: keep all four cards on one row, but give the
-         compact Temperature card much less width and reserve the space for
+         compact Temperature card extremely little width and reserve the extra space for
          Irrigation, which has the densest controls. */
       grid-template-columns:
-        minmax(300px,1.05fr)
-        minmax(210px,.55fr)
+        minmax(300px,1.1fr)
+        minmax(120px,.24fr)
         minmax(320px,1fr)
-        minmax(430px,1.4fr);
+        minmax(500px,1.66fr);
       gap:14px;
       align-items:stretch;
     }
