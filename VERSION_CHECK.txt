@@ -1,7 +1,7 @@
-GrowTent v0.5.2 authenticated backend Grow-profile write API
+GrowTent v0.5.3 authenticated backend Grow-profile write API
 
 Expected firmware version:
-#define FW_VERSION "v0.5.2"
+#define FW_VERSION "v0.5.3"
 
 Key checks:
 - PATCH /api/backend/grow-profile exists on TCP/8080.

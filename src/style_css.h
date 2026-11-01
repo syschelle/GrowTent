@@ -31,6 +31,16 @@ const char cssContent[] PROGMEM = R"rawliteral(
     .title-stack{display:flex;flex-direction:column;justify-content:center;line-height:1.05;min-width:0}
     .title{font-weight:600;font-size:clamp(1rem,.6vw+.9rem,1.2rem)}
     .firmware-version{font-size:.68rem;font-weight:500;opacity:.72;margin-top:3px;white-space:nowrap}
+    .hmac-header-status{
+      color:#39d353;
+      font-size:.78rem;
+      font-weight:800;
+      letter-spacing:.06em;
+      line-height:1;
+      white-space:nowrap;
+      text-shadow:0 1px 2px rgba(0,0,0,.35);
+    }
+    .hmac-header-status[hidden]{display:none}
     .datetime{display:flex;flex-direction:column;align-items:flex-end;font-size:.85rem;line-height:1.2}
 
     .flood-header-status{

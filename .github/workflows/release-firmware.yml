@@ -95,9 +95,9 @@ jobs:
           tag = os.environ["GITHUB_REF_NAME"]
           notes = Path("release_notes.md").read_text(encoding="utf-8")
 
-          # Keep the OTA manifest deliberately compact. Extract ONLY the current
-          # Release summary and Highlights sections; historical fix sections and
-          # the complete migration history remain in the GitHub Release body.
+          # Keep the OTA manifest deliberately compact. Extract the current
+          # release summary, highlights/changes and compatibility sections only;
+          # historical details remain in the GitHub Release body.
           import re
 
           def section(title: str) -> str:
@@ -105,20 +105,31 @@ jobs:
               match = re.search(pattern, notes)
               return match.group(1).strip() if match else ""
 
-          summary = section("Release summary")
-          highlights = section("Highlights")
+          def first_section(*titles: str) -> str:
+              for title in titles:
+                  value = section(title)
+                  if value:
+                      return value
+              return ""
+
+          summary = first_section("Release summary", "Summary")
+          highlights = first_section("Highlights", "Changes")
+          compatibility = section("Compatibility")
+
           ota_notes = f"# GrowTent {tag}\n"
           if summary:
               ota_notes += f"\n## Release summary\n\n{summary}\n"
           if highlights:
               ota_notes += f"\n## Highlights\n\n{highlights}\n"
-          ota_notes += "\nFull details and migration history: see the GitHub release notes.\n"
+          if compatibility:
+              ota_notes += f"\n## Compatibility\n\n{compatibility}\n"
 
           # Hard safety ceiling for installed firmware that reads manifest.json
-          # into a single Arduino String.
+          # into a single Arduino String. Keep the OTA changelog self-contained
+          # and do not append external-release boilerplate.
           if len(ota_notes.encode("utf-8")) > 4096:
-              ota_notes = ota_notes.encode("utf-8")[:3900].decode("utf-8", "ignore")
-              ota_notes += "\n\nFull details: see the GitHub release notes.\n"
+              ota_notes = ota_notes.encode("utf-8")[:3960].decode("utf-8", "ignore")
+              ota_notes += "\n\n[OTA changelog truncated]\n"
 
           firmware_size = Path("firmware.bin").stat().st_size
           manifest = {

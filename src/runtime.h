@@ -240,6 +240,7 @@ static void applyMainPageReplacements(String& html) {
   html.replace("%FLOOD_ENABLED_CHECKED%", settings.flood.enabled ? "checked" : "");
   html.replace("%FLOOD_TOKEN%", settings.flood.webhookToken);
 
+  html.replace("%BACKEND_HMAC_HIDDEN%", (settings.backendWrite.enabled && settings.backendWrite.secretHex.length() == 64) ? "" : "hidden");
   html.replace("%BACKEND_WRITE_ENABLED_CHECKED%", settings.backendWrite.enabled ? "checked" : "");
   html.replace("%BACKEND_WRITE_ALLOWED_IP%", settings.backendWrite.allowedIp);
   html.replace("%BACKEND_WRITE_SECRET_PLACEHOLDER%", settings.backendWrite.secretHex.length() == 64

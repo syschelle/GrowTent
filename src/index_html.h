@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.5.2">
+  <link rel="stylesheet" href="/style.css?v=0.5.3">
 <body data-temp-unit="%UNIT%">
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -49,6 +49,7 @@ const char* htmlPage = R"rawliteral(
       <div class="firmware-version">%FWVERSION%</div>
     </div>
     <span id="unsavedHint" class="dirty-hint" hidden data-i18n="settings.unsaved"></span>
+    <span id="headerHmacStatus" class="hmac-header-status" %BACKEND_HMAC_HIDDEN% title="HMAC-SHA256 Backend Write API active">HMAC</span>
     <div id="headerFloodStatus" class="flood-header-status flood-unknown" hidden title="Flood S Gen4">
       <span id="headerFloodMain">Flood: –</span>
       <span id="headerFloodMeta" class="flood-header-meta"></span>
@@ -997,7 +998,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.5.2"></script>
+ <script src="/script.js?v=0.5.3"></script>
 </body>
 </html>
 )rawliteral";
