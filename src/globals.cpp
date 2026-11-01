@@ -35,6 +35,10 @@ const char* KEY_TARGETVPD = "targetVPD";
 const char* KEY_MINVPD = "minVPD";
 const char* KEY_MINVPD_MON = "minVPDMon";
 const char* KEY_HYSTERESIS = "vpdHysteresis";
+// Backend write API configuration. NVS key names stay below 15 characters.
+const char* KEY_BACKEND_WRITE_ENABLED = "beWrEn";
+const char* KEY_BACKEND_WRITE_IP = "beWrIp";
+const char* KEY_BACKEND_WRITE_SECRET = "beWrKey";
 const char* KEY_LIGHT_ON_TIME = "lightOnTime";
 const char* KEY_LIGHT_DAY_HOURS = "lightDayHours";
 const char* KEY_LIGHT_OFF_TIME = "lightOffTime";

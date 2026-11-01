@@ -1,9 +1,15 @@
-GrowTent v0.4.31 Full-HD Operating Settings responsive refinement package
+GrowTent v0.5.2 authenticated backend Grow-profile write API
 
 Expected firmware version:
-#define FW_VERSION "v0.4.31"
+#define FW_VERSION "v0.5.2"
 
-Operating Settings top layout:
-- wide displays (>2100px viewport): 4 columns
-- Full HD / medium desktop: 2 columns
-- mobile: 1 column
+Key checks:
+- PATCH /api/backend/grow-profile exists on TCP/8080.
+- Backend Write API is disabled by default.
+- Exact allowed source IPv4 is mandatory.
+- HMAC-SHA256 + timestamp + nonce authentication is required.
+- Secret is write-only and never returned through HTML/state/settings GET.
+- Only targetTemperature, targetVPD, floweringStart, dryingStart and currentPhase are writable.
+- Date deletion is phase-dependent; no cascading deletion occurs.
+- NVS/runtime apply occurs only in the Arduino main loop with verification/rollback.
+- Internal/API temperatures remain Celsius.

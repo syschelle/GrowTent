@@ -145,6 +145,12 @@ struct FloodSettings {
   String webhookToken;
 };
 
+struct BackendWriteSettings {
+  bool enabled = false;
+  String allowedIp;
+  String secretHex; // 32-byte HMAC key as 64 lowercase hex chars; never exposed.
+};
+
 struct FloodState {
   bool known = false;
   bool alarm = false;
@@ -199,6 +205,7 @@ struct Settings {
   UIGroup ui;
   NotifyGroup notify;
   FloodSettings flood;
+  BackendWriteSettings backendWrite;
 
   // Pump labels for relay 6..8
   String pump1 = "Pump 1";
@@ -291,6 +298,9 @@ extern const char* KEY_TARGETVPD;
 extern const char* KEY_MINVPD_MON;
 extern const char* KEY_MINVPD;
 extern const char* KEY_HYSTERESIS;
+extern const char* KEY_BACKEND_WRITE_ENABLED;
+extern const char* KEY_BACKEND_WRITE_IP;
+extern const char* KEY_BACKEND_WRITE_SECRET;
 extern const char* KEY_LIGHT_ON_TIME;
 extern const char* KEY_LIGHT_DAY_HOURS;
 extern const char* KEY_HEATING_RELAY;

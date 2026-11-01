@@ -271,6 +271,18 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "settings.savedRestarting": { de: "Systemeinstellungen gespeichert. Neustart…", en: "System settings saved. Restarting…" },
   "settings.saveFailed": { de: "Systemeinstellungen konnten nicht gespeichert werden.", en: "Failed to save system settings." },
 
+  "settings.backendWrite.title": { de: "Backend Write API", en: "Backend Write API" },
+  "settings.backendWrite.hint": { de: "Erlaubt dem GrowTent-Backend ausschließlich Soll-Temperatur, Soll-VPD, Blüte-/Trocknungsdatum und aktuelle Phase über eine HMAC-gesicherte Schnittstelle zu ändern.", en: "Allows the GrowTent backend to change only target temperature, target VPD, flowering/drying dates and the current phase through an HMAC-protected endpoint." },
+  "settings.backendWrite.enabled": { de: "Backend Write API aktivieren", en: "Enable Backend Write API" },
+  "settings.backendWrite.allowedIp": { de: "Erlaubte Backend-IP:", en: "Allowed backend IP:" },
+  "settings.backendWrite.secret": { de: "HMAC API-Schlüssel:", en: "HMAC API key:" },
+  "settings.backendWrite.generate": { de: "Neuen 256-Bit-Schlüssel erzeugen", en: "Generate new 256-bit key" },
+  "settings.backendWrite.copy": { de: "Schlüssel kopieren", en: "Copy key" },
+  "settings.backendWrite.secretHint": { de: "Der Schlüssel wird nach dem Speichern nicht wieder angezeigt. Leeres Feld bedeutet: vorhandenen Schlüssel behalten.", en: "The key is not shown again after saving. An empty field keeps the existing key." },
+  "settings.backendWrite.generated": { de: "Neuer Backend-Schlüssel erzeugt. Jetzt kopieren und anschließend Systemeinstellungen speichern.", en: "New backend key generated. Copy it now, then save System Settings." },
+  "settings.backendWrite.copied": { de: "Backend-Schlüssel kopiert.", en: "Backend key copied." },
+  "settings.backendWrite.invalidIp": { de: "Für die Backend Write API muss eine gültige IPv4-Adresse eingetragen sein.", en: "A valid IPv4 address is required for the Backend Write API." },
+
   "settings.tempUnit": { de: "Temperatur-Einheit:", en: "Temperature unit:" },
   "settings.celsius": { de: "°C (Celsius)", en: "°C (Celsius)" },
   "settings.fahrenheit": { de: "°F (Fahrenheit)", en: "°F (Fahrenheit)" },
@@ -2937,6 +2949,48 @@ async function loadLightScheduleFromState(){
 
 }); // end DOMContentLoaded
 
+// ---------- Backend Write API secret helpers ----------
+function isValidIpv4Address(value) {
+  const parts = String(value || '').trim().split('.');
+  if (parts.length !== 4) return false;
+  return parts.every(part => /^\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255);
+}
+
+function generateBackendWriteSecretHex() {
+  const bytes = new Uint8Array(32);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+document.addEventListener('click', async (event) => {
+  if (event.target?.id === 'generateBackendWriteSecretBtn') {
+    const input = document.getElementById('webBackendWriteSecret');
+    if (!input || !globalThis.crypto?.getRandomValues) {
+      window.showToast?.('Secure browser random generator unavailable.', 'error');
+      return;
+    }
+    input.value = generateBackendWriteSecretHex();
+    input.type = 'text';
+    input.dataset.generated = '1';
+    window.showToast?.(I18N?.['settings.backendWrite.generated'] || 'New backend key generated.', 'success', 6000);
+  }
+  if (event.target?.id === 'copyBackendWriteSecretBtn') {
+    const input = document.getElementById('webBackendWriteSecret');
+    const secret = input?.value || '';
+    if (!/^[0-9a-f]{64}$/.test(secret)) {
+      window.showToast?.('Generate a 256-bit backend key first.', 'error');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(secret);
+      window.showToast?.(I18N?.['settings.backendWrite.copied'] || 'Backend key copied.', 'success');
+    } catch (_) {
+      input?.select?.();
+      window.showToast?.('Copy failed; key selected for manual copy.', 'error');
+    }
+  }
+});
+
 // ---------- Phase 29: save System Settings on permanent port 8080 ----------
 // The old broad /savesettings form is no longer used by the dashboard. Each
 // field is persisted through its already validated dedicated endpoint. Only
@@ -2979,6 +3033,18 @@ window.saveSystemSettingsAll = async function(event) {
     return;
   }
 
+  const backendWriteEnabled = checked('webBackendWriteEnabled');
+  const backendWriteAllowedIp = value('webBackendWriteAllowedIp').trim();
+  const backendWriteSecret = value('webBackendWriteSecret').trim().toLowerCase();
+  if (backendWriteEnabled && !isValidIpv4Address(backendWriteAllowedIp)) {
+    window.showToast?.(I18N?.['settings.backendWrite.invalidIp'] || 'Invalid backend IPv4 address.', 'error');
+    return;
+  }
+  if (backendWriteSecret && !/^[0-9a-f]{64}$/.test(backendWriteSecret)) {
+    window.showToast?.('Backend HMAC key must contain exactly 64 hexadecimal characters.', 'error');
+    return;
+  }
+
   if (button) button.disabled = true;
   try {
     const writes = [
@@ -3007,6 +3073,31 @@ window.saveSystemSettingsAll = async function(event) {
     // preserves the same deterministic ownership used by the regression suite.
     for (const [url, payload] of writes) {
       await postJson(url, payload);
+    }
+
+    // Backend Write configuration follows the project rule that Async callbacks
+    // never write NVS directly. Wait until the normal Arduino loop has applied
+    // and verified the queued configuration before requesting the restart.
+    const backendCfg = await postJson('/api/settings/backend-write', {
+      enabled: backendWriteEnabled,
+      allowedIp: backendWriteAllowedIp,
+      secret: backendWriteSecret
+    });
+    if (backendCfg?.requestId) {
+      let applied = false;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const stateRes = await fetch(`/api/settings/backend-write?wait=${Date.now()}`, { cache: 'no-store' });
+        const state = await stateRes.json();
+        if (state?.lastFailedId === backendCfg.requestId) {
+          throw new Error('backend_write_config_apply_failed');
+        }
+        if (state?.lastAppliedId === backendCfg.requestId) {
+          applied = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (!applied) throw new Error('backend_write_config_apply_timeout');
     }
 
     const restart = await fetch('/api/system/restart', { method: 'POST' });

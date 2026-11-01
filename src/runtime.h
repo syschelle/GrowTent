@@ -240,6 +240,12 @@ static void applyMainPageReplacements(String& html) {
   html.replace("%FLOOD_ENABLED_CHECKED%", settings.flood.enabled ? "checked" : "");
   html.replace("%FLOOD_TOKEN%", settings.flood.webhookToken);
 
+  html.replace("%BACKEND_WRITE_ENABLED_CHECKED%", settings.backendWrite.enabled ? "checked" : "");
+  html.replace("%BACKEND_WRITE_ALLOWED_IP%", settings.backendWrite.allowedIp);
+  html.replace("%BACKEND_WRITE_SECRET_PLACEHOLDER%", settings.backendWrite.secretHex.length() == 64
+      ? "Configured - leave empty to keep existing key"
+      : "Not configured - generate a key before enabling");
+
   html.replace("%RELAYCOUNT4_SEL%", activeRelayCount == 4 ? "selected" : "");
   html.replace("%RELAYCOUNT8_SEL%", activeRelayCount == 8 ? "selected" : "");
 
@@ -301,6 +307,11 @@ void readPreferences() {
   loadPrefFloat(KEY_LEAFTEMP, settings.grow.offsetLeafTemperature, -1.5f, true, "settings.grow.offsetLeafTemperature");
   loadPrefFloat(KEY_TARGETVPD, settings.grow.targetVPD, 1.0f, true, "settings.grow.targetVPD");
   loadPrefBool(KEY_MINVPD_MON, settings.grow.minVpdMonEnabled, false, true, "settings.grow.minVpdMonEnabled");
+
+  // Backend write API is disabled by default. Never print the HMAC secret.
+  loadPrefBool(KEY_BACKEND_WRITE_ENABLED, settings.backendWrite.enabled, false, true, "settings.backendWrite.enabled");
+  loadPrefString(KEY_BACKEND_WRITE_IP, settings.backendWrite.allowedIp, "", true, "settings.backendWrite.allowedIp");
+  loadPrefString(KEY_BACKEND_WRITE_SECRET, settings.backendWrite.secretHex, "", false, "settings.backendWrite.secret");
 
   // Offset min-VPD is a small subtraction from the target VPD. 0.75 was a
   // stale historical default and is outside the dashboard/API range.

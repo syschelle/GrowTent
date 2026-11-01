@@ -16,6 +16,9 @@
 #include <cstring>
 #include <cfloat>
 #include <memory>
+#include <cerrno>
+#include <cstdlib>
+#include <atomic>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <WiFiClientSecure.h>
@@ -610,6 +613,8 @@ static void buildApiStateJson(String& json) {
 //   http://<esp-ip>:8080/api/settings/debug       (GET/POST, persistent non-control setting)
 //   http://<esp-ip>:8080/api/settings/ds18b20-name (GET/POST, display-name setting)
 //   http://<esp-ip>:8080/api/settings/power-price (GET/POST, display/cost setting)
+//   http://<esp-ip>:8080/api/settings/backend-write (GET/POST, backend write auth configuration)
+//   PATCH http://<esp-ip>:8080/api/backend/grow-profile (authenticated narrow backend write API)
 //   http://<esp-ip>:8080/api/settings/relay-name/1..5 (GET/POST, display labels only)
 //   http://<esp-ip>:8080/api/settings/ntp-server   (GET/POST, persisted; restart required)
 //   http://<esp-ip>:8080/api/settings/time-zone    (GET/POST, persisted; restart required)
@@ -1242,6 +1247,57 @@ static bool g_asyncNewGrowResetMain = false;
 static bool g_asyncNewGrowResetLight = false;
 static bool g_asyncNewGrowResetHumidifier = false;
 
+// v0.5.0: dedicated authenticated backend-write channel. Both configuration
+// changes and Grow-profile mutations are queued from Async callbacks and applied
+// from the normal Arduino loop. No NVS write occurs inside these callbacks.
+struct AsyncBackendWriteConfigPending {
+  bool pending = false;
+  uint32_t requestId = 0;
+  bool enabled = false;
+  String allowedIp;
+  String secretHex;
+};
+
+struct BackendGrowProfileValues {
+  float targetTemperature = 22.0f;
+  float targetVPD = 1.0f;
+  String floweringStart;
+  String dryingStart;
+  int currentPhase = 1;
+};
+
+struct AsyncBackendGrowProfilePending {
+  bool pending = false;
+  uint32_t requestId = 0;
+  BackendGrowProfileValues value;
+  uint8_t fieldMask = 0;
+  int64_t authTimestamp = 0;
+  String nonce;
+  String sourceIp;
+};
+
+struct BackendNonceEntry {
+  String nonce;
+  int64_t expiresAt = 0;
+};
+
+static SemaphoreHandle_t g_asyncBackendWriteMutex = nullptr;
+static AsyncBackendWriteConfigPending g_asyncBackendWriteConfigPending;
+static AsyncBackendGrowProfilePending g_asyncBackendGrowProfilePending;
+static BackendNonceEntry g_backendNonceCache[16];
+static size_t g_backendNonceNext = 0;
+static uint32_t g_backendWriteConfigNextRequestId = 0;
+static uint32_t g_backendGrowProfileNextRequestId = 0;
+static volatile uint32_t g_backendWriteConfigLastAppliedId = 0;
+static volatile uint32_t g_backendWriteConfigLastFailedId = 0;
+static volatile uint32_t g_backendGrowProfileLastAppliedId = 0;
+static volatile uint32_t g_backendGrowProfileLastFailedId = 0;
+static std::atomic<bool> g_backendGrowMutationReserved{false};
+
+static bool backendGrowProfileMutationPending() {
+  return g_backendGrowMutationReserved.load(std::memory_order_acquire);
+}
+
 static void addAsyncCommonHeaders(AsyncWebServerResponse* response, bool cacheStatic = false) {
   if (!response) return;
   response->addHeader("X-GrowTent-WebServer", "async-phase32");
@@ -1337,6 +1393,9 @@ static void initAsyncPhase13ReadCache() {
   }
   if (!g_asyncNewGrowMutex) {
     g_asyncNewGrowMutex = xSemaphoreCreateMutex();
+  }
+  if (!g_asyncBackendWriteMutex) {
+    g_asyncBackendWriteMutex = xSemaphoreCreateMutex();
   }
   otaInit();
   // The current state payload is about 5.4 kB. Reserve some headroom once so
@@ -2849,6 +2908,13 @@ static void clearAsyncGrowTargetsWriteReservation() {
 static void handleAsyncGrowTargetsPost(AsyncWebServerRequest* request) {
   auto* body = static_cast<AsyncJsonBody*>(request ? request->_tempObject : nullptr);
   if (!request) return;
+  if (backendGrowProfileMutationPending()) {
+    AsyncWebServerResponse* response = request->beginResponse(
+      409, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"backend_grow_profile_pending\"}");
+    addAsyncCommonHeaders(response, false);
+    request->send(response);
+    return;
+  }
   if (!body || body->tooLarge) {
     AsyncWebServerResponse* response = request->beginResponse(
       body && body->tooLarge ? 413 : 400,
@@ -2906,6 +2972,14 @@ static void handleAsyncGrowTargetsPost(AsyncWebServerRequest* request) {
     AsyncWebServerResponse* response = request->beginResponse(
       503, "application/json; charset=utf-8",
       "{\"ok\":false,\"err\":\"runtime_handoff_busy\"}");
+    addAsyncCommonHeaders(response, false);
+    request->send(response);
+    return;
+  }
+  if (backendGrowProfileMutationPending()) {
+    xSemaphoreGive(g_asyncGrowTargetsMutex);
+    AsyncWebServerResponse* response = request->beginResponse(
+      409, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"backend_grow_profile_pending\"}");
     addAsyncCommonHeaders(response, false);
     request->send(response);
     return;
@@ -5239,6 +5313,561 @@ static void processAsyncStorageActionApply() {
 }
 
 
+// -------------------- v0.5.0: authenticated backend Grow-profile write API --------------------
+static bool isStrictIpv4(const String& value) {
+  IPAddress parsed;
+  if (!parsed.fromString(value)) return false;
+  return parsed.toString() == value;
+}
+
+static bool isLowerHex(const String& value, size_t expectedLen) {
+  if (value.length() != expectedLen) return false;
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char c = value.charAt(i);
+    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+  }
+  return true;
+}
+
+static int hexNibble(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+  return -1;
+}
+
+static bool hexToBytes(const String& hex, uint8_t* out, size_t outLen) {
+  if (!out || hex.length() != outLen * 2) return false;
+  for (size_t i = 0; i < outLen; ++i) {
+    const int hi = hexNibble(hex.charAt(i * 2));
+    const int lo = hexNibble(hex.charAt(i * 2 + 1));
+    if (hi < 0 || lo < 0) return false;
+    out[i] = (uint8_t)((hi << 4) | lo);
+  }
+  return true;
+}
+
+static String bytesToLowerHex(const uint8_t* data, size_t len) {
+  static const char HEX_DIGITS[] = "0123456789abcdef";
+  String out;
+  if (!out.reserve(len * 2)) return String();
+  for (size_t i = 0; i < len; ++i) {
+    out += HEX_DIGITS[(data[i] >> 4) & 0x0F];
+    out += HEX_DIGITS[data[i] & 0x0F];
+  }
+  return out;
+}
+
+static bool sha256Hex(const uint8_t* data, size_t len, String& outHex) {
+  const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  if (!info) return false;
+  uint8_t digest[32];
+  if (mbedtls_md(info, data, len, digest) != 0) return false;
+  outHex = bytesToLowerHex(digest, sizeof(digest));
+  return outHex.length() == 64;
+}
+
+static bool hmacSha256Hex(const String& keyHex, const String& message, String& outHex) {
+  uint8_t key[32];
+  if (!isLowerHex(keyHex, 64) || !hexToBytes(keyHex, key, sizeof(key))) return false;
+  const mbedtls_md_info_t* info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  if (!info) return false;
+  uint8_t digest[32];
+  const int rc = mbedtls_md_hmac(
+    info,
+    key, sizeof(key),
+    reinterpret_cast<const unsigned char*>(message.c_str()), message.length(),
+    digest);
+  memset(key, 0, sizeof(key));
+  if (rc != 0) return false;
+  outHex = bytesToLowerHex(digest, sizeof(digest));
+  return outHex.length() == 64;
+}
+
+static bool constantTimeHexEqual(const String& a, const String& b) {
+  if (a.length() != b.length()) return false;
+  uint8_t diff = 0;
+  for (size_t i = 0; i < a.length(); ++i) {
+    diff |= (uint8_t)(a.charAt(i) ^ b.charAt(i));
+  }
+  return diff == 0;
+}
+
+static bool parseInt64Strict(const String& value, int64_t& out) {
+  if (value.length() == 0 || value.length() > 20) return false;
+  char* end = nullptr;
+  errno = 0;
+  const long long parsed = strtoll(value.c_str(), &end, 10);
+  if (errno != 0 || !end || *end != '\0') return false;
+  out = (int64_t)parsed;
+  return true;
+}
+
+static bool isValidBackendCalendarDate(const String& value) {
+  if (value.length() != 10 || value.charAt(4) != '-' || value.charAt(7) != '-') return false;
+  for (size_t i = 0; i < value.length(); ++i) {
+    if (i == 4 || i == 7) continue;
+    if (!isDigit(value.charAt(i))) return false;
+  }
+  const int y = value.substring(0, 4).toInt();
+  const int m = value.substring(5, 7).toInt();
+  const int d = value.substring(8, 10).toInt();
+  if (y < 2020 || y > 2100 || m < 1 || m > 12 || d < 1) return false;
+  static const uint8_t dim[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+  int maxDay = dim[m - 1];
+  const bool leap = ((y % 4) == 0 && (y % 100) != 0) || ((y % 400) == 0);
+  if (m == 2 && leap) maxDay = 29;
+  return d <= maxDay;
+}
+
+static bool backendDatesInOrder(const String& growStart, const String& flowering, const String& drying) {
+  if (growStart.length() && flowering.length() && growStart.compareTo(flowering) > 0) return false;
+  if (flowering.length() && drying.length() && flowering.compareTo(drying) > 0) return false;
+  return true;
+}
+
+static bool backendNonceSeenLocked(const String& nonce, int64_t nowSec) {
+  for (auto& entry : g_backendNonceCache) {
+    if (entry.expiresAt <= nowSec) {
+      entry.nonce = "";
+      entry.expiresAt = 0;
+      continue;
+    }
+    if (entry.nonce == nonce) return true;
+  }
+  return false;
+}
+
+static void backendRememberNonceLocked(const String& nonce, int64_t nowSec) {
+  BackendNonceEntry& slot = g_backendNonceCache[g_backendNonceNext % 16];
+  slot.nonce = nonce;
+  slot.expiresAt = nowSec + 120; // longer than the accepted ±60 s request window
+  g_backendNonceNext = (g_backendNonceNext + 1) % 16;
+}
+
+static bool backendOtherGrowMutationPending() {
+  bool busy = false;
+  if (g_asyncGrowTargetsMutex) {
+    if (xSemaphoreTake(g_asyncGrowTargetsMutex, pdMS_TO_TICKS(10)) != pdTRUE) return true;
+    busy = g_asyncGrowTargetsPending.pending || g_asyncGrowTargetsPending.writeInProgress;
+    xSemaphoreGive(g_asyncGrowTargetsMutex);
+  }
+  if (busy) return true;
+  if (g_asyncRunProfileMutex) {
+    if (xSemaphoreTake(g_asyncRunProfileMutex, pdMS_TO_TICKS(10)) != pdTRUE) return true;
+    busy = g_asyncRunProfilePending.pending || g_asyncRunProfilePending.writeInProgress;
+    xSemaphoreGive(g_asyncRunProfileMutex);
+  }
+  return busy;
+}
+
+static void sendBackendJson(AsyncWebServerRequest* request, int status, const String& json) {
+  if (!request) return;
+  AsyncWebServerResponse* response = request->beginResponse(status, "application/json; charset=utf-8", json);
+  addAsyncCommonHeaders(response, false);
+  request->send(response);
+}
+
+static void sendAsyncBackendWriteConfigState(AsyncWebServerRequest* request) {
+  bool pending = false;
+  uint32_t pendingId = 0;
+  if (g_asyncBackendWriteMutex && xSemaphoreTake(g_asyncBackendWriteMutex, pdMS_TO_TICKS(25)) == pdTRUE) {
+    pending = g_asyncBackendWriteConfigPending.pending;
+    pendingId = g_asyncBackendWriteConfigPending.requestId;
+    xSemaphoreGive(g_asyncBackendWriteMutex);
+  }
+  String json;
+  json.reserve(320);
+  json += "{\"ok\":true,\"enabled\":" + String(settings.backendWrite.enabled ? "true" : "false");
+  json += ",\"allowedIp\":\"" + asyncJsonEscape(settings.backendWrite.allowedIp) + "\"";
+  json += ",\"secretConfigured\":" + String(isLowerHex(settings.backendWrite.secretHex, 64) ? "true" : "false");
+  json += ",\"pending\":" + String(pending ? "true" : "false");
+  json += ",\"pendingRequestId\":" + String(pendingId);
+  json += ",\"lastAppliedId\":" + String((uint32_t)g_backendWriteConfigLastAppliedId);
+  json += ",\"lastFailedId\":" + String((uint32_t)g_backendWriteConfigLastFailedId) + "}";
+  sendBackendJson(request, 200, json);
+}
+
+static void handleAsyncBackendWriteConfigPost(AsyncWebServerRequest* request) {
+  if (!request) return;
+  auto* body = static_cast<AsyncJsonBody*>(request->_tempObject);
+  if (!body || body->tooLarge) {
+    sendBackendJson(request, body && body->tooLarge ? 413 : 400,
+      body && body->tooLarge ? "{\"ok\":false,\"err\":\"body_too_large\"}" : "{\"ok\":false,\"err\":\"missing_body\"}");
+    return;
+  }
+  JsonDocument doc;
+  if (deserializeJson(doc, body->data, body->len) || !doc["enabled"].is<bool>() || !doc["allowedIp"].is<const char*>()) {
+    sendBackendJson(request, 400, "{\"ok\":false,\"err\":\"invalid_backend_write_config\"}");
+    return;
+  }
+  const bool enabled = doc["enabled"].as<bool>();
+  String allowedIp = doc["allowedIp"].as<String>(); allowedIp.trim();
+  String secret = doc["secret"].is<const char*>() ? doc["secret"].as<String>() : String();
+  secret.trim(); secret.toLowerCase();
+
+  if (allowedIp.length() && !isStrictIpv4(allowedIp)) {
+    sendBackendJson(request, 400, "{\"ok\":false,\"err\":\"invalid_allowed_ip\"}");
+    return;
+  }
+  if (secret.length() && !isLowerHex(secret, 64)) {
+    sendBackendJson(request, 400, "{\"ok\":false,\"err\":\"invalid_secret\"}");
+    return;
+  }
+  const String effectiveSecret = secret.length() ? secret : settings.backendWrite.secretHex;
+  if (enabled && (!isStrictIpv4(allowedIp) || !isLowerHex(effectiveSecret, 64))) {
+    sendBackendJson(request, 400, "{\"ok\":false,\"err\":\"backend_write_requires_ip_and_secret\"}");
+    return;
+  }
+  if (!g_asyncBackendWriteMutex) {
+    sendBackendJson(request, 503, "{\"ok\":false,\"err\":\"runtime_handoff_unavailable\"}");
+    return;
+  }
+  if (xSemaphoreTake(g_asyncBackendWriteMutex, pdMS_TO_TICKS(25)) != pdTRUE) {
+    sendBackendJson(request, 503, "{\"ok\":false,\"err\":\"runtime_handoff_busy\"}");
+    return;
+  }
+  if (g_asyncBackendWriteConfigPending.pending || g_asyncBackendGrowProfilePending.pending ||
+      g_backendGrowMutationReserved.load(std::memory_order_acquire)) {
+    xSemaphoreGive(g_asyncBackendWriteMutex);
+    sendBackendJson(request, 409, "{\"ok\":false,\"err\":\"backend_write_pending\"}");
+    return;
+  }
+  const uint32_t requestId = ++g_backendWriteConfigNextRequestId;
+  g_asyncBackendWriteConfigPending.pending = true;
+  g_asyncBackendWriteConfigPending.requestId = requestId;
+  g_asyncBackendWriteConfigPending.enabled = enabled;
+  g_asyncBackendWriteConfigPending.allowedIp = allowedIp;
+  g_asyncBackendWriteConfigPending.secretHex = effectiveSecret;
+  xSemaphoreGive(g_asyncBackendWriteMutex);
+
+  String json = "{\"ok\":true,\"requestId\":" + String(requestId) +
+                ",\"applyQueued\":true,\"applyContext\":\"main-loop\"}";
+  sendBackendJson(request, 202, json);
+}
+
+static bool writeBackendWriteConfigPrefs(bool enabled, const String& allowedIp, const String& secretHex) {
+  Preferences prefs;
+  if (!prefs.begin(PREF_NS, false)) return false;
+  prefs.putBool(KEY_BACKEND_WRITE_ENABLED, enabled);
+  prefs.putString(KEY_BACKEND_WRITE_IP, allowedIp);
+  prefs.putString(KEY_BACKEND_WRITE_SECRET, secretHex);
+  const bool vEnabled = prefs.getBool(KEY_BACKEND_WRITE_ENABLED, !enabled);
+  const String vIp = prefs.getString(KEY_BACKEND_WRITE_IP, "__bad__");
+  const String vSecret = prefs.getString(KEY_BACKEND_WRITE_SECRET, "__bad__");
+  prefs.end();
+  return vEnabled == enabled && vIp == allowedIp && vSecret == secretHex;
+}
+
+static void processAsyncBackendWriteConfigApply() {
+  if (!g_asyncBackendWriteMutex) return;
+  AsyncBackendWriteConfigPending pending;
+  bool have = false;
+  if (xSemaphoreTake(g_asyncBackendWriteMutex, 0) == pdTRUE) {
+    if (g_asyncBackendWriteConfigPending.pending) {
+      pending = g_asyncBackendWriteConfigPending;
+      g_asyncBackendWriteConfigPending.pending = false;
+      have = true;
+    }
+    xSemaphoreGive(g_asyncBackendWriteMutex);
+  }
+  if (!have) return;
+
+  const bool oldEnabled = settings.backendWrite.enabled;
+  const String oldIp = settings.backendWrite.allowedIp;
+  const String oldSecret = settings.backendWrite.secretHex;
+  const bool ok = writeBackendWriteConfigPrefs(pending.enabled, pending.allowedIp, pending.secretHex);
+  if (!ok) {
+    const bool rollbackOk = writeBackendWriteConfigPrefs(oldEnabled, oldIp, oldSecret);
+    g_backendWriteConfigLastFailedId = pending.requestId;
+    logPrint("[BACKEND-API][CONFIG] FAILED id=" + String(pending.requestId) +
+             " rollback=" + String(rollbackOk ? "ok" : "failed"));
+    return;
+  }
+  settings.backendWrite.enabled = pending.enabled;
+  settings.backendWrite.allowedIp = pending.allowedIp;
+  settings.backendWrite.secretHex = pending.secretHex;
+  g_backendWriteConfigLastAppliedId = pending.requestId;
+  logPrint("[BACKEND-API][CONFIG] applied id=" + String(pending.requestId) +
+           " enabled=" + String(pending.enabled ? "true" : "false") +
+           " allowedIp=" + pending.allowedIp +
+           " secretConfigured=" + String(isLowerHex(pending.secretHex, 64) ? "true" : "false"));
+}
+
+static bool backendProfilePrefsWriteAndVerify(const BackendGrowProfileValues& value) {
+  Preferences prefs;
+  if (!prefs.begin(PREF_NS, false)) return false;
+  prefs.putFloat(KEY_TARGETTEMP, value.targetTemperature);
+  prefs.putFloat(KEY_TARGETVPD, value.targetVPD);
+  prefs.putString(KEY_FLOWERDATE, value.floweringStart);
+  prefs.putString(KEY_DRYINGDATE, value.dryingStart);
+  prefs.putInt(KEY_CURRENTPHASE, value.currentPhase);
+  const float t = prefs.getFloat(KEY_TARGETTEMP, NAN);
+  const float v = prefs.getFloat(KEY_TARGETVPD, NAN);
+  const String f = prefs.getString(KEY_FLOWERDATE, "__bad__");
+  const String d = prefs.getString(KEY_DRYINGDATE, "__bad__");
+  const int phase = prefs.getInt(KEY_CURRENTPHASE, -1);
+  prefs.end();
+  return isfinite(t) && isfinite(v) && fabsf(t - value.targetTemperature) <= 0.0005f &&
+         fabsf(v - value.targetVPD) <= 0.0005f && f == value.floweringStart &&
+         d == value.dryingStart && phase == value.currentPhase;
+}
+
+static const char* backendProfileValidationError(
+    const BackendGrowProfileValues& value,
+    const String& growStart,
+    bool floweringExplicitNull,
+    bool dryingExplicitNull) {
+  if (!isfinite(value.targetTemperature) || value.targetTemperature < 18.0f || value.targetTemperature > 30.0f)
+    return "target_temperature_out_of_range";
+  if (!isfinite(value.targetVPD) || value.targetVPD < 0.50f || value.targetVPD > 3.50f)
+    return "target_vpd_out_of_range";
+  if (value.currentPhase < 1 || value.currentPhase > 3) return "current_phase_out_of_range";
+  if (growStart.length() && !isValidBackendCalendarDate(growStart)) return "invalid_grow_start_state";
+  if (value.floweringStart.length() && !isValidBackendCalendarDate(value.floweringStart)) return "invalid_flowering_start";
+  if (value.dryingStart.length() && !isValidBackendCalendarDate(value.dryingStart)) return "invalid_drying_start";
+  if (value.currentPhase >= 2 && value.floweringStart.length() == 0) return "flowering_start_required_for_phase";
+  if (value.currentPhase >= 3 && value.dryingStart.length() == 0) return "drying_start_required_for_phase";
+  if (floweringExplicitNull && value.currentPhase != 1) return "flowering_start_delete_not_allowed_for_phase";
+  if (floweringExplicitNull && value.dryingStart.length() != 0) return "drying_start_must_be_cleared_with_flowering_start";
+  if (dryingExplicitNull && value.currentPhase == 3) return "drying_start_delete_not_allowed_for_phase";
+  if (!backendDatesInOrder(growStart, value.floweringStart, value.dryingStart)) return "invalid_date_order";
+  return nullptr;
+}
+
+static void handleAsyncBackendGrowProfilePatch(AsyncWebServerRequest* request) {
+  if (!request) return;
+  const String sourceIp = request->client() ? request->client()->remoteIP().toString() : String();
+  if (!settings.backendWrite.enabled) {
+    sendBackendJson(request, 403, "{\"ok\":false,\"error\":\"backend_write_disabled\"}");
+    return;
+  }
+  if (!isStrictIpv4(settings.backendWrite.allowedIp) || sourceIp != settings.backendWrite.allowedIp) {
+    logPrint("[BACKEND-API][AUTH] rejected source=" + sourceIp + " reason=source_ip_not_allowed");
+    sendBackendJson(request, 403, "{\"ok\":false,\"error\":\"source_ip_not_allowed\"}");
+    return;
+  }
+  if (!isLowerHex(settings.backendWrite.secretHex, 64)) {
+    sendBackendJson(request, 503, "{\"ok\":false,\"error\":\"backend_secret_not_configured\"}");
+    return;
+  }
+  auto* body = static_cast<AsyncJsonBody*>(request->_tempObject);
+  if (!body || body->tooLarge) {
+    sendBackendJson(request, body && body->tooLarge ? 413 : 400,
+      body && body->tooLarge ? "{\"ok\":false,\"error\":\"body_too_large\"}" : "{\"ok\":false,\"error\":\"missing_body\"}");
+    return;
+  }
+  if (!request->contentType().startsWith("application/json")) {
+    sendBackendJson(request, 415, "{\"ok\":false,\"error\":\"content_type_must_be_application_json\"}");
+    return;
+  }
+
+  if (!request->hasHeader("X-GrowTent-Timestamp") || !request->hasHeader("X-GrowTent-Nonce") ||
+      !request->hasHeader("X-GrowTent-Signature")) {
+    logPrint("[BACKEND-API][AUTH] rejected source=" + sourceIp + " reason=missing_auth_headers");
+    sendBackendJson(request, 401, "{\"ok\":false,\"error\":\"missing_auth_headers\"}");
+    return;
+  }
+  const String timestampText = request->header("X-GrowTent-Timestamp");
+  const String nonce = request->header("X-GrowTent-Nonce");
+  const String signature = request->header("X-GrowTent-Signature");
+  int64_t timestamp = 0;
+  if (!parseInt64Strict(timestampText, timestamp) || !isLowerHex(nonce, 32) || !isLowerHex(signature, 64)) {
+    logPrint("[BACKEND-API][AUTH] rejected source=" + sourceIp + " reason=invalid_auth_headers");
+    sendBackendJson(request, 401, "{\"ok\":false,\"error\":\"invalid_auth_headers\"}");
+    return;
+  }
+  const int64_t nowSec = (int64_t)time(nullptr);
+  if (nowSec < 1609459200LL) {
+    sendBackendJson(request, 503, "{\"ok\":false,\"error\":\"time_not_synchronized\"}");
+    return;
+  }
+  const int64_t skew = nowSec >= timestamp ? nowSec - timestamp : timestamp - nowSec;
+  if (skew > 60) {
+    logPrint("[BACKEND-API][AUTH] rejected source=" + sourceIp + " reason=timestamp_out_of_window");
+    sendBackendJson(request, 401, "{\"ok\":false,\"error\":\"timestamp_out_of_window\"}");
+    return;
+  }
+
+  String bodyHash;
+  if (!sha256Hex(reinterpret_cast<const uint8_t*>(body->data), body->len, bodyHash)) {
+    sendBackendJson(request, 500, "{\"ok\":false,\"error\":\"hash_failed\"}");
+    return;
+  }
+  const String canonical = String("PATCH\n/api/backend/grow-profile\n") + timestampText + "\n" + nonce + "\n" + bodyHash;
+  String expectedSignature;
+  if (!hmacSha256Hex(settings.backendWrite.secretHex, canonical, expectedSignature) ||
+      !constantTimeHexEqual(expectedSignature, signature)) {
+    logPrint("[BACKEND-API][AUTH] rejected source=" + sourceIp + " reason=bad_signature");
+    sendBackendJson(request, 401, "{\"ok\":false,\"error\":\"bad_signature\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  if (deserializeJson(doc, body->data, body->len) || !doc.is<JsonObject>()) {
+    sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"invalid_json\"}");
+    return;
+  }
+  JsonObject obj = doc.as<JsonObject>();
+  bool haveField = false;
+  for (JsonPair kv : obj) {
+    const String key = kv.key().c_str();
+    if (key != "targetTemperature" && key != "targetVPD" && key != "floweringStart" &&
+        key != "dryingStart" && key != "currentPhase") {
+      sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"unknown_field\"}");
+      return;
+    }
+    haveField = true;
+  }
+  if (!haveField) {
+    sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"empty_patch\"}");
+    return;
+  }
+
+  BackendGrowProfileValues value;
+  value.targetTemperature = settings.grow.targetTemperature;
+  value.targetVPD = settings.grow.targetVPD;
+  value.floweringStart = startFlowering;
+  value.dryingStart = startDrying;
+  value.currentPhase = settings.grow.currentPhase;
+  uint8_t fieldMask = 0;
+  bool floweringExplicitNull = false;
+  bool dryingExplicitNull = false;
+
+  if (obj["targetTemperature"].is<JsonVariant>()) {
+    if (!obj["targetTemperature"].is<double>()) { sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"invalid_target_temperature\"}"); return; }
+    value.targetTemperature = (float)obj["targetTemperature"].as<double>(); fieldMask |= 0x01;
+  }
+  if (obj["targetVPD"].is<JsonVariant>()) {
+    if (!obj["targetVPD"].is<double>()) { sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"invalid_target_vpd\"}"); return; }
+    value.targetVPD = (float)obj["targetVPD"].as<double>(); fieldMask |= 0x02;
+  }
+  if (obj["floweringStart"].is<JsonVariant>()) {
+    fieldMask |= 0x04;
+    if (obj["floweringStart"].isNull()) { value.floweringStart = ""; floweringExplicitNull = true; }
+    else if (obj["floweringStart"].is<const char*>()) {
+      value.floweringStart = obj["floweringStart"].as<String>(); value.floweringStart.trim();
+      if (value.floweringStart.length() == 0) { sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"date_delete_requires_null\"}"); return; }
+    }
+    else { sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"invalid_flowering_start\"}"); return; }
+  }
+  if (obj["dryingStart"].is<JsonVariant>()) {
+    fieldMask |= 0x08;
+    if (obj["dryingStart"].isNull()) { value.dryingStart = ""; dryingExplicitNull = true; }
+    else if (obj["dryingStart"].is<const char*>()) {
+      value.dryingStart = obj["dryingStart"].as<String>(); value.dryingStart.trim();
+      if (value.dryingStart.length() == 0) { sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"date_delete_requires_null\"}"); return; }
+    }
+    else { sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"invalid_drying_start\"}"); return; }
+  }
+  if (obj["currentPhase"].is<JsonVariant>()) {
+    if (!obj["currentPhase"].is<int>()) { sendBackendJson(request, 400, "{\"ok\":false,\"error\":\"invalid_current_phase\"}"); return; }
+    value.currentPhase = obj["currentPhase"].as<int>(); fieldMask |= 0x10;
+  }
+
+  const char* validationError = backendProfileValidationError(value, startDate, floweringExplicitNull, dryingExplicitNull);
+  if (validationError) {
+    sendBackendJson(request, 400, String("{\"ok\":false,\"error\":\"") + validationError + "\"}");
+    return;
+  }
+  bool reservationExpected = false;
+  if (!g_backendGrowMutationReserved.compare_exchange_strong(
+        reservationExpected, true, std::memory_order_acq_rel)) {
+    sendBackendJson(request, 409, "{\"ok\":false,\"error\":\"backend_write_pending\"}");
+    return;
+  }
+  if (backendOtherGrowMutationPending()) {
+    g_backendGrowMutationReserved.store(false, std::memory_order_release);
+    sendBackendJson(request, 409, "{\"ok\":false,\"error\":\"grow_settings_busy\"}");
+    return;
+  }
+  if (!g_asyncBackendWriteMutex || xSemaphoreTake(g_asyncBackendWriteMutex, pdMS_TO_TICKS(25)) != pdTRUE) {
+    g_backendGrowMutationReserved.store(false, std::memory_order_release);
+    sendBackendJson(request, 503, "{\"ok\":false,\"error\":\"runtime_handoff_busy\"}");
+    return;
+  }
+  if (g_asyncBackendWriteConfigPending.pending || g_asyncBackendGrowProfilePending.pending) {
+    xSemaphoreGive(g_asyncBackendWriteMutex);
+    g_backendGrowMutationReserved.store(false, std::memory_order_release);
+    sendBackendJson(request, 409, "{\"ok\":false,\"error\":\"backend_write_pending\"}");
+    return;
+  }
+  if (backendNonceSeenLocked(nonce, nowSec)) {
+    xSemaphoreGive(g_asyncBackendWriteMutex);
+    g_backendGrowMutationReserved.store(false, std::memory_order_release);
+    logPrint("[BACKEND-API][AUTH] rejected source=" + sourceIp + " reason=replayed_nonce");
+    sendBackendJson(request, 409, "{\"ok\":false,\"error\":\"replayed_nonce\"}");
+    return;
+  }
+  const uint32_t requestId = ++g_backendGrowProfileNextRequestId;
+  g_asyncBackendGrowProfilePending.pending = true;
+  g_asyncBackendGrowProfilePending.requestId = requestId;
+  g_asyncBackendGrowProfilePending.value = value;
+  g_asyncBackendGrowProfilePending.fieldMask = fieldMask;
+  g_asyncBackendGrowProfilePending.authTimestamp = timestamp;
+  g_asyncBackendGrowProfilePending.nonce = nonce;
+  g_asyncBackendGrowProfilePending.sourceIp = sourceIp;
+  backendRememberNonceLocked(nonce, nowSec);
+  xSemaphoreGive(g_asyncBackendWriteMutex);
+
+  logPrint("[BACKEND-API] accepted id=" + String(requestId) + " source=" + sourceIp + " fieldsMask=" + String(fieldMask));
+  String json = "{\"ok\":true,\"requestId\":" + String(requestId) +
+                ",\"applyQueued\":true,\"applyContext\":\"main-loop\"}";
+  sendBackendJson(request, 202, json);
+}
+
+static void processAsyncBackendGrowProfileApply() {
+  if (!g_asyncBackendWriteMutex) return;
+  AsyncBackendGrowProfilePending pending;
+  bool have = false;
+  if (xSemaphoreTake(g_asyncBackendWriteMutex, 0) == pdTRUE) {
+    if (g_asyncBackendGrowProfilePending.pending) {
+      pending = g_asyncBackendGrowProfilePending;
+      g_asyncBackendGrowProfilePending.pending = false;
+      have = true;
+    }
+    xSemaphoreGive(g_asyncBackendWriteMutex);
+  }
+  if (!have) return;
+
+  BackendGrowProfileValues oldValue;
+  oldValue.targetTemperature = settings.grow.targetTemperature;
+  oldValue.targetVPD = settings.grow.targetVPD;
+  oldValue.floweringStart = startFlowering;
+  oldValue.dryingStart = startDrying;
+  oldValue.currentPhase = settings.grow.currentPhase;
+
+  if (!backendProfilePrefsWriteAndVerify(pending.value)) {
+    const bool rollbackOk = backendProfilePrefsWriteAndVerify(oldValue);
+    g_backendGrowProfileLastFailedId = pending.requestId;
+    logPrint("[BACKEND-API] FAILED id=" + String(pending.requestId) +
+             " source=" + pending.sourceIp + " err=prefs_verify_failed rollback=" +
+             String(rollbackOk ? "ok" : "failed"));
+    g_backendGrowMutationReserved.store(false, std::memory_order_release);
+    return;
+  }
+
+  settings.grow.targetTemperature = pending.value.targetTemperature;
+  targetTemperature = pending.value.targetTemperature;
+  settings.grow.targetVPD = pending.value.targetVPD;
+  targetVPD = pending.value.targetVPD;
+  startFlowering = pending.value.floweringStart;
+  settings.grow.startFlowering = pending.value.floweringStart;
+  startDrying = pending.value.dryingStart;
+  settings.grow.startDrying = pending.value.dryingStart;
+  settings.grow.currentPhase = pending.value.currentPhase;
+  curPhase = pending.value.currentPhase;
+  updateGrowTimeValues();
+  expireAsyncStateCacheMetadata();
+  g_backendGrowProfileLastAppliedId = pending.requestId;
+
+  logPrint("[BACKEND-API] applied id=" + String(pending.requestId) +
+           " source=" + pending.sourceIp +
+           " temp=" + String(pending.value.targetTemperature, 1) +
+           " vpd=" + String(pending.value.targetVPD, 2) +
+           " phase=" + String(pending.value.currentPhase));
+  g_backendGrowMutationReserved.store(false, std::memory_order_release);
+}
+
 // -------------------- Phase 26: run profile + irrigation config --------------------
 static bool isValidIsoDateValue(const String& value, bool allowEmpty) {
   if (value.length() == 0) return allowEmpty;
@@ -5363,6 +5992,13 @@ static void sendAsyncRunProfileState(AsyncWebServerRequest* request) {
 
 static void handleAsyncRunProfilePost(AsyncWebServerRequest* request) {
   if (!request) return;
+  if (backendGrowProfileMutationPending()) {
+    AsyncWebServerResponse* response = request->beginResponse(
+      409, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"backend_grow_profile_pending\"}");
+    addAsyncCommonHeaders(response, false);
+    request->send(response);
+    return;
+  }
   auto* body = static_cast<AsyncJsonBody*>(request->_tempObject);
   if (!body || body->tooLarge) {
     AsyncWebServerResponse* response = request->beginResponse(body && body->tooLarge ? 413 : 400,
@@ -5414,6 +6050,12 @@ static void handleAsyncRunProfilePost(AsyncWebServerRequest* request) {
     ++g_asyncRunProfileWriteFailures;
     AsyncWebServerResponse* response = request->beginResponse(503, "application/json; charset=utf-8",
       "{\"ok\":false,\"err\":\"runtime_handoff_busy\"}");
+    addAsyncCommonHeaders(response, false); request->send(response); return;
+  }
+  if (backendGrowProfileMutationPending()) {
+    xSemaphoreGive(g_asyncRunProfileMutex);
+    AsyncWebServerResponse* response = request->beginResponse(409, "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"backend_grow_profile_pending\"}");
     addAsyncCommonHeaders(response, false); request->send(response); return;
   }
   if (g_asyncRunProfilePending.writeInProgress || g_asyncRunProfilePending.pending) {
@@ -7984,6 +8626,8 @@ static void registerAsyncPhase32Routes() {
   asyncServer.on("/api/settings/ds18b20-name", AsyncWebRequestMethod::HTTP_POST, handleAsyncDs18NamePost, nullptr, handleAsyncJsonBody);
   asyncServer.on("/api/settings/power-price", AsyncWebRequestMethod::HTTP_GET, sendAsyncPowerPriceState);
   asyncServer.on("/api/settings/power-price", AsyncWebRequestMethod::HTTP_POST, handleAsyncPowerPricePost, nullptr, handleAsyncJsonBody);
+  asyncServer.on("/api/settings/backend-write", AsyncWebRequestMethod::HTTP_GET, sendAsyncBackendWriteConfigState);
+  asyncServer.on("/api/settings/backend-write", AsyncWebRequestMethod::HTTP_POST, handleAsyncBackendWriteConfigPost, nullptr, handleAsyncJsonBody);
 
   asyncServer.on("/api/settings/relay-name/1", AsyncWebRequestMethod::HTTP_GET, [](AsyncWebServerRequest* r){ handleAsyncRelayNameGet(r, 0); });
   asyncServer.on("/api/settings/relay-name/1", AsyncWebRequestMethod::HTTP_POST, [](AsyncWebServerRequest* r){ handleAsyncRelayNamePost(r, 0); }, nullptr, handleAsyncJsonBody);
@@ -8122,6 +8766,7 @@ static void registerAsyncPhase32Routes() {
   // route is required. Runtime mutation remains main-loop owned.
   asyncServer.on("/api/settings/run-profile", AsyncWebRequestMethod::HTTP_GET, sendAsyncRunProfileState);
   asyncServer.on("/api/settings/run-profile", AsyncWebRequestMethod::HTTP_POST, handleAsyncRunProfilePost, nullptr, handleAsyncJsonBody);
+  asyncServer.on("/api/backend/grow-profile", AsyncWebRequestMethod::HTTP_PATCH, handleAsyncBackendGrowProfilePatch, nullptr, handleAsyncJsonBody);
   asyncServer.on("/api/settings/irrigation", AsyncWebRequestMethod::HTTP_GET, sendAsyncIrrigationConfigState);
   asyncServer.on("/api/settings/irrigation", AsyncWebRequestMethod::HTTP_POST, handleAsyncIrrigationConfigPost, nullptr, handleAsyncJsonBody);
   asyncServer.on("/saverunsettings", AsyncWebRequestMethod::HTTP_POST, [](AsyncWebServerRequest* r){
@@ -8484,6 +9129,8 @@ void loop() {
   processAsyncSystemRestartApply();
   processAsyncMessageSettingsApply();
   processAsyncNewGrowApply();
+  processAsyncBackendWriteConfigApply();
+  processAsyncBackendGrowProfileApply();
   processAsyncGrowTargetsApply();
   processAsyncHeatingTuningApply();
   processAsyncHeatingOutputApply();

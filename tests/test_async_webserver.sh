@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GrowTent AsyncWebServer staged migration test
-# Test build: v0.4.31 / phase 32
+# Test build: v0.5.0 / phase 32
 # Usage: ./tests/test_async_webserver.sh <ESP-IP>
 # Example: ./tests/test_async_webserver.sh 192.168.178.58
 
@@ -16,7 +16,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 ESP_IP="$1"
-TEST_FW_VERSION="v0.4.31"
+TEST_FW_VERSION="v0.5.0"
 TEST_CACHE_BUSTER="${TEST_FW_VERSION#v}"
 BASE80="http://${ESP_IP}"
 BASE8080="http://${ESP_IP}:8080"
@@ -157,7 +157,7 @@ show_headers() {
 }
 
 log "GrowTent AsyncWebServer test"
-log "Test build target: v0.4.31 / Async phase 32"
+log "Test build target: v0.5.0 / Async phase 32"
 log "Started: $(now)"
 log "ESP IP: $ESP_IP"
 log "Port 80 in normal STA mode: $BASE80 (must be closed; provisioning owns it only in AP mode)"
@@ -167,7 +167,7 @@ log "NOTE: An external GrowTent-backend may poll port 8080 during this test; cac
 log "NOTE: Port 8080 is the permanent dashboard/API target. In normal STA mode Phase 32 must have no TCP/80 listener."
 log ""
 
-EXPECTED_FW_VERSION="v0.4.31"
+EXPECTED_FW_VERSION="v0.5.0"
 EXPECTED_ASYNC_PHASE="32"
 
 log "===== PREFLIGHT: SCRIPT / FIRMWARE COMPATIBILITY ====="
@@ -4476,7 +4476,7 @@ else
 fi
 
 
-# v0.4.31 Operating Settings layout contract. This is a static asset check only;
+# v0.5.0 Operating Settings layout contract. This is a static asset check only;
 # it verifies the compact responsive structure without changing device state.
 if [[ "$phase32_html" == *'class="page card runsettings-page"'* && \
       "$phase32_html" == *'class="runsettings-head-actions"'* && \
@@ -4486,27 +4486,27 @@ if [[ "$phase32_html" == *'class="page card runsettings-page"'* && \
       "$phase32_html" == *'class="runsettings-param-grid"'* && \
       "$phase32_html" == *'class="runsettings-relay-table'* && \
       "$phase32_html" == *'id="irrigationParameterSection"'* ]]; then
-  log "PASS v0.4.31 compact Operating Settings layout contract"
+  log "PASS v0.5.0 compact Operating Settings layout contract"
 else
-  log "FAIL v0.4.31 compact Operating Settings layout contract"
+  log "FAIL v0.5.0 compact Operating Settings layout contract"
   PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
 fi
 
 
-# v0.4.31 asymmetric Full-HD Operating Settings contract.
+# v0.5.0 asymmetric Full-HD Operating Settings contract.
 phase32_css="$(curl -sS --max-time 10 "$BASE8080/style.css?v=${TEST_CACHE_BUSTER}&phase32=responsive" 2>>"$LOGFILE" || true)"
 if [[ "$phase32_css" == *'minmax(210px,.55fr)'* && \
       "$phase32_css" == *'minmax(430px,1.4fr)'* && \
       "$phase32_css" == *'@media (max-width:1500px)'* && \
       "$phase32_css" == *'.runsettings-top-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }'* ]]; then
-  log "PASS v0.4.31 asymmetric Full-HD Operating Settings contract"
+  log "PASS v0.5.0 asymmetric Full-HD Operating Settings contract"
 else
-  log "FAIL v0.4.31 asymmetric Full-HD Operating Settings contract"
+  log "FAIL v0.5.0 asymmetric Full-HD Operating Settings contract"
   failures=$((failures + 1))
 fi
 
 
-# v0.4.31 Min-VPD exhaust-state synchronization contract. This guards against
+# v0.5.0 Min-VPD exhaust-state synchronization contract. This guards against
 # reintroducing the private stale state cache that could suppress a required
 # exhaust ON command after an external/manual state change.
 MINVPD_SRC="${SCRIPT_DIR}/../src/function.h"
@@ -4515,13 +4515,26 @@ if [[ -f "$MINVPD_SRC" ]] && \
    grep -q 'const bool actualOn = exhaustValues.isOn;' "$MINVPD_SRC" && \
    grep -q 'settings.shelly.exhaust.values.isOn = shouldBeOn;' "$MINVPD_SRC" && \
    ! grep -q 'static bool exhaustStateCache' "$MINVPD_SRC"; then
-  log "PASS v0.4.31 Min-VPD exhaust state synchronization contract"
+  log "PASS v0.5.0 Min-VPD exhaust state synchronization contract"
 else
-  log "FAIL v0.4.31 Min-VPD exhaust state synchronization contract"
+  log "FAIL v0.5.0 Min-VPD exhaust state synchronization contract"
   failures=$((failures + 1))
 fi
 
-# v0.4.31 page-aware polling contract. Only Status and System Log may own
+# v0.5.0 authenticated Backend Write API source contract.
+BACKEND_WRITE_MAIN="${SCRIPT_DIR}/../src/main.cpp"
+BACKEND_WRITE_GLOBALS="${SCRIPT_DIR}/../src/globals.cpp"
+BACKEND_WRITE_RUNTIME="${SCRIPT_DIR}/../src/runtime.h"
+BACKEND_WRITE_HTML="${SCRIPT_DIR}/../src/index_html.h"
+BACKEND_WRITE_VARS="${SCRIPT_DIR}/../src/vars_registry.cpp"
+if [[ -f "$BACKEND_WRITE_MAIN" && -f "$BACKEND_WRITE_GLOBALS" && -f "$BACKEND_WRITE_RUNTIME" && -f "$BACKEND_WRITE_HTML" && -f "$BACKEND_WRITE_VARS" ]] &&    grep -q 'AsyncWebRequestMethod::HTTP_PATCH, handleAsyncBackendGrowProfilePatch' "$BACKEND_WRITE_MAIN" &&    grep -q 'sourceIp != settings.backendWrite.allowedIp' "$BACKEND_WRITE_MAIN" &&    grep -q 'mbedtls_md_hmac' "$BACKEND_WRITE_MAIN" &&    grep -Fq 'PATCH\n/api/backend/grow-profile\n' "$BACKEND_WRITE_MAIN" &&    grep -q 'g_backendGrowMutationReserved' "$BACKEND_WRITE_MAIN" &&    grep -q 'compare_exchange_strong' "$BACKEND_WRITE_MAIN" &&    grep -q 'timestamp_out_of_window' "$BACKEND_WRITE_MAIN" &&    grep -q 'replayed_nonce' "$BACKEND_WRITE_MAIN" &&    grep -q 'flowering_start_delete_not_allowed_for_phase' "$BACKEND_WRITE_MAIN" &&    grep -q 'drying_start_delete_not_allowed_for_phase' "$BACKEND_WRITE_MAIN" &&    grep -q 'drying_start_must_be_cleared_with_flowering_start' "$BACKEND_WRITE_MAIN" &&    grep -q 'date_delete_requires_null' "$BACKEND_WRITE_MAIN" &&    grep -q 'processAsyncBackendGrowProfileApply();' "$BACKEND_WRITE_MAIN" &&    grep -q 'KEY_BACKEND_WRITE_SECRET = "beWrKey"' "$BACKEND_WRITE_GLOBALS" &&    grep -q 'loadPrefString(KEY_BACKEND_WRITE_SECRET, settings.backendWrite.secretHex, "", false' "$BACKEND_WRITE_RUNTIME" &&    grep -q 'id="webBackendWriteSecret" type="password"' "$BACKEND_WRITE_HTML" &&    grep -q 'id="webBackendWriteSecret" type="password".*value=""' "$BACKEND_WRITE_HTML" &&    ! grep -q 'backendWrite.secretHex\|KEY_BACKEND_WRITE_SECRET\|beWrKey' "$BACKEND_WRITE_VARS"; then
+  log "PASS v0.5.0 authenticated Backend Write API contract"
+else
+  PHASE32_FINAL_WEB_FAILURES=$((PHASE32_FINAL_WEB_FAILURES + 1))
+  log "FAIL v0.5.0 authenticated Backend Write API contract"
+fi
+
+# v0.5.0 page-aware polling contract. Only Status and System Log may own
 # periodic browser polling; Shelly/settings pages must not start background timers.
 phase32_polling_js="${OUTDIR}/phase32-page-aware-polling.js"
 phase32_polling_meta="$(curl -sS -o "$phase32_polling_js" --max-time 10 \

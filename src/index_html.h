@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.4.26">
+  <link rel="stylesheet" href="/style.css?v=0.5.2">
 <body data-temp-unit="%UNIT%">
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -845,6 +845,31 @@ const char* htmlPage = R"rawliteral(
           </select>
         </div>
 
+        <h2 data-i18n="settings.backendWrite.title">Backend Write API</h2>
+        <p class="hint" data-i18n="settings.backendWrite.hint">Erlaubt dem GrowTent-Backend ausschließlich Soll-Temperatur, Soll-VPD, Blüte-/Trocknungsdatum und aktuelle Phase über eine HMAC-gesicherte Schnittstelle zu ändern.</p>
+
+        <div class="form-group checkbox">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webBackendWriteEnabled" id="webBackendWriteEnabled" %BACKEND_WRITE_ENABLED_CHECKED%>
+            <span data-i18n="settings.backendWrite.enabled">Backend Write API aktivieren</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="webBackendWriteAllowedIp" data-i18n="settings.backendWrite.allowedIp">Erlaubte Backend-IP:</label>
+          <input name="webBackendWriteAllowedIp" id="webBackendWriteAllowedIp" type="text" inputmode="decimal" maxlength="15" style="width: 180px;" value="%BACKEND_WRITE_ALLOWED_IP%" placeholder="192.168.178.10">
+        </div>
+
+        <div class="form-group">
+          <label for="webBackendWriteSecret" data-i18n="settings.backendWrite.secret">HMAC API-Schlüssel:</label>
+          <input name="webBackendWriteSecret" id="webBackendWriteSecret" type="password" autocomplete="new-password" maxlength="64" style="width: 520px; max-width: 100%;" value="" placeholder="%BACKEND_WRITE_SECRET_PLACEHOLDER%">
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn" id="generateBackendWriteSecretBtn" data-i18n="settings.backendWrite.generate">Neuen 256-Bit-Schlüssel erzeugen</button>
+            <button type="button" class="btn" id="copyBackendWriteSecretBtn" data-i18n="settings.backendWrite.copy">Schlüssel kopieren</button>
+          </div>
+          <small data-i18n="settings.backendWrite.secretHint">Der Schlüssel wird nach dem Speichern nicht wieder angezeigt. Leeres Feld bedeutet: vorhandenen Schlüssel behalten.</small>
+        </div>
+
         <h2 data-i18n="settings.powerPrice">Preis pro kWh</h2> 
         <div class="form-group">
           <label for="webPowerPriceKwh">Power price (€/kWh):</label>
@@ -972,7 +997,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.4.26"></script>
+ <script src="/script.js?v=0.5.2"></script>
 </body>
 </html>
 )rawliteral";

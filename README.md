@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current release changes are documented in [`RELEASE_NOTES_v0.4.31.md`](RELEASE_NOTES_v0.4.31.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current release changes are documented in [`RELEASE_NOTES_v0.5.2.md`](RELEASE_NOTES_v0.5.2.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -294,6 +294,68 @@ It includes areas such as:
 
 Sensitive credentials such as Wi-Fi passwords, Shelly passwords, Pushover credentials and Gotify tokens are not exposed through `/api/state`. Notification credentials and the Shelly password are also treated as write-only in the dashboard and are never embedded back into the delivered HTML. The Shelly Flood webhook token is intentionally visible because it is required for webhook configuration.
 
+### Authenticated backend Grow-profile write API
+
+v0.5.0 adds a deliberately narrow write endpoint for the GrowTent backend:
+
+- `PATCH /api/backend/grow-profile`
+
+The endpoint is disabled by default and can modify only:
+
+- `targetTemperature` (18.0–30.0 °C; API/internal value is always Celsius)
+- `targetVPD` (0.50–3.50 kPa)
+- `floweringStart` (`YYYY-MM-DD` or `null` when the resulting phase allows deletion)
+- `dryingStart` (`YYYY-MM-DD` or `null` when the resulting phase allows deletion)
+- `currentPhase` (`1..3`)
+
+Backend Write API configuration is available under System Settings. Enabling it requires an exact allowed IPv4 source address and a 256-bit HMAC secret. The stored secret is write-only: it is never returned in dashboard HTML, `/api/state`, or the settings GET response.
+
+Every write request must satisfy all of the following:
+
+1. Backend Write API is enabled.
+2. The TCP peer IPv4 address exactly matches the configured backend IP.
+3. `X-GrowTent-Timestamp` is a Unix timestamp in seconds within ±60 seconds of the controller clock.
+4. `X-GrowTent-Nonce` is exactly 32 lowercase hexadecimal characters and has not been accepted in the current replay window.
+5. `X-GrowTent-Signature` is a valid lowercase HMAC-SHA256 signature.
+
+The signing input is exactly:
+
+```text
+PATCH
+/api/backend/grow-profile
+<TIMESTAMP>
+<NONCE>
+<SHA256_HEX_OF_EXACT_REQUEST_BODY>
+```
+
+There is no trailing newline. The configured 64-character secret is decoded from hexadecimal into 32 raw key bytes before HMAC-SHA256 is calculated.
+
+A successful authenticated request returns `202 Accepted` with a request ID. The Async callback never writes Preferences/NVS or mutates climate runtime state. It validates and queues the complete resulting Grow profile; the Arduino main loop performs the NVS write/readback verification, rollback on failure, runtime update and `/api/state` cache invalidation.
+
+Date/phase invariants are validated against the complete resulting state:
+
+- Phase 1: flowering/drying dates may be empty.
+- Phase 2: `floweringStart` must be set; `dryingStart` may be empty.
+- Phase 3: both `floweringStart` and `dryingStart` must be set.
+- `floweringStart: null` is accepted only when the resulting phase is 1 and `dryingStart` is also empty (or cleared in the same PATCH).
+- `dryingStart: null` is rejected when the resulting phase is 3.
+- No implicit cascading date deletion is performed.
+- Empty date strings (`""`) are rejected; deletion requires explicit JSON `null`.
+- When dates are present: Grow start ≤ flowering start ≤ drying start.
+
+HMAC interoperability test vector:
+
+```text
+secretHex = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+timestamp = 1793530800
+nonce     = 00112233445566778899aabbccddeeff
+body      = {"targetTemperature":22.5,"targetVPD":0.8,"currentPhase":2,"floweringStart":"2026-11-01"}
+bodySha256 = 46074f3052a1b48a26d3b71211937536cb24f99016f85566b6ff4a445ca3014d
+signature  = a9487688764f8b09fb2ccc49db29667f7ff9fe1831e3147e502e3eeec32edc4c
+```
+
+The request body is signed byte-for-byte as transmitted. Backend implementations must serialize the JSON once, hash those exact bytes, and send those same bytes as the HTTP body.
+
 ### Relays
 
 - `GET|POST /api/relay/{1..5}/state`
@@ -465,7 +527,7 @@ The release workflow is triggered by a `v*` Git tag.
 For the current release the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.4.31.md
+RELEASE_NOTES_v0.5.2.md
 ```
 
 The release workflow:
@@ -492,7 +554,7 @@ tests/test_async_transport_stress.sh
 tests/test_ota_transport.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.4.31.md
+RELEASE_NOTES_v0.5.2.md
 LICENSE
 ```
 
@@ -527,7 +589,7 @@ Important source files:
 
 The current release changes are documented in:
 
-[`RELEASE_NOTES_v0.4.31.md`](RELEASE_NOTES_v0.4.31.md)
+[`RELEASE_NOTES_v0.5.2.md`](RELEASE_NOTES_v0.5.2.md)
 
 The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
 
