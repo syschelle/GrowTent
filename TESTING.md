@@ -1,4 +1,8 @@
-# Testing — v0.5.4
+# Testing — v0.5.5
+
+## Local plan status UI
+
+`node tests/test_local_plan_ui.mjs` parses the shipped JavaScript and exercises its renderer with the production translation dictionary: German/English loading, disabled, ready, blocked, stale, missing metadata and failed-fetch states. It checks language/fetch hooks and firmware-versioned asset URLs. Full firmware compilation runs in CI. Browser/device update verification remains open.
 
 ## Local irrigation plan
 

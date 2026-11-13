@@ -40,7 +40,7 @@ const char* htmlPage = R"rawliteral(
   <title>%CONTROLLERNAME%</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/style.css?v=0.5.3">
+  <link rel="stylesheet" href="/style.css?v=%FWVERSION%">
 <body data-temp-unit="%UNIT%">
   <header class="header">
     <button class="hamburger" id="hamburgerBtn" data-i18n="a11y.menu" data-i18n-attr="aria-label" aria-label="Menü öffnen/schließen" aria-expanded="false" aria-controls="sidebar">☰</button>
@@ -194,7 +194,7 @@ const char* htmlPage = R"rawliteral(
     <div class="tile-row" id="irrigationSection" style="display:none;">
       <div class="tile">
         <h2 data-i18n="status.irrigation">Irrigation</h2>
-        <p id="localIrrigationPlanStatus" role="status">Local plan: loading …</p>
+        <p id="localIrrigationPlanStatus" role="status"><span data-i18n="status.localPlan.loading">Lokaler Plan: Status wird geladen …</span></p>
          <div class="relay-row" id="relayRow">
           <div class="relay-card irrigation" data-relay="6" id="irrigationRelay6">
             <div class="relay-title" data-i18n="status.irrigationRelay6">Pumpe 1 Relay 6</div>
@@ -999,7 +999,7 @@ const char* htmlPage = R"rawliteral(
   </main>
   </div>
   
- <script src="/script.js?v=0.5.3"></script>
+ <script src="/script.js?v=%FWVERSION%"></script>
 </body>
 </html>
 )rawliteral";
