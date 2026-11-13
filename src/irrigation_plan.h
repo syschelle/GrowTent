@@ -11,3 +11,5 @@ void irrigationPlanTick();
 bool irrigationPlanFactoryReset();
 
 String irrigationPlanStatusField(const char* key);
+
+bool irrigationPlanReserveManualCycle(String& error);

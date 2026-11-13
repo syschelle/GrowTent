@@ -4,6 +4,8 @@
 
 `python tests/test_irrigation_plan.py` passes host policy/integration checks: civil dates and leap days, recurrence, no catch-up/grace boundary, already-claimed dates, drying/busy/invalid clock, Gen1 weekday rules, Gen2 weekday lists/ranges/names, ambiguous/unsupported schedules, replay saturation without eviction and DST calendar behavior. Wiring checks verify dry-phase/start ownership guards, factory reset, main-loop persistence and lifecycle hooks. Tests exercise the production policy header rather than a separate reimplementation.
 
+The production JSON schedule parser is additionally compiled and executed with ArduinoJson after the CI build: enabled/disabled Gen1 rules, weekly ON/OFF times, Gen2/3 jobs, malformed/ambiguous/solar/paginated responses and switch-id filtering.
+
 CI also runs the actual full board build. See current pull-request checks for the authoritative compile result. Existing S3 host mapping tests, where present, remain required.
 
 ### Hardware and integration gates (OPEN)

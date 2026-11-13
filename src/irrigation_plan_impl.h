@@ -1,5 +1,6 @@
 #pragma once
 #include "irrigation_plan_policy.h"
+#include "irrigation_schedule_parser.h"
 #include <atomic>
 // Included once, after existing main-loop actions and HMAC helpers are defined.
 namespace {
@@ -155,32 +156,7 @@ void lpHandle(AsyncWebServerRequest* r, PlanOp op, bool events=false) {
   reply(202,String("{\"ok\":true,\"applyQueued\":true,\"requestId\":")+String(lpNextRequest)+"}");
 }
 bool lpParseLight(const String& body,int generation,int (&minutes)[7],int (&off)[7]) {
-  JsonDocument doc;if(body.length()>16384||deserializeJson(doc,body))return false;
-  if(generation==1){
-    if(!doc["schedule"].is<bool>())return false;
-    if(!doc["schedule"].as<bool>())return true;
-    if(!doc["schedule_rules"].is<JsonArray>())return false;
-    for(JsonVariantConst v:doc["schedule_rules"].as<JsonArrayConst>()){
-      if(!v.is<const char*>()||!gtplan::addGen1Rule(v.as<const char*>(),minutes)||!gtplan::addGen1Rule(v.as<const char*>(),off,false))return false;
-    }
-    return true;
-  }
-  if(!doc["jobs"].is<JsonArray>()||doc["jobs"].size()>20||doc["offset"].as<int>()!=0||
-     (doc["total"].is<int>()&&doc["total"].as<int>()>int(doc["jobs"].size())))return false;
-  for(JsonObjectConst job:doc["jobs"].as<JsonArrayConst>()){
-    if(!job["enable"].is<bool>())return false;if(!job["enable"].as<bool>())continue;
-    if(!job["calls"].is<JsonArray>())return false;
-    bool relevant=false,offRelevant=false;for(JsonObjectConst c:job["calls"].as<JsonArrayConst>()){
-      if(c["method"].as<String>()=="Switch.Set"&&c["params"]["id"].is<int>()&&c["params"]["id"].as<int>()==0){
-        if(!c["params"]["on"].is<bool>())return false;if(c["params"]["on"].as<bool>())relevant=true;else offRelevant=true;
-      }
-    }
-    if(!relevant&&!offRelevant)continue;
-    if(!job["timespec"].is<const char*>()|| (relevant&&offRelevant))return false;
-    if(relevant&&!gtplan::addCronOn(job["timespec"].as<const char*>(),minutes))return false;
-    if(offRelevant&&!gtplan::addCronOn(job["timespec"].as<const char*>(),off))return false;
-  }
-  return true; // Explicit empty/disabled schedule cancels future starts; transport failure never clears cache.
+  return gtplan::parseLightSchedule(body.c_str(),body.length(),generation,minutes,off);
 }
 }
 String irrigationPlanStatusField(const char* key){
@@ -193,6 +169,21 @@ String irrigationPlanStatusField(const char* key){
 }
 bool irrigationPlanEnabled(){return lpEnabled.load();}
 bool irrigationPlanOwnsCycle(){return lpOwns.load();}
+bool irrigationPlanReserveManualCycle(String& error){
+  if(!lpEnabled.load())return true;
+  if(lpOwns.load()){if(lpStarting)return true;error="irrigation_cycle_pending";return false;}
+  LpLock guard;
+  if(!guard.held||!lpReady||lpFault){error="irrigation_storage_unavailable";return false;}
+  const time_t now=time(nullptr);if((int64_t)now<gtplan::kValidEpoch){error="time_not_synchronized";return false;}
+  if(lpState["events"].size()>gtplan::kMaxEvents-2){error="event_queue_full";return false;}
+  const int day=lpDay(now);
+  if(day>lpState["last_handled_day"].as<int>())lpState["last_handled_day"]=day;
+  if(day>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=day;lpState["last_run_date"]=lpDate(now);}
+  lpState["run_id"]=String(day)+"-manual-"+String(lpState["next_seq"].as<uint32_t>());
+  lpState["active"]=true;lpEvent("started","manual_cycle_accepted");
+  if(!lpPersist()){error="irrigation_persist_failed";return false;}
+  lpOwns.store(true);return true;
+}
 void irrigationPlanCycleFinished(bool success){if(!lpOwns.load())return;if(!success)lpFinished.store(2);else {int expected=0;lpFinished.compare_exchange_strong(expected,1);}}
 bool irrigationPlanRefreshShelly(bool force){
   String ip,user,pass;int gen;uint32_t generation;
@@ -276,7 +267,7 @@ void irrigationPlanTick(){
           lpState["revision"]=pending["revision"];lpState["enabled"]=pending["enabled"];
           lpState["every_n_days"]=pending["every_n_days"];lpState["offset_after_light_on_min"]=pending["offset_after_light_on_min"];
           lpState["input_last_run_date"]=pending["last_run_date"];
-          String last=pending["last_run_date"]|String("");int baseline=last.length()?lpParseDay(last):lpDay(time(nullptr))-1;
+          String last=pending["last_run_date"]|String("");int baseline=last.length()?lpParseDay(last):lpDay(time(nullptr))-pending["every_n_days"].as<int>();
           if(baseline>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=baseline;lpState["last_run_date"]=pending["last_run_date"];}
           // First enable never backfills earlier dates; later edits never roll back handled dates.
           if(lpState["last_handled_day"].as<int>()<lpDay(time(nullptr))-1)lpState["last_handled_day"]=lpDay(time(nullptr))-1;

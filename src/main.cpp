@@ -4922,7 +4922,12 @@ static void handleAsyncWateringActionPost(AsyncWebServerRequest* request) {
   }
   if (action == "start") queueAsyncWateringAction(request, AsyncWateringActionType::StartApi);
   else if (action == "stop") queueAsyncWateringAction(request, AsyncWateringActionType::Stop, 0, 10000UL, guard);
-  else if (action == "toggle") queueAsyncWateringAction(request, AsyncWateringActionType::ToggleDashboard);
+  else if (action == "toggle") {
+    if (irrigationPlanEnabled() && irrigation.irrigationRuns <= 0) {
+      request->send(409, "application/json", "{\"ok\":false,\"err\":\"local_plan_owns_schedule\"}"); return;
+    }
+    queueAsyncWateringAction(request, AsyncWateringActionType::ToggleDashboard);
+  }
   else if (action == "pingtank") queueAsyncWateringAction(request, AsyncWateringActionType::TankPing);
   else {
     AsyncWebServerResponse* response = request->beginResponse(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"invalid_watering_action\"}");
@@ -4943,6 +4948,7 @@ static bool startAsyncIrrigationNow(bool startedViaApi, String& error) {
   if (mlPerTaskPerPot <= 0.0f) { error = "invalid_ml_per_task"; return false; }
   const int runs = (int)ceilf(irrigation.amount / mlPerTaskPerPot);
   if (runs <= 0) { error = "invalid_run_count"; return false; }
+  if (!irrigationPlanReserveManualCycle(error)) return false;
   irrigationStopRequested = false;
   irrigationStartNotifyViaApi = startedViaApi;
   irrigationStartNotifyPending = true;
