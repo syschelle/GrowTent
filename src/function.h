@@ -1535,24 +1535,7 @@ static bool readShellyScheduleList(ShellyDevice& dev, int switchId, int port) {
 }
 
 static bool refreshShellyLightSchedule(bool force) {
-  if (g_scheduleInitStartMs == 0) g_scheduleInitStartMs = millis();
-
-  const uint32_t scheduleFetchIntervalMs = 15000UL;
-  const uint32_t scheduleInitWindowMs = 180000UL;
-  const bool inInitWindow = (uint32_t)(millis() - g_scheduleInitStartMs) < scheduleInitWindowMs;
-
-  const bool scheduleDue =
-    force ||
-    (!g_scheduleResolved &&
-     inInitWindow &&
-     ((g_lastScheduleFetchMs == 0) || ((uint32_t)(millis() - g_lastScheduleFetchMs) >= scheduleFetchIntervalMs)));
-
-  if (!scheduleDue) return false;
-
-  g_lastScheduleFetchMs = millis();
-  const bool ok = readShellyScheduleList(settings.shelly.light, 0, 80);
-  if (ok) g_scheduleResolved = true;
-  return ok;
+  return irrigationPlanRefreshShelly(force);
 }
 
 static const char* shellyGenerationPreferenceKey(const ShellyDevice& dev) {
@@ -1707,7 +1690,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   const bool isLightShelly =
   settings.shelly.light.ip.length() > 0 && dev.ip == settings.shelly.light.ip;
 
-  if (dev.gen >= 2 && isLightShelly) refreshShellyLightSchedule(false);
+  if (isLightShelly) refreshShellyLightSchedule(false);
 
   return v;
 }

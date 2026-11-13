@@ -194,6 +194,7 @@ const char* htmlPage = R"rawliteral(
     <div class="tile-row" id="irrigationSection" style="display:none;">
       <div class="tile">
         <h2 data-i18n="status.irrigation">Irrigation</h2>
+        <p id="localIrrigationPlanStatus" role="status">Local plan: loading …</p>
          <div class="relay-row" id="relayRow">
           <div class="relay-card irrigation" data-relay="6" id="irrigationRelay6">
             <div class="relay-title" data-i18n="status.irrigationRelay6">Pumpe 1 Relay 6</div>

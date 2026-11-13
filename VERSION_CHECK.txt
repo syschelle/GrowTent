@@ -1,7 +1,7 @@
-GrowTent v0.5.3 authenticated backend Grow-profile write API
+GrowTent v0.5.4 authenticated backend Grow-profile write API
 
 Expected firmware version:
-#define FW_VERSION "v0.5.3"
+#define FW_VERSION "v0.5.4"
 
 Key checks:
 - PATCH /api/backend/grow-profile exists on TCP/8080.
@@ -13,3 +13,5 @@ Key checks:
 - Date deletion is phase-dependent; no cascading deletion occurs.
 - NVS/runtime apply occurs only in the Arduino main loop with verification/rollback.
 - Internal/API temperatures remain Celsius.
+
+- Local irrigation plan/event protocol documented in IRRIGATION_PLAN_API.md; disabled by default.
