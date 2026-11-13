@@ -80,6 +80,7 @@ void lpSend(AsyncWebServerRequest* r, int code, const String& body, const String
 bool lpAuthenticate(AsyncWebServerRequest* r, String& key, String& nonce) {
   auto fail=[&](int code,const char* error){sendBackendJson(r,code,String("{\"ok\":false,\"error\":\"")+error+"\"}");return false;};
   if(!lpReady||lpFault)return fail(503,"irrigation_storage_unavailable");
+  if(g_restartRequested||otaMaintenanceRequested())return fail(503,"restart_or_ota_pending");
   if(!lpAuthEnabled)return fail(403,"backend_write_disabled");
   if(!r->client()||r->client()->remoteIP().toString()!=lpAllowedIp)return fail(403,"source_ip_not_allowed");
   if(!isLowerHex(lpKey,64))return fail(503,"backend_secret_not_configured");
@@ -199,7 +200,7 @@ bool irrigationPlanRefreshShelly(bool force){
   if(gen==1)ok=httpGetGen1(ip,80,"/settings/relay/0",user,pass,code,body);
   else if(gen>=2 && gen<=4)ok=httpGetWithDigestAutoAuth(ip,80,"/rpc/Schedule.List",user,pass,code,body);
   snap.ok=ok&&code==200&&lpParseLight(body,gen,snap.minutes,snap.off);snap.at=(int64_t)time(nullptr);
-  LpLock guard(pdMS_TO_TICKS(100));if(!guard.held)return false;
+  LpLock guard(portMAX_DELAY);if(!guard.held)return false;
   lpFetchBusy=false;if(generation!=lpScheduleGeneration)return false;
   lpPendingLight=snap;lpSchedulePending=true;return snap.ok;
 }
@@ -280,7 +281,7 @@ void irrigationPlanTick(){
       if(ok)lpApplied=lpNextRequest;else{lpFailed=lpNextRequest;lpLastError="apply_failed";}
       lpOp=PlanOp::None;lpPendingJson="";lpPendingKey="";
     }
-    if(lpFault||!lpEnabled.load()||now<gtplan::kValidEpoch||lpOwns.load())return;
+    if(lpFault||!lpEnabled.load()||now<gtplan::kValidEpoch||lpOwns.load()||g_restartRequested||otaMaintenanceRequested()||otaIsUpdateInProgress())return;
     const int today=lpDay(time(nullptr));
     int handled=lpState["last_handled_day"].as<int>();
     if(phase==3){
