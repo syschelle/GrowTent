@@ -46,5 +46,23 @@ int main(){
   setenv("TZ","Europe/Berlin",1);tzset();tm t={};t.tm_year=2026-1900;t.tm_mon=2;t.tm_mday=28;t.tm_hour=8;t.tm_isdst=-1;
   time_t a=mktime(&t);t.tm_mday=29;t.tm_isdst=-1;time_t b=mktime(&t);assert(b-a==23*3600);
   assert(civilDay(2026,3,29)-civilDay(2026,3,28)==1);
+  auto local=[](int y,int m,int d,int h,int minute){tm v={};v.tm_year=y-1900;v.tm_mon=m-1;v.tm_mday=d;v.tm_hour=h;v.tm_min=minute;v.tm_isdst=-1;return (int64_t)mktime(&v);};
+  int daily[7]={8*60,8*60,8*60,8*60,8*60,8*60,8*60};
+  const int day13=civilDay(2026,11,13);
+  assert(nextOccurrence(local(2026,11,13,7,0),day13-2,2,day13-1,daily,60)==local(2026,11,13,9,0));
+  assert(nextOccurrence(local(2026,11,13,10,0),day13-2,2,day13-1,daily,60)==local(2026,11,14,9,0));
+  assert(nextOccurrence(local(2026,11,13,7,0),day13-1,2,day13-1,daily,60)==local(2026,11,14,9,0));
+  assert(nextOccurrence(local(2026,11,13,7,0),day13-2,2,day13,daily,60)==local(2026,11,14,9,0));
+  int weekly[7]={-1,-1,-1,-1,-1,-1,8*60};
+  assert(nextOccurrence(local(2026,11,13,7,0),day13-2,2,day13-1,weekly,0)==local(2026,11,15,8,0));
+  int late[7]={23*60,23*60,23*60,23*60,23*60,23*60,23*60};
+  assert(nextOccurrence(local(2026,11,14,0,30),day13-2,2,day13-1,late,120)==local(2026,11,14,1,0));
+  int empty[7]={-1,-1,-1,-1,-1,-1,-1};assert(nextOccurrence(local(2026,11,13,7,0),-1,1,-1,empty,0)==0);
+  assert(nextOccurrence(0,-1,1,-1,daily,0)==0);
+  assert(nextOccurrence(local(2026,3,29,7,0),civilDay(2026,3,28),1,civilDay(2026,3,28),daily,60)==local(2026,3,29,9,0));
+  assert(nextOccurrence(local(2026,10,25,7,0),civilDay(2026,10,24),1,civilDay(2026,10,24),daily,60)==local(2026,10,25,9,0));
+  int early[7]={90,90,90,90,90,90,90};
+  assert(nextOccurrence(local(2026,3,29,0,30),civilDay(2026,3,28),1,civilDay(2026,3,28),early,120)==local(2026,3,29,4,30));
+  assert(nextOccurrence(local(2026,10,25,0,30),civilDay(2026,10,24),1,civilDay(2026,10,24),early,120)==local(2026,10,25,3,30)-3600);
   std::cout<<"PASS: civil dates, interval, grace/no catch-up, duplicate guard, drying, busy, clock, weekday/Gen1/Gen2 parsing, replay saturation, DST\n";
 }
