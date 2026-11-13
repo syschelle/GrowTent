@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.12.md`](RELEASE_NOTES_v0.5.12.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.13.md`](RELEASE_NOTES_v0.5.13.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -531,7 +531,7 @@ The release workflow is triggered by a `v*` Git tag.
 For the current release the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.5.12.md
+RELEASE_NOTES_v0.5.13.md
 ```
 
 The release workflow:
@@ -558,7 +558,7 @@ tests/test_async_transport_stress.sh
 tests/test_ota_transport.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.5.12.md
+RELEASE_NOTES_v0.5.13.md
 LICENSE
 ```
 
@@ -593,7 +593,7 @@ Important source files:
 
 The current development changes are documented in:
 
-[`RELEASE_NOTES_v0.5.12.md`](RELEASE_NOTES_v0.5.12.md)
+[`RELEASE_NOTES_v0.5.13.md`](RELEASE_NOTES_v0.5.13.md)
 
 The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
 

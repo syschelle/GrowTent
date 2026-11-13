@@ -67,6 +67,21 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "plan.delay": { de: "Offset nach Licht-an (Minuten)", en: "Offset after light-on (minutes)" },
   "plan.dateInvalid": { de: "Datum ungültig: kein zukünftiger Termin; gespeicherte Bewässerung nicht zurückdatieren oder löschen.", en: "Invalid date: no future dates; stored watering history cannot be moved back or cleared." },
   "plan.last": { de: "Letzte Bewässerung", en: "Last watering" },
+  "plan.next": { de: "Nächste Bewässerung", en: "Next irrigation" },
+  "plan.nextReason.unavailable": { de: "Nicht verfügbar", en: "Unavailable" },
+  "plan.nextReason.disabled": { de: "Deaktiviert", en: "Disabled" },
+  "plan.nextReason.drying_blocked": { de: "Trocknung: gesperrt", en: "Drying: blocked" },
+  "plan.nextReason.clock_invalid": { de: "Uhrzeit nicht synchronisiert", en: "Clock not synchronized" },
+  "plan.nextReason.watering_running": { de: "Bewässerung läuft", en: "Watering in progress" },
+  "plan.nextReason.event_queue_full": { de: "Ereignispuffer voll", en: "Event buffer full" },
+  "plan.nextReason.flood_blocked": { de: "Flood-Sperre aktiv", en: "Flood interlock active" },
+  "plan.nextReason.no_pumps": { de: "Keine Pumpe verfügbar", en: "No pump available" },
+  "plan.nextReason.invalid_configuration": { de: "Bewässerungsparameter prüfen", en: "Check irrigation settings" },
+  "plan.nextReason.waiting_for_shelly": { de: "Warte auf Shelly-Zeitplan", en: "Waiting for Shelly schedule" },
+  "plan.nextReason.no_schedule": { de: "Kein Licht-an-Termin im Zeitplan", en: "No light-on occurrence in schedule" },
+  "plan.nextReason.storage_error": { de: "Speicherfehler", en: "Storage error" },
+  "plan.nextReason.stale_shelly": { de: "Shelly-Zeitplan veraltet", en: "Shelly schedule stale" },
+  "plan.nextReason.refresh": { de: "Aktualisierung ausstehend", en: "Awaiting refresh" },
   "plan.hint": { de: "Trocknung sperrt die Bewässerung automatisch.", en: "Drying automatically blocks watering." },
   "plan.save": { de: "Plan speichern", en: "Save plan" },
   "plan.never": { de: "Noch keine Bewässerung erfasst", en: "No watering recorded yet" },
@@ -1912,7 +1927,8 @@ async function startNewGrow(){
           renderLocalPlanEditor({'irrigation.plan.revision': state.revision, 'irrigation.plan.enabled': state.enabled,
             'irrigation.plan.everyNDays': state.every_n_days, 'irrigation.plan.offsetMinutes': state.offset_after_light_on_min,
             'irrigation.plan.lastRunDate': state.last_run_date});
-          localPlanMessage('plan.saved', 'Plan gespeichert'); return;
+          localPlanMessage('plan.saved', 'Plan gespeichert');
+          window.updateSensorValues?.(); return;
         }
       }
       throw new Error('apply_timeout');
@@ -1926,7 +1942,28 @@ async function startNewGrow(){
   }
 
   // ---------- Local irrigation plan status ----------
+  function renderNextIrrigation(data, unavailable=false){
+    const at=data?.['irrigation.plan.nextRunAt'];
+    const status=data?.['irrigation.plan.nextRunStatus'];
+    let text=trKey('plan.nextReason.unavailable','Nicht verfügbar');
+    if(!unavailable){
+      if((status==='ready'||status==='stale_shelly')&&typeof at==='number'&&Number.isFinite(at)&&at>0){
+        const date=new Date(at*1000);
+        text=date.getTime()<Date.now()-60000?trKey('plan.nextReason.refresh','Aktualisierung ausstehend'):
+          date.toLocaleString(currentLang==='de'?'de-DE':'en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'});
+        if(status==='stale_shelly')text+=' ('+trKey('plan.nextReason.stale_shelly','Shelly-Zeitplan veraltet')+')';
+      }else if(typeof status==='string'){
+        text=trKey('plan.nextReason.'+status,text);
+      }
+    }
+    const field=document.getElementById('localPlanNext');if(field)field.textContent=text;
+    const line=document.getElementById('localIrrigationNextStatus');
+    if(line)line.textContent=trKey('plan.next','Nächste Bewässerung')+': '+text;
+  }
+
+
   function renderLocalIrrigationPlanStatus(data, unavailable = window._localPlanFetchFailed === true) {
+    renderNextIrrigation(data,unavailable);
     const el = document.getElementById('localIrrigationPlanStatus');
     if (!el) return;
     const prefix = trKey('status.localPlan.prefix', 'Lokaler Plan');

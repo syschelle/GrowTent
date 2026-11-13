@@ -45,3 +45,20 @@ for (const asset of ['script.js', 'style.css']) assert.ok(html.includes(`/${asse
 assert.ok(fs.readFileSync('src/runtime.h', 'utf8').includes('html.replace("%FWVERSION%", String(FW_VERSION))'));
 assert.ok(fs.readFileSync('src/main.cpp', 'utf8').includes('request->hasParam("v") && request->getParam("v")->value() == FW_VERSION'));
 console.log('Local plan UI: production JS syntax, DE/EN states, failure handling and cache regression checks passed.');
+// Both local settings and status show the same ESP-owned date/time.
+const nextField={textContent:''}, nextLine={textContent:''};
+context.document.getElementById=id=>id==='localPlanNext'?nextField:id==='localIrrigationNextStatus'?nextLine:null;
+context.currentLang='de';
+const nextAt=Math.floor(Date.now()/1000)+3600;
+context.nextData={'irrigation.plan.nextRunAt':nextAt,'irrigation.plan.nextRunStatus':'ready'};
+vm.runInContext('renderNextIrrigation(nextData)',context);
+assert.equal(nextField.textContent,new Date(nextAt*1000).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'}));
+assert.ok(nextLine.textContent.startsWith('Nächste Bewässerung: '));
+vm.runInContext('renderNextIrrigation(nextData,true)',context);
+assert.equal(nextField.textContent,'Nicht verfügbar');
+context.nextData={'irrigation.plan.nextRunStatus':'disabled'};
+vm.runInContext('renderNextIrrigation(nextData)',context);
+assert.equal(nextField.textContent,'Deaktiviert');
+context.currentLang='en';context.nextData={'irrigation.plan.nextRunStatus':'drying_blocked'};
+vm.runInContext('renderNextIrrigation(nextData)',context);
+assert.equal(nextField.textContent,'Drying: blocked');
