@@ -1261,4 +1261,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
   .runsettings-page-head h1{ min-width:0; max-width:100%; overflow-wrap:anywhere; }
   #localPlanEditor, .runsettings-irrigation-content .runsettings-irrigation-checks, .runsettings-operations-row{ grid-template-columns:1fr; }
 }
+.runsettings-relay-row.humidifier-fan-owned { background:rgba(127,127,127,.12); }
+.runsettings-relay-row.humidifier-fan-owned .sched-field { opacity:.55; }
+.fan-schedule-lock-note { grid-column:1 / -1; padding:4px 8px; overflow-wrap:anywhere; }
 )rawliteral";

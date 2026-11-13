@@ -1,4 +1,4 @@
-# Testing — v0.5.14
+# Testing — v0.5.15
 
 ## Local plan status UI
 
@@ -52,3 +52,7 @@ Production JS tests cover the shared date/time output on settings/status, German
 `python tests/test_humidifier_fan.py` exercises the production timer policy (failed commands, repeated ON, explicit OFF, disabled/unknown duration, late responses, hourly refresh, millis rollover and duration bounds) and integration boundaries. `node tests/test_humidifier_fan_ui.mjs` exercises the shipped editor: available relays, DE/EN status, dirty selection, confirmed/rejected saves, unavailable status and cached values. Existing irrigation policy/editor/UI checks remain required. CI builds the full firmware for this board.
 
 Hardware validation remains OPEN: authenticated Gen1/Gen2/Gen3 configuration responses, fan GPIO deadlines under network load, hourly cache refresh, unreachable Shelly with cached values, reboot/OTA, reassignment, timer changes and physical relay behavior. No hardware test or production installation is claimed.
+
+## v0.5.15 schedule UI lock
+
+The fan editor runtime test also verifies confirmed relay ownership, dirty/unconfirmed selection, reassignment, DE/EN notes, restoration of pre-existing disabled states and schedule values, and removal of the lock. The general settings save skips the owned row. Existing policy, editor and firmware/layout checks remain required. Device verification remains open.
