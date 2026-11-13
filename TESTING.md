@@ -1,4 +1,4 @@
-# Testing — v0.5.7
+# Testing — v0.5.8
 
 ## Local plan status UI
 

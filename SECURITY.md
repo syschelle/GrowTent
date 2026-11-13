@@ -1,4 +1,4 @@
-# Security — v0.5.7
+# Security — v0.5.8
 
 v0.5.5 fixes status localization and asset cache versioning. Only assets requested with the matching firmware version receive immutable caching; missing or obsolete versions use no-store. Irrigation/HMAC behavior is unchanged.
 

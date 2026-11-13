@@ -573,7 +573,7 @@ const char* htmlPage = R"rawliteral(
               <input id="localPlanDays" type="number" min="1" max="366" step="1" value="1">
             </div>
             <div class="runsettings-field">
-              <label for="localPlanDelay" data-i18n="plan.delay">Verzögerung nach Licht-an im Shelly-Scheduler (Minuten)</label>
+              <label for="localPlanDelay" data-i18n="plan.delay">Offset nach Licht-an (Minuten)</label>
               <input id="localPlanDelay" type="number" min="0" max="1440" step="1" value="0">
             </div>
             <div class="runsettings-field">
