@@ -171,6 +171,7 @@ String irrigationPlanStatusField(const char* key){
 bool irrigationPlanEnabled(){return lpEnabled.load();}
 bool irrigationPlanOwnsCycle(){return lpOwns.load();}
 bool irrigationPlanReserveManualCycle(String& error){
+  if(lpFault||!lpReady){error="irrigation_storage_unavailable";return false;}
   if(!lpEnabled.load())return true;
   if(lpOwns.load()){if(lpStarting)return true;error="irrigation_cycle_pending";return false;}
   LpLock guard;
