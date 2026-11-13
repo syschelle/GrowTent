@@ -565,6 +565,22 @@ const char* htmlPage = R"rawliteral(
         <div class="runsettings-panel relay-extra runsettings-irrigation-settings-card" id="irrigationSettingsSection" style="display:none;">
           <h2 class="runsettings-panel-title" data-i18n="runsetting.wateringSettings">Bewässerungseinstellung</h2>
           <p class="hint runsettings-panel-hint" data-i18n="runsetting.pumpsHint">Aktivieren Sie nur die Pumpen für tatsächlich verwendete Töpfe.</p>
+          <fieldset id="localPlanEditor" disabled>
+            <legend data-i18n="plan.title">Bewässerungsplan</legend>
+            <label class="inline-checkbox"><input type="checkbox" id="localPlanEnabled"><span data-i18n="plan.enabled">Bewässerungsplan aktivieren</span></label>
+            <div class="runsettings-field">
+              <label for="localPlanDays" data-i18n="plan.days">Alle X Tage bewässern</label>
+              <input id="localPlanDays" type="number" min="1" max="366" step="1" value="1">
+            </div>
+            <div class="runsettings-field">
+              <label for="localPlanDelay" data-i18n="plan.delay">Verzögerung nach Licht-an im Shelly-Scheduler (Minuten)</label>
+              <input id="localPlanDelay" type="number" min="0" max="1440" step="1" value="0">
+            </div>
+            <p><span data-i18n="plan.last">Letzte Bewässerung</span>: <output id="localPlanLast">—</output></p>
+            <p class="hint" data-i18n="plan.hint">Trocknung sperrt die Bewässerung automatisch. Der Plan wird separat gespeichert. Bei Aktivierung darf das Backend keinen eigenen Zeitplan mehr ausführen.</p>
+            <button type="button" id="localPlanSave" data-i18n="plan.save">Plan speichern</button>
+          </fieldset>
+          <p id="localPlanSaveStatus" role="status" aria-live="polite"></p>
           <div class="runsettings-irrigation-checks runsettings-irrigation-checks-stacked">
             <div class="runsettings-pumps-box">
               <label class="inline-checkbox">

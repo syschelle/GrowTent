@@ -107,3 +107,13 @@ The ACK is signed and queued; poll plan status for application confirmation. The
 3. Upload the versioned plan and wait for durable application confirmation.
 4. Poll/ingest/ACK events and send notifications; show stale scheduler/clock/storage/queue warnings.
 5. Never enable concurrent backend and ESP scheduling. A rollback must explicitly disable the local plan and confirm it before restoring backend scheduling.
+
+## Local dashboard editor (v0.5.6)
+
+`GET /api/settings/irrigation-plan` returns enabled, every_n_days, offset_after_light_on_min, read-only last_run_date, revision, pending_request, last_applied_request and last_failed_request. This is the local dashboard channel; HMAC requirements on `/api/backend/*` remain unchanged.
+
+POST JSON must contain exactly expected_revision (uint32), enabled (boolean), every_n_days (integer 1–366), offset_after_light_on_min (integer 0–1440). Stale or exhausted revisions return 409. Concurrent writes, active cycles/pump pulses, restart/OTA and unavailable storage reject writes. Enabling requires a synchronized clock. The response is 202 with requestId; poll GET until last_applied_request matches. last_failed_request means the durable apply failed. Do not treat 202 alone as success.
+
+Both channels share the same queue and journal. A local save increments revision and preserves execution claims and last_run_date. Backend clients must fetch the current revision before updating after a local edit. History remains read-only in the UI. last_run_date is the persisted start/claim date (or migrated backend baseline), not a successful-completion indicator. Manual starts with valid time also record the date when local scheduling is off.
+
+Disable independent backend scheduling before enabling the local plan. Event consumption/acknowledgement and push delivery still require the later backend integration. A full event outbox continues to block further scheduled starts.
