@@ -111,6 +111,27 @@ bool lpAuthenticate(AsyncWebServerRequest* r, String& key, String& nonce) {
   if(result==gtplan::ReplayWindow::Full)return fail(429,"nonce_cache_full");
   return true;
 }
+void lpNextRun(JsonDocument& doc) {
+  const int64_t now=(int64_t)time(nullptr);const char* status="ready";
+  if(!lpReady||lpFault)status="storage_error";
+  else if(!lpEnabled.load())status="disabled";
+  else if(settings.grow.currentPhase==3)status="drying_blocked";
+  else if(now<gtplan::kValidEpoch)status="clock_invalid";
+  else if(lpOwns.load()||irrigation.irrigationRuns>0)status="watering_running";
+  else if(lpState["events"].size()>gtplan::kMaxEvents-2)status="event_queue_full";
+  else if(asyncIrrigationFloodBlocked())status="flood_blocked";
+  else if((activeRelayCount!=6&&activeRelayCount!=8)||enabledIrrigationPumpCount()==0)status="no_pumps";
+  else if(irrigation.timePerTask<=0||irrigation.betweenTasks<=0||!isfinite(irrigation.amountOfWater)||irrigation.amountOfWater<=0||!isfinite(irrigation.amount)||irrigation.amount<=0)status="invalid_configuration";
+  else if(lpState["last_schedule_sync"].as<int64_t>()==0)status="waiting_for_shelly";
+  int64_t next=0;
+  if(!strcmp(status,"ready")){
+    int on[7];for(int i=0;i<7;++i)on[i]=lpState["light_on_minutes"][i]|-1;
+    next=gtplan::nextOccurrence(now,lpState["last_run_day"].as<int>(),lpState["every_n_days"].as<int>(),lpState["last_handled_day"].as<int>(),on,lpState["offset_after_light_on_min"].as<int>());
+    status=!next?"no_schedule":lpState["schedule_stale"].as<bool>()?"stale_shelly":"ready";
+  }
+  if(next)doc["next_run_at"]=next;else doc["next_run_at"]=nullptr;
+  doc["next_run_status"]=status;
+}
 void lpHandle(AsyncWebServerRequest* r, PlanOp op, bool events=false) {
   LpLock guard;if(!guard.held){sendBackendJson(r,503,"{\"ok\":false,\"error\":\"irrigation_busy\"}");return;}
   String key,nonce;if(!lpAuthenticate(r,key,nonce))return;
@@ -130,6 +151,7 @@ void lpHandle(AsyncWebServerRequest* r, PlanOp op, bool events=false) {
       doc["light_on_minutes"]=lpState["light_on_minutes"];doc["queued_events"]=lpState["events"].size();
       doc["drying_blocked"]=settings.grow.currentPhase==3;doc["clock_valid"]=(int64_t)time(nullptr)>=gtplan::kValidEpoch;
       doc["execution_owner"]="esp";
+      lpNextRun(doc);
     }
     String json;serializeJson(doc,json);reply(200,json);return;
   }

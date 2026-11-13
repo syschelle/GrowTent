@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <cstring>
 #include <cstdio>
+#include <time.h>
 namespace gtplan {
 constexpr int kMaxEvents = 64;
 constexpr int kStartGraceSeconds = 60;
@@ -19,6 +20,33 @@ inline bool historyDateAllowed(int storedDay, int incomingDay, int today) {
 }
 inline bool intervalDue(int lightDay, int lastRunDay, int everyDays) {
   return everyDays >= 1 && lightDay > lastRunDay && lightDay - lastRunDay >= everyDays;
+}
+// Read-only projection using the same local-calendar/elapsed-offset rules as execution.
+inline int64_t nextOccurrence(int64_t now,int lastRunDay,int everyDays,int handledDay,const int (&on)[7],int offsetMinutes){
+  if(now<kValidEpoch||everyDays<1||everyDays>366||offsetMinutes<0||offsetMinutes>1440)return 0;
+  const time_t current=(time_t)now;struct tm today;
+  if(!localtime_r(&current,&today))return 0;
+  const int todayDay=civilDay(today.tm_year+1900,today.tm_mon+1,today.tm_mday);
+  int64_t first=(int64_t)lastRunDay+everyDays-todayDay;
+  const int64_t unhandled=(int64_t)handledDay+1-todayDay;
+  if(first<unhandled)first=unhandled;
+  if(first< -1)first=-1;
+  if(first>374)return 0;
+  // Yesterday permits midnight offsets. Jump directly to the first eligible
+  // calendar day, then inspect at most a week of cached weekday schedules.
+  for(int ahead=(int)first;ahead<=(int)first+7&&ahead<=374;++ahead){
+    struct tm noon=today;noon.tm_mday+=ahead;noon.tm_hour=12;noon.tm_min=0;noon.tm_sec=0;noon.tm_isdst=-1;
+    time_t base=mktime(&noon);if(base==(time_t)-1)continue;
+    struct tm day;if(!localtime_r(&base,&day))continue;
+    const int date=civilDay(day.tm_year+1900,day.tm_mon+1,day.tm_mday),weekday=(day.tm_wday+6)%7;
+    if(date<=handledDay||!intervalDue(date,lastRunDay,everyDays)||on[weekday]<0||on[weekday]>=1440)continue;
+    day.tm_hour=on[weekday]/60;day.tm_min=on[weekday]%60;day.tm_sec=0;day.tm_isdst=-1;
+    const time_t light=mktime(&day);if(light==(time_t)-1)continue;
+    const int64_t due=(int64_t)light+(int64_t)offsetMinutes*60;
+    if(due<now-kStartGraceSeconds)continue; // Missed occurrences are never forecast as catch-up.
+    return due;
+  }
+  return 0;
 }
 inline bool manualCommandFresh(int64_t now,int64_t expires){return now>=kValidEpoch&&expires>now&&expires<=now+300;}
 enum class Decision { Wait, Start, Missed, Drying, Busy, ClockInvalid, AlreadyHandled };

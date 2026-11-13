@@ -38,3 +38,7 @@ The editor test covers the native date input, unknown history, preserving unsave
 ## v0.5.10 backend integration
 
 See IRRIGATION_PLAN_API.md for protocol v2 and signed idempotent manual starts. Command claims persist before starts; unknown expired commands cannot run. Full manual cycles use the backend event stream and require a valid clock and event capacity even with scheduling disabled. Real-device power-failure, pump/phase interlock and push integration validation remain OPEN.
+
+## v0.5.12 next-run projection
+
+Production policy tests cover daily/multi-day intervals, already handled dates, missed deadlines, weekly schedules, cross-midnight offsets and both Europe/Berlin DST transitions. Real-device timing/display verification remains open.
