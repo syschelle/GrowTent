@@ -578,8 +578,7 @@ const char* htmlPage = R"rawliteral(
             </div>
             <div class="runsettings-field">
               <label for="localPlanLast" data-i18n="plan.last">Letzte Bewässerung</label>
-              <input id="localPlanLast" type="date" aria-describedby="localPlanHistoryHint">
-              <small id="localPlanHistoryHint" data-i18n="plan.historyHint">Wenn im ESP noch kein Datum gespeichert ist, letzten bekannten Termin aus dem Backend übernehmen. Nicht schätzen.</small>
+              <input id="localPlanLast" type="date">
             </div>
             <p class="hint" data-i18n="plan.hint">Trocknung sperrt die Bewässerung automatisch. Der Plan wird separat gespeichert. Bei Aktivierung darf das Backend keinen eigenen Zeitplan mehr ausführen.</p>
             <button type="button" id="localPlanSave" data-i18n="plan.save">Plan speichern</button>
