@@ -4497,7 +4497,6 @@ static void processAsyncRelayScheduleApply() {
 }
 
 static bool asyncRelayActionActive(uint8_t idx) {
-  if (humidifierFanOwnsRelay(idx)) return false;
   return idx < 5 && idx < activeRelayCount && relayPins[idx] >= 0;
 }
 
@@ -4556,7 +4555,7 @@ static void sendAsyncRelayActionState(AsyncWebServerRequest* request, uint8_t id
   const bool heaterAssigned = active && settings.heating.sourceType == 1 &&
                               settings.heating.Relay == (int)idx + 1;
   const bool safeForAutomatedOffNoop = active && stateReadable && !state &&
-                                       !scheduleEnabled && !heaterAssigned;
+                                       !scheduleEnabled && !heaterAssigned && !humidifierFanOwnsRelay(idx);
 
   String json;
   json.reserve(640);
@@ -4566,6 +4565,7 @@ static void sendAsyncRelayActionState(AsyncWebServerRequest* request, uint8_t id
   json += ",\"state\":"; json += state ? "true" : "false";
   json += ",\"scheduleEnabled\":"; json += scheduleEnabled ? "true" : "false";
   json += ",\"heaterAssigned\":"; json += heaterAssigned ? "true" : "false";
+  json += ",\"humidifierFanOwned\":"; json += humidifierFanOwnsRelay(idx) ? "true" : "false";
   json += ",\"safeForAutomatedOffNoop\":"; json += safeForAutomatedOffNoop ? "true" : "false";
   json += ",\"pending\":"; json += pending ? "true" : "false";
   json += ",\"pendingRequestId\":" + String(pendingId);
@@ -4591,6 +4591,12 @@ static void queueAsyncRelayAction(AsyncWebServerRequest* request,
                                   bool toggle,
                                   bool noTransitionOnly) {
   if (!request) return;
+  if (humidifierFanOwnsRelay(idx)) {
+    AsyncWebServerResponse* response = request->beginResponse(
+      409, "application/json; charset=utf-8",
+      "{\"ok\":false,\"err\":\"relay_owned_by_humidifier_fan\"}");
+    addAsyncCommonHeaders(response, false);request->send(response);return;
+  }
   if (!asyncRelayActionActive(idx)) {
     AsyncWebServerResponse* response = request->beginResponse(
       idx >= 5 ? 404 : 409,
@@ -4737,7 +4743,7 @@ static void processAsyncRelayActionApply() {
   }
   if (!hasPending) return;
 
-  if (!asyncRelayActionActive(pending.relayIndex)) {
+  if (!asyncRelayActionActive(pending.relayIndex) || humidifierFanOwnsRelay(pending.relayIndex)) {
     ++g_asyncRelayActionApplyFailures;
     g_asyncRelayActionLastFailedId = pending.requestId;
     logPrint("[ASYNC][RELAY] apply FAILED id=" + String(pending.requestId) +
