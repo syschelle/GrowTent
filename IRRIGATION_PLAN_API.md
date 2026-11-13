@@ -8,7 +8,7 @@ Once an authenticated plan is enabled, the ESP owns automatic execution. Old bac
 
 Phase **3 (drying)** blocks every complete watering-cycle start, discards the applicable day's pending schedule, and stops a running automatic/manual cycle. The watering task checks phase/stop in at most 100 ms delay slices. Dedicated 10-second pump calibration tests remain available during drying. Existing disabled-pump, Flood, no-overlap and hardware-layout checks still apply. GPIO ON/OFF is verified before a managed cycle can be reported completed.
 
-A local civil date (the date of the Shelly light-on occurrence) is durably claimed **before** starting a scheduled cycle. Plan revisions cannot roll back that claim. Reboots never repeat an interrupted occurrence; recovery records `aborted/restart_interrupted`. Missed deadlines are recorded and never caught up. The execution window is the first 60 seconds after due time, accommodating normal loop/network jitter. A busy/blocked occurrence is recorded as missed, not postponed.
+A local civil date (the date of the Shelly light-on occurrence) is durably claimed **before** starting a scheduled cycle. Plan revisions cannot roll back that claim. A replacement plan never backfills earlier dates; re-enabling does not report deliberately disabled dates as missed. Reboots never repeat an interrupted occurrence; recovery records `aborted/restart_interrupted`. Missed deadlines are recorded and never caught up. The execution window is the first 60 seconds after due time, accommodating normal loop/network jitter. A busy/blocked occurrence is recorded as missed, not postponed.
 
 ## Shelly time source
 

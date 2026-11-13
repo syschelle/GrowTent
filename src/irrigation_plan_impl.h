@@ -218,7 +218,7 @@ void irrigationPlanInit(){
   if(!p.begin("gt_irrig_v1",false)){lpFault=true;return;}
   bool exists=p.isKey("state");String saved=p.getString("state","");p.end();
   if(exists){
-    if(saved.length()>24000||deserializeJson(lpState,saved)||lpState["schema"]!=1||!lpState["events"].is<JsonArray>()||lpState["events"].size()>64||lpState["light_on_minutes"].size()!=7){lpFault=true;return;}
+    if(saved.length()>24000||deserializeJson(lpState,saved)||lpState["schema"].as<int>()!=1||!lpState["events"].is<JsonArray>()||lpState["events"].size()>64||lpState["light_on_minutes"].size()!=7){lpFault=true;return;}
   }else{lpDefaults();if(!lpPersist())return;}
   lpReady=true;
   if(lpState["active"]|false){lpState["active"]=false;lpEvent("aborted","restart_interrupted");lpPersist();}
@@ -279,7 +279,7 @@ void irrigationPlanTick(){
           String last=pending["last_run_date"]|String("");int baseline=last.length()?lpParseDay(last):lpDay(time(nullptr))-1;
           if(baseline>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=baseline;lpState["last_run_date"]=pending["last_run_date"];}
           // First enable never backfills earlier dates; later edits never roll back handled dates.
-          if(lpState["last_handled_day"].as<int>()<0)lpState["last_handled_day"]=lpDay(time(nullptr))-1;
+          if(lpState["last_handled_day"].as<int>()<lpDay(time(nullptr))-1)lpState["last_handled_day"]=lpDay(time(nullptr))-1;
           ok=lpPersist();if(ok)lpEnabled.store(lpState["enabled"]|false);
         }
       }else if(ok){
@@ -292,6 +292,10 @@ void irrigationPlanTick(){
     if(lpFault||!lpEnabled.load()||now<gtplan::kValidEpoch||lpOwns.load())return;
     const int today=lpDay(time(nullptr));
     int handled=lpState["last_handled_day"].as<int>();
+    if(phase==3){
+      if(handled<today){lpState["last_handled_day"]=today;lpPersist();}
+      return; // Discard pending occurrences even without a usable Shelly cache.
+    }
     // Record a bounded summary of genuinely eligible elapsed dates. Yesterday is
     // evaluated separately below because its light+delay may fall after midnight.
     if(handled>=0&&today-handled>2){
