@@ -113,8 +113,8 @@ jobs:
               return ""
 
           summary = first_section("Release summary", "Summary")
-          highlights = first_section("Highlights", "Changes")
-          compatibility = section("Compatibility")
+          highlights = first_section("Highlights", "Changes", "Fixes")
+          compatibility = first_section("Compatibility", "Compatibility and validation")
 
           ota_notes = f"# GrowTent {tag}\n"
           if summary:
@@ -123,6 +123,13 @@ jobs:
               ota_notes += f"\n## Highlights\n\n{highlights}\n"
           if compatibility:
               ota_notes += f"\n## Compatibility\n\n{compatibility}\n"
+
+          # Never silently publish a title-only changelog for other headings.
+          if not any((summary, highlights, compatibility)):
+              body = re.sub(r"\A\s*#(?!#)[^\n]*(?:\n|\Z)", "", notes).strip()
+              if not body:
+                  raise ValueError("Release notes contain no OTA changelog content")
+              ota_notes += f"\n{body}\n"
 
           # Hard safety ceiling for installed firmware that reads manifest.json
           # into a single Arduino String. Keep the OTA changelog self-contained
