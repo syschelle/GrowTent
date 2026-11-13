@@ -121,3 +121,11 @@ Disable independent backend scheduling before enabling the local plan. Event con
 ## v0.5.7 date import
 
 Local POST additionally accepts optional last_run_date (YYYY-MM-DD or null). A four-field request preserves existing history. A five-field request may import a known date: future/invalid dates and clearing/rewinding actual stored history are rejected. Main-loop apply rechecks against the latest history and clock. An initial known date replaces only the synthetic recurrence seed; handled occurrences are never rolled back. The UI exposes a native date field and explicitly instructs users to transfer known backend history only.
+
+## Protocol v2 (firmware v0.5.10, backend v0.354)
+
+Signed plan GET now returns api_version=2, manual_start_supported=true, execution_owner=esp, push_owner=backend and manual_commands. POST `/api/backend/irrigation-start` uses the same request/response HMAC protocol and accepts exactly command_id (32 lowercase hex) and expires_at (Unix seconds, after now and at most 300 seconds ahead). Use one durable command identity across transport retries, with fresh HMAC nonces. The backend chooses a 240-second lifetime to allow clock skew.
+
+202 only acknowledges queuing. Poll signed plan state for the matching manual_commands entry; 200 unchanged returns a previously claimed command's status. Command claims are persisted before execution, and results/aborts survive reboot. Only expired entries may be pruned when the 16-entry ledger is full. Once unknown and expired, a command is rejected rather than executed. Errors never authorize an unsigned legacy fallback.
+
+All full manual cycles now use the durable event stream and backend pushes, including dashboard starts with scheduling disabled. They require valid clock, verified storage and free event capacity. Scheduled and manual starts share existing physical safety checks. Calibration pulses retain their existing behavior. Backend plan edits preserve or advance known history and cannot clear/rewind it. The signed protocol flags let the backend refuse incompatible firmware.

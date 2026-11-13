@@ -94,7 +94,7 @@ const local = impl.slice(impl.indexOf('void lpHandleLocal('),impl.indexOf('bool 
 assert.ok(!local.includes('lpPersist('), 'Async callbacks must never write NVS');
 for (const token of ['expected_revision','UINT32_MAX','revision_conflict','lpOp!=PlanOp::None','lpPendingLocal=true','application/json','watering_running']) assert.ok(local.includes(token));
 assert.ok(impl.includes('lpPendingLocal=false;lpPendingKey=key'), 'HMAC writes must not inherit local authorization');
-assert.ok(impl.includes('if(!lpPendingLocal){'), 'Local edits must preserve history');
+assert.ok(impl.includes('historyDateAllowed'), 'Edits must preserve history');
 assert.ok(impl.includes('same journal/queue as HMAC'));
 assert.ok(impl.match(/historyDateAllowed/g).length >= 2, 'Date guards must apply at reception and main-loop apply');
 console.log('Local plan editor: date import and history protection, dirty state, revision conflicts, bounds, save confirmation, language and failure tests passed.');

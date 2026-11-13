@@ -18,7 +18,7 @@ bool lpAuthEnabled=false;
 struct LightSnapshot { int minutes[7]={-1,-1,-1,-1,-1,-1,-1}; int off[7]={-1,-1,-1,-1,-1,-1,-1}; int64_t at=0; bool ok=false; uint32_t generation=0; };
 LightSnapshot lpPendingLight;
 gtplan::ReplayWindow lpNonces;
-enum class PlanOp {None, Replace, Ack};
+enum class PlanOp {None, Replace, Ack, Manual};
 PlanOp lpOp=PlanOp::None;
 bool lpPendingLocal=false;
 String lpPendingJson, lpPendingKey;
@@ -44,7 +44,7 @@ void lpDefaults() {
   lpState["next_seq"]=1;lpState["last_handled_day"]=-1;lpState["last_run_day"]=-1;
   lpState["active"]=false;lpState["enabled"]=false;lpState["every_n_days"]=1;
   lpState["offset_after_light_on_min"]=0;lpState["last_schedule_sync"]=0;
-  lpState["schedule_stale"]=true;lpState["events"].to<JsonArray>();
+  lpState["schedule_stale"]=true;lpState["events"].to<JsonArray>();lpState["manual_commands"].to<JsonArray>();
   auto a=lpState["light_on_minutes"].to<JsonArray>();for(int d=0;d<7;++d)a.add(-1);
 }
 bool lpPersist() {
@@ -64,6 +64,10 @@ bool lpEvent(const char* type, const char* reason, int64_t scheduled=0, int coun
   e["scheduled_at"]=scheduled;e["count"]=count;e["revision"]=lpState["revision"].as<uint32_t>();
   e["phase"]=settings.grow.currentPhase;e["run_id"]=lpState["run_id"]|String("");
   return true;
+}
+void lpManualResult(const char* status) {
+  const String run=lpState["run_id"]|String("");
+  for(JsonObject c:lpState["manual_commands"].as<JsonArray>())if(c["run_id"].as<String>()==run)c["status"]=status;
 }
 void lpSend(AsyncWebServerRequest* r, int code, const String& body, const String& key, const String& nonce) {
   const String timestamp=String((uint32_t)time(nullptr));String hash,signature;
@@ -120,11 +124,12 @@ void lpHandle(AsyncWebServerRequest* r, PlanOp op, bool events=false) {
       doc["enabled"]=lpState["enabled"];doc["every_n_days"]=lpState["every_n_days"];
       doc["offset_after_light_on_min"]=lpState["offset_after_light_on_min"];
       doc["last_run_date"]=lpState["last_run_date"];doc["active"]=lpState["active"];
+      doc["manual_commands"]=lpState["manual_commands"];doc["api_version"]=2;doc["manual_start_supported"]=true;doc["push_owner"]="backend";
       doc["pending_request"]=lpOp==PlanOp::None?0:lpNextRequest;
       doc["last_schedule_sync"]=lpState["last_schedule_sync"];doc["schedule_stale"]=lpState["schedule_stale"];
       doc["light_on_minutes"]=lpState["light_on_minutes"];doc["queued_events"]=lpState["events"].size();
       doc["drying_blocked"]=settings.grow.currentPhase==3;doc["clock_valid"]=(int64_t)time(nullptr)>=gtplan::kValidEpoch;
-      doc["execution_owner"]=lpEnabled.load()?"esp":"legacy";
+      doc["execution_owner"]="esp";
     }
     String json;serializeJson(doc,json);reply(200,json);return;
   }
@@ -140,13 +145,28 @@ void lpHandle(AsyncWebServerRequest* r, PlanOp op, bool events=false) {
       reply(400,"{\"ok\":false,\"error\":\"invalid_plan\"}");return;
     }
     const String last=doc["last_run_date"]|String("");
-    if(last.length()&&(!isValidBackendCalendarDate(last)||last.compareTo(lpDate(time(nullptr)))>0)){reply(400,"{\"ok\":false,\"error\":\"invalid_last_run_date\"}");return;}
     const uint32_t rev=doc["revision"].as<uint32_t>(),old=lpState["revision"].as<uint32_t>();
     if(rev<=old){
       bool same=rev==old&&doc["enabled"]==lpState["enabled"]&&doc["every_n_days"]==lpState["every_n_days"]&&doc["offset_after_light_on_min"]==lpState["offset_after_light_on_min"]&&doc["last_run_date"]==lpState["input_last_run_date"];
       reply(same?200:409,same?"{\"ok\":true,\"unchanged\":true}":"{\"ok\":false,\"error\":\"revision_conflict\"}");return;
     }
+    const String storedLast=lpState["last_run_date"]|String("");
+    if(!gtplan::historyDateAllowed(storedLast.length()?lpParseDay(storedLast):-1,last.length()?lpParseDay(last):-1,lpDay(time(nullptr)))){reply(400,"{\"ok\":false,\"error\":\"invalid_last_run_date\"}");return;}
+    if(last.length()&&(!isValidBackendCalendarDate(last)||last.compareTo(lpDate(time(nullptr)))>0)){reply(400,"{\"ok\":false,\"error\":\"invalid_last_run_date\"}");return;}
     if(irrigation.irrigationRuns>0||lpOwns.load()){reply(409,"{\"ok\":false,\"error\":\"watering_running\"}");return;}
+  }else if(op==PlanOp::Manual){
+    if(doc.size()!=2||!doc["command_id"].is<const char*>()||!isLowerHex(doc["command_id"].as<String>(),32)||!doc["expires_at"].is<int64_t>()){
+      reply(400,"{\"ok\":false,\"error\":\"invalid_manual_command\"}");return;
+    }
+    for(JsonObjectConst c:lpState["manual_commands"].as<JsonArrayConst>())if(c["command_id"]==doc["command_id"]){
+      JsonDocument out;out["ok"]=true;out["unchanged"]=true;out["command_id"]=c["command_id"];out["command_status"]=c["status"];
+      String json;serializeJson(out,json);reply(200,json);return;
+    }
+    const int64_t now=(int64_t)time(nullptr),expires=doc["expires_at"].as<int64_t>();
+    if(!gtplan::manualCommandFresh(now,expires)){reply(409,"{\"ok\":false,\"error\":\"command_expired_or_invalid\"}");return;}
+    if(settings.grow.currentPhase==3){reply(409,"{\"ok\":false,\"error\":\"drying_phase\"}");return;}
+    if(irrigation.irrigationRuns>0||lpOwns.load()||anyAsyncIrrigationPumpOnOrArmed()){reply(409,"{\"ok\":false,\"error\":\"watering_running\"}");return;}
+    if(lpState["events"].size()>gtplan::kMaxEvents-2){reply(409,"{\"ok\":false,\"error\":\"event_queue_full\"}");return;}
   }else{
     if(doc.size()!=2||!doc["stream_id"].is<const char*>()||doc["stream_id"].as<String>()!=lpState["stream_id"].as<String>()||!doc["through_seq"].is<uint32_t>()){
       reply(400,"{\"ok\":false,\"error\":\"invalid_ack\"}");return;
@@ -230,18 +250,6 @@ bool irrigationPlanEnabled(){return lpEnabled.load();}
 bool irrigationPlanOwnsCycle(){return lpOwns.load();}
 bool irrigationPlanReserveManualCycle(String& error){
   if(lpFault||!lpReady){error="irrigation_storage_unavailable";return false;}
-  if(!lpEnabled.load()){
-    LpLock guard;if(!guard.held){error="irrigation_busy";return false;}
-    const time_t now=time(nullptr);
-    if((int64_t)now>=gtplan::kValidEpoch){
-      const int day=lpDay(now);
-      if(day>lpState["last_run_day"].as<int>()){
-        lpState["last_run_day"]=day;lpState["last_run_date"]=lpDate(now);
-        if(!lpPersist()){error="irrigation_persist_failed";return false;}
-      }
-    }
-    return true;
-  }
   if(lpOwns.load()){if(lpStarting)return true;error="irrigation_cycle_pending";return false;}
   LpLock guard;
   if(!guard.held||!lpReady||lpFault){error="irrigation_storage_unavailable";return false;}
@@ -282,8 +290,10 @@ void irrigationPlanInit(){
   if(exists){
     if(saved.length()>24000||deserializeJson(lpState,saved)||lpState["schema"].as<int>()!=1||!lpState["events"].is<JsonArray>()||lpState["events"].size()>64||lpState["light_on_minutes"].size()!=7){lpFault=true;return;}
   }else{lpDefaults();if(!lpPersist())return;}
+  if(!lpState["manual_commands"].isNull()&&(!lpState["manual_commands"].is<JsonArray>()||lpState["manual_commands"].size()>16)){lpFault=true;return;}
+  if(lpState["manual_commands"].isNull())lpState["manual_commands"].to<JsonArray>();
   lpReady=true;
-  if(lpState["active"]|false){lpState["active"]=false;lpEvent("aborted","restart_interrupted");lpPersist();}
+  if(lpState["active"]|false){lpState["active"]=false;lpManualResult("aborted");lpEvent("aborted","restart_interrupted");lpPersist();}
   lpEnabled.store(lpState["enabled"]|false);
   lpAuthEnabled=settings.backendWrite.enabled;lpKey=settings.backendWrite.secretHex;lpAllowedIp=settings.backendWrite.allowedIp;
 }
@@ -327,14 +337,14 @@ void irrigationPlanTick(){
     }
     const int finished=lpFinished.exchange(0);
     if(finished&&lpOwns.load()){
-      lpState["active"]=false;lpEvent(finished==1?"completed":"aborted",finished==1?"successful_end":"interrupted");
+      lpState["active"]=false;lpManualResult(finished==1?"completed":"aborted");lpEvent(finished==1?"completed":"aborted",finished==1?"successful_end":"interrupted");
       lpPersist();lpOwns.store(false);
     }
     if(lpOp!=PlanOp::None){
       JsonDocument pending;deserializeJson(pending,lpPendingJson);bool ok=lpPendingLocal||(lpPendingKey==lpKey&&lpAuthEnabled);
       if(ok&&lpOp==PlanOp::Replace){
         ok=irrigation.irrigationRuns<=0&&!lpOwns.load()&&(!lpPendingLocal||(!anyAsyncIrrigationPumpOnOrArmed()&&pending["revision"].as<uint32_t>()==lpState["revision"].as<uint32_t>()+1));
-        if(ok&&lpPendingLocal){
+        if(ok&&lpOp==PlanOp::Replace){
           const String last=pending["last_run_date"]|String(""),stored=lpState["last_run_date"]|String("");
           ok=(!last.length()||now>=gtplan::kValidEpoch)&&
              gtplan::historyDateAllowed(stored.length()?lpParseDay(stored):-1,last.length()?lpParseDay(last):-1,lpDay(time(nullptr)));
@@ -342,26 +352,48 @@ void irrigationPlanTick(){
         if(ok){
           lpState["revision"]=pending["revision"];lpState["enabled"]=pending["enabled"];
           lpState["every_n_days"]=pending["every_n_days"];lpState["offset_after_light_on_min"]=pending["offset_after_light_on_min"];
-          if(!lpPendingLocal){
-            lpState["input_last_run_date"]=pending["last_run_date"];
-            String last=pending["last_run_date"]|String("");int baseline=last.length()?lpParseDay(last):lpDay(time(nullptr))-pending["every_n_days"].as<int>();
-            if(baseline>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=baseline;lpState["last_run_date"]=pending["last_run_date"];}
-          }else if(!pending["last_run_date"].isNull()){
+          lpState["input_last_run_date"]=pending["last_run_date"];
+          if(!pending["last_run_date"].isNull()){
             const String last=pending["last_run_date"].as<String>();
             const String stored=lpState["last_run_date"]|String("");
             if(!stored.length()||last.compareTo(stored)>0){
-              // With no real history, replace the synthetic recurrence seed.
               const int day=lpParseDay(last);
               if(!stored.length()||day>lpState["last_run_day"].as<int>())lpState["last_run_day"]=day;
               lpState["last_run_date"]=last;
             }
           }else if(lpState["last_run_day"].as<int>()<0 && now>=gtplan::kValidEpoch){
-            // Seed recurrence only. A settings edit is never a watering event.
             lpState["last_run_day"]=lpDay(time(nullptr))-pending["every_n_days"].as<int>();
           }
           // First enable never backfills earlier dates; later edits never roll back handled dates.
           if(now>=gtplan::kValidEpoch && lpState["last_handled_day"].as<int>()<lpDay(time(nullptr))-1)lpState["last_handled_day"]=lpDay(time(nullptr))-1;
           ok=lpPersist();if(ok)lpEnabled.store(lpState["enabled"]|false);
+        }
+      }else if(ok&&lpOp==PlanOp::Manual){
+        const int64_t expires=pending["expires_at"].as<int64_t>();
+        ok=gtplan::manualCommandFresh(now,expires)&&phase!=3&&
+           !g_restartRequested&&!otaMaintenanceRequested()&&!otaIsUpdateInProgress()&&
+           irrigation.irrigationRuns<=0&&!lpOwns.load()&&!anyAsyncIrrigationPumpOnOrArmed()&&
+           lpState["events"].size()<=gtplan::kMaxEvents-2;
+        JsonArray commands=lpState["manual_commands"].as<JsonArray>();
+        if(commands.isNull())commands=lpState["manual_commands"].to<JsonArray>();
+        for(size_t i=0;commands.size()>=16&&i<commands.size();){
+          if(commands[i]["expires_at"].as<int64_t>()<now)commands.remove(i);else ++i;
+        }
+        ok=ok&&commands.size()<16;
+        if(ok){
+          const int day=lpDay(time(nullptr));
+          if(day>lpState["last_handled_day"].as<int>())lpState["last_handled_day"]=day;
+          if(day>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=day;lpState["last_run_date"]=lpDate(time(nullptr));}
+          lpState["run_id"]=pending["command_id"];
+          JsonObject command=commands.add<JsonObject>();command["command_id"]=pending["command_id"];
+          command["expires_at"]=expires;command["run_id"]=lpState["run_id"];command["status"]="accepted";
+          lpState["active"]=true;lpEvent("started","backend_manual_accepted");
+          ok=lpPersist();
+          if(ok){
+            lpOwns.store(true);lpStarting=true;String error;
+            ok=startAsyncIrrigationNow(false,error);lpStarting=false;
+            if(!ok){lpState["active"]=false;lpManualResult("aborted");lpEvent("aborted",error.c_str());lpPersist();lpOwns.store(false);}
+          }
         }
       }else if(ok){
         JsonArray a=lpState["events"].as<JsonArray>();const uint32_t through=pending["through_seq"].as<uint32_t>();
@@ -416,6 +448,7 @@ void irrigationPlanTick(){
   if(start){String error;lpStarting=true;const bool ok=startAsyncIrrigationNow(false,error);lpStarting=false;if(!ok)irrigationPlanCycleFinished(false);}
 }
 static void configureIrrigationPlanRoutes(){
+  asyncServer.on("/api/backend/irrigation-start",AsyncWebRequestMethod::HTTP_POST,[](AsyncWebServerRequest* r){lpHandle(r,PlanOp::Manual);},nullptr,handleAsyncJsonBody);
   asyncServer.on("/api/settings/irrigation-plan",AsyncWebRequestMethod::HTTP_GET,lpHandleLocal);
   asyncServer.on("/api/settings/irrigation-plan",AsyncWebRequestMethod::HTTP_POST,lpHandleLocal,nullptr,handleAsyncJsonBody);
   asyncServer.on("/api/backend/irrigation-plan",AsyncWebRequestMethod::HTTP_GET,[](AsyncWebServerRequest* r){lpHandle(r,PlanOp::None);});

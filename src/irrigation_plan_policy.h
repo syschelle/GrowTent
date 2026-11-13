@@ -20,6 +20,7 @@ inline bool historyDateAllowed(int storedDay, int incomingDay, int today) {
 inline bool intervalDue(int lightDay, int lastRunDay, int everyDays) {
   return everyDays >= 1 && lightDay > lastRunDay && lightDay - lastRunDay >= everyDays;
 }
+inline bool manualCommandFresh(int64_t now,int64_t expires){return now>=kValidEpoch&&expires>now&&expires<=now+300;}
 enum class Decision { Wait, Start, Missed, Drying, Busy, ClockInvalid, AlreadyHandled };
 inline Decision decide(int64_t now, int64_t due, int day, int handledDay, int phase, bool busy) {
   if (phase == 3) return Decision::Drying;

@@ -12,6 +12,9 @@ int main(){
   assert(!historyDateAllowed(-1,d+1,d));assert(!historyDateAllowed(d-2,d+1,d));
   assert(civilDay(2026,11,14)==d+1);assert(civilDay(2024,3,1)-civilDay(2024,2,28)==2);
   assert(intervalDue(d,d-3,3));assert(!intervalDue(d,d-2,3));assert(!intervalDue(d,d,1));
+  assert(manualCommandFresh(1800000000,1800000001));assert(manualCommandFresh(1800000000,1800000300));
+  assert(!manualCommandFresh(1800000000,1800000000));assert(!manualCommandFresh(1800000000,1800000301));
+  assert(!manualCommandFresh(0,1));
   const int64_t due=1800000000;
   assert(decide(due-1,due,d,d-1,1,false)==Decision::Wait);
   assert(decide(due,due,d,d-1,1,false)==Decision::Start);

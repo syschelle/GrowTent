@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.9.md`](RELEASE_NOTES_v0.5.9.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.10.md`](RELEASE_NOTES_v0.5.10.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -531,7 +531,7 @@ The release workflow is triggered by a `v*` Git tag.
 For the current release the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.5.9.md
+RELEASE_NOTES_v0.5.10.md
 ```
 
 The release workflow:
@@ -558,7 +558,7 @@ tests/test_async_transport_stress.sh
 tests/test_ota_transport.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.5.9.md
+RELEASE_NOTES_v0.5.10.md
 LICENSE
 ```
 
@@ -593,7 +593,7 @@ Important source files:
 
 The current development changes are documented in:
 
-[`RELEASE_NOTES_v0.5.9.md`](RELEASE_NOTES_v0.5.9.md)
+[`RELEASE_NOTES_v0.5.10.md`](RELEASE_NOTES_v0.5.10.md)
 
 The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
 
@@ -606,3 +606,7 @@ Licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE).
 ### Local irrigation plan editor (v0.5.6)
 
 In Operating Settings, configure the local plan and press **Save plan** separately. The last-watering date can be transferred from known backend history; existing history cannot be cleared or moved back. Disable independent backend scheduling before enabling the ESP plan. Backend HMAC APIs remain available and share the same revisioned persistent plan.
+
+## v0.5.10 backend integration
+
+See IRRIGATION_PLAN_API.md for protocol v2 and signed idempotent manual starts. Command claims persist before starts; unknown expired commands cannot run. Full manual cycles use the backend event stream and require a valid clock and event capacity even with scheduling disabled. Real-device power-failure, pump/phase interlock and push integration validation remain OPEN.
