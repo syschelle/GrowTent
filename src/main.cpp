@@ -8529,7 +8529,7 @@ static void registerAsyncPhase32Routes() {
       contentType,
       reinterpret_cast<const uint8_t*>(data),
       dataLen);
-    addAsyncCommonHeaders(response, true);
+    addAsyncCommonHeaders(response, request->hasParam("v") && request->getParam("v")->value() == FW_VERSION);
     response->addHeader("X-GrowTent-Asset-Transport", "direct-buffer-fixed-length");
     request->send(response);
   };
