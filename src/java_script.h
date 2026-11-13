@@ -23,6 +23,13 @@ const char jsContent[] PROGMEM = R"rawliteral(
 
   addJSON('i18n', {
 
+  "fan.title": {de:"Fan am Luftbefeuchter", en:"Humidifier fan"},
+  "fan.relay": {de:"Fan-Relais", en:"Fan relay"},
+  "fan.save": {de:"Kopplung speichern", en:"Save coupling"},
+  "fan.hint": {de:"Das ausgewählte Relais folgt den ESP-Schaltbefehlen für den Shelly-Luftbefeuchter. Seine Minutensteuerung pausiert während der Kopplung.", en:"The selected relay follows ESP commands to the humidifier Shelly. Its minute schedule is paused while coupled."},
+  "fan.limit": {de:"Auto-Off wird beim Start und stündlich gelesen. Ohne gültigen aktivierten Timer bleibt der Fan aus. Direkte Änderungen am Shelly werden nicht sofort übernommen.", en:"Auto-Off is read at startup and hourly. The fan stays off without a valid enabled timer. Direct changes on the Shelly are not reflected immediately."},
+
+
   /* -------------------- a11y / info -------------------- */
   "a11y.menu": { de: "Menü öffnen/schließen", en: "Open/close menu" },
 
@@ -3740,5 +3747,67 @@ if(document.readyState==='loading'){
 }else{
   bindOtaControls();
 }
+
+
+// === Humidifier fan editor ===
+(function humidifierFanEditor(){
+  function bind(){
+    const select=document.getElementById('humidifierFanRelay');
+    const save=document.getElementById('humidifierFanSave');
+    const state=document.getElementById('humidifierFanState');
+    const message=document.getElementById('humidifierFanMessage');
+    if(!select || !save || !state || !message)return;
+    let dirty=false,busy=false,last=null;
+    const text=(de,en)=>(document.documentElement.lang || localStorage.getItem('lang') || 'de').startsWith('en')?en:de;
+    const endpoint='/api/settings/humidifier-fan';
+    async function request(options){
+      const response=await fetch(endpoint,{cache:'no-store',...options});
+      const value=await response.json();
+      if(!response.ok || !value.ok)throw new Error(value.error || 'HTTP '+response.status);
+      return value;
+    }
+    function render(value){
+      last=value;
+      if(!dirty){
+        const options=[0,...value.availableRelays];
+        if(!options.includes(value.relay))options.push(value.relay);
+        select.replaceChildren(...options.map(n=>{
+          const option=document.createElement('option');option.value=String(n);
+          option.textContent=n?text('Relais ','Relay ')+n:text('Deaktiviert','Disabled');return option;
+        }));
+        select.value=String(value.relay);
+      }
+      select.disabled=busy;save.disabled=busy;
+      let summary=!value.relay?text('Deaktiviert','Disabled'):
+        !value.known?text('Auto-Off: offen – Fan aus','Auto-Off: unknown – fan off'):
+        !value.autoOffSeconds?text('Auto-Off deaktiviert – Fan aus','Auto-Off disabled – fan off'):
+        'Auto-Off: '+value.autoOffSeconds+' s · '+(value.running?text('Fan an, Rest: ','Fan on, remaining: ')+value.remainingSeconds+' s':text('Fan aus','Fan off'));
+      if(value.relay && value.stale)summary+=' · '+text('Abgleich fehlgeschlagen; letzter bekannter Wert','Refresh failed; last known value');
+      state.textContent=summary;
+    }
+    async function refresh(){try{render(await request());}catch(e){state.textContent=text('Status nicht verfügbar','Status unavailable');}}
+    select.addEventListener('change',()=>{dirty=true;message.textContent='';});
+    save.addEventListener('click',async()=>{
+      if(busy)return;busy=true;select.disabled=true;save.disabled=true;
+      message.textContent=text('Wird gespeichert …','Saving …');
+      try{
+        const queued=await request({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({relay:Number(select.value)})});
+        let confirmed=false;
+        for(let i=0;i<24;i++){
+          await new Promise(resolve=>setTimeout(resolve,250));const value=await request();
+          if(value.failedId===queued.requestId)throw new Error('save_failed');
+          if(value.appliedId===queued.requestId){dirty=false;render(value);confirmed=true;break;}
+        }
+        if(!confirmed)throw new Error('confirmation_timeout');
+        message.textContent=text('Kopplung gespeichert.','Coupling saved.');
+      }catch(e){message.textContent=text('Speichern nicht bestätigt: ','Save not confirmed: ')+e.message;}
+      finally{busy=false;select.disabled=false;save.disabled=false;}
+    });
+    new MutationObserver(()=>{if(last)render(last);}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+    refresh();setInterval(()=>{if(!busy && !document.hidden)refresh();},15000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
+})();
+// === End humidifier fan editor ===
 
 )rawliteral";

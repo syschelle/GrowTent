@@ -99,6 +99,7 @@ void taskShellyStatus(void *parameter){
     }
 
     irrigationPlanRefreshShelly(false);
+    humidifierFanRefreshConfig();
 
     // Poll exactly one Shelly per step instead of all configured devices back-to-back.
     // This keeps an unreachable device from creating a multi-second burst of

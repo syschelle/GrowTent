@@ -20,6 +20,7 @@
 
 // global, functions, html code, js code and css code includes
 #include "globals.h"
+#include "humidifier_fan.h"
 #include "ota.h"
 #include <runtime.h>
 
@@ -628,9 +629,11 @@ bool isRelayOn(int idx) {
 void setRelay(int idx, bool on) {
   if (idx < 0 || idx >= NUM_RELAYS) return;
   if (idx >= activeRelayCount) return;
+  if (humidifierFanOwnsRelay(idx)) return;
 
   if (relayMutex) {
     if (xSemaphoreTake(relayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      if (humidifierFanOwnsRelay(idx)) { xSemaphoreGive(relayMutex); return; }
       digitalWrite(relayPins[idx], on ? HIGH : LOW);
       relayStates[idx] = on;
       xSemaphoreGive(relayMutex);
@@ -1747,6 +1750,8 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
     return false;
   }
 
+  const uint64_t fanGeneration=(switchId==0 && port==80)?humidifierFanCommandGeneration(host,gen):0;
+  const uint32_t fanStartedMs=millis();
   String path;
   if (gen == 1) {
     path = "/relay/" + String(switchId) + "?turn=" + String(on ? "on" : "off");
@@ -1771,7 +1776,15 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
                                    code, body);
   }
   logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
-  return ok && (code == 200);
+  const bool success=ok && code==200;
+  bool fanAccepted=success;
+  if(fanGeneration && success) {
+    JsonDocument response;
+    fanAccepted=!deserializeJson(response,body) && response["error"].isNull() &&
+      (gen==1 ? (response["ison"].is<bool>() && response["ison"].as<bool>()==on) : response["was_on"].is<bool>());
+  }
+  humidifierFanCommandResult(fanGeneration,on,fanAccepted,fanStartedMs);
+  return success;
 }
 
 static bool shellySwitchOn(const String& host, uint8_t gen, uint8_t switchId = 0, uint16_t port = 80) {
@@ -1967,7 +1980,7 @@ static void controlHeaterByTemperature() {
 
     if (settings.heating.sourceType == 1) {
         const int heatRelay = settings.heating.Relay;
-        if (heatRelay < 1 || heatRelay > activeRelayCount) return;
+        if (heatRelay < 1 || heatRelay > activeRelayCount || humidifierFanOwnsRelay(heatRelay-1)) return;
 
         const int idx = heatRelay - 1;
         isOn = (digitalRead(relayPins[idx]) == HIGH);
@@ -2186,6 +2199,7 @@ static void applyRelaySchedules() {
   const int scheduledRelayCount = (activeRelayCount < 5) ? activeRelayCount : 5;
 
   for (int i = 0; i < scheduledRelayCount; i++) {
+    if (humidifierFanOwnsRelay(i)) continue;
     const RelaySchedule& sc = settings.relay.schedule[i];
 
     // Skip relay if scheduling is disabled
@@ -2220,8 +2234,11 @@ static void applyRelaySchedules() {
 
     // Apply state only if needed
     if (shouldBeOn != isOn) {
+      if (relayMutex && xSemaphoreTake(relayMutex,pdMS_TO_TICKS(10))!=pdTRUE) continue;
+      if (humidifierFanOwnsRelay(i)) { if(relayMutex)xSemaphoreGive(relayMutex); continue; }
       digitalWrite(relayPins[i], shouldBeOn ? HIGH : LOW);
       relayStates[i] = shouldBeOn;
+      if(relayMutex)xSemaphoreGive(relayMutex);
 
       logPrint(
         "[SCHED] Relay " + String(i + 1) +
