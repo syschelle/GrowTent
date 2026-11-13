@@ -580,7 +580,7 @@ const char* htmlPage = R"rawliteral(
               <label for="localPlanLast" data-i18n="plan.last">Letzte Bewässerung</label>
               <input id="localPlanLast" type="date">
             </div>
-            <p class="hint" data-i18n="plan.hint">Trocknung sperrt die Bewässerung automatisch. Der Plan wird separat gespeichert. Bei Aktivierung darf das Backend keinen eigenen Zeitplan mehr ausführen.</p>
+            <p class="hint" data-i18n="plan.hint">Trocknung sperrt die Bewässerung automatisch.</p>
             <button type="button" id="localPlanSave" data-i18n="plan.save">Plan speichern</button>
             <p id="localPlanSaveStatus" role="status" aria-live="polite"></p>
           </fieldset>
