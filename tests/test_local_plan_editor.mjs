@@ -76,6 +76,16 @@ elements.localPlanLast.value = '2026-11-12';
 replies = [new Error('offline')]; await vm.runInContext('saveLocalPlan()', ctx);
 assert.equal(elements.localPlanSaveStatus.dataset.messageKey, 'plan.failed');
 assert.equal(elements.localPlanEditor.disabled, false);
+// Transfer a known backend date and wait for durable apply confirmation.
+render(9, '2026-11-12');
+elements.localPlanLast.value = '2026-11-13';
+vm.runInContext('localPlanDirty = true', ctx);
+replies = [{ok:true, body:{ok:true, applyQueued:true, requestId:43}},
+  {ok:true, body:{revision:10,enabled:true,every_n_days:3,offset_after_light_on_min:90,last_run_date:'2026-11-13',last_applied_request:43,pending_request:0}}];
+await vm.runInContext('saveLocalPlan()', ctx);
+assert.equal(JSON.parse(requests.at(-2).opts.body).last_run_date, '2026-11-13');
+assert.equal(elements.localPlanLast.value, '2026-11-13');
+assert.equal(elements.localPlanSaveStatus.dataset.messageKey, 'plan.saved');
 const html = fs.readFileSync('src/index_html.h','utf8');
 assert.ok(html.indexOf('id="irrigationSettingsSection"') < html.indexOf('<div class="runsettings-operations-row">'));
 assert.ok(html.includes('<input id="localPlanLast" type="date"'));

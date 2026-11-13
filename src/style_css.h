@@ -1256,6 +1256,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
   .runsettings-irrigation-content .runsettings-irrigation-checks{ grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media(max-width:760px){
+  .runsettings-page-head h1{ min-width:0; max-width:100%; overflow-wrap:anywhere; }
   #localPlanEditor, .runsettings-irrigation-content .runsettings-irrigation-checks, .runsettings-operations-row{ grid-template-columns:1fr; }
 }
 )rawliteral";
