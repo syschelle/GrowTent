@@ -12,7 +12,8 @@ const dict = JSON.parse(nodes.i18n.textContent);
 const elements = Object.fromEntries(['localPlanEditor','localPlanEnabled','localPlanDays','localPlanDelay','localPlanLast','localPlanSaveStatus'].map(id => [id, {dataset:{}, value:'', checked:false}]));
 const requests = [];
 let replies = [];
-const ctx = vm.createContext({document: {getElementById: id => elements[id]}, currentLang: 'de',
+class FixedDate extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-13T12:00:00Z'])); } }
+const ctx = vm.createContext({Date: FixedDate, document: {getElementById: id => elements[id]}, currentLang: 'de',
   trKey: (key, fallback) => dict[key]?.[ctx.currentLang] || fallback,
   setTimeout: fn => {fn();}, fetch: async (url, opts) => {
     requests.push({url,opts});
@@ -30,13 +31,15 @@ render(5);
 assert.equal(elements.localPlanEditor.dataset.revision, 5);
 assert.equal(elements.localPlanDays.value, 3);
 assert.equal(elements.localPlanDelay.value, 90);
-assert.equal(elements.localPlanLast.textContent, 'Noch keine Bewässerung erfasst');
+assert.equal(elements.localPlanLast.value, '', 'Unknown history must not fabricate a date');
 vm.runInContext('localPlanDirty = true', ctx);
 elements.localPlanDays.value = '8';
 render(6, '2026-11-13');
 assert.equal(elements.localPlanDays.value, '8', 'Polling must not overwrite edits');
 assert.equal(elements.localPlanEditor.dataset.revision, 5, 'Preserve editing base for conflict detection');
-assert.ok(elements.localPlanLast.textContent.includes('2026'));
+assert.equal(elements.localPlanLast.value, '', 'Polling preserves an edited date');
+assert.equal(elements.localPlanLast.min, '2026-11-13');
+elements.localPlanLast.value = '2026-11-13';
 replies = [{ok: false, body: {ok:false, error:'revision_conflict'}}];
 await vm.runInContext('saveLocalPlan()', ctx);
 assert.equal(elements.localPlanSaveStatus.dataset.messageKey, 'plan.conflict');
@@ -55,13 +58,27 @@ await vm.runInContext('saveLocalPlan()', ctx);
 assert.equal(elements.localPlanSaveStatus.dataset.messageKey, 'plan.saved');
 assert.equal(elements.localPlanEditor.dataset.revision, 7);
 assert.equal(elements.localPlanEditor.disabled, false);
-assert.equal('last_run_date' in JSON.parse(requests.at(-2).opts.body), false, 'History must be read-only');
+assert.equal(JSON.parse(requests.at(-2).opts.body).last_run_date, null, 'An unknown date stays null');
+assert.equal(elements.localPlanLast.value, '2026-11-13');
 render(6); assert.equal(elements.localPlanEditor.dataset.revision, 7, 'Ignore stale state');
 ctx.currentLang = 'en'; render(7);
-assert.equal(elements.localPlanLast.textContent, 'No watering recorded yet');
+assert.equal(elements.localPlanLast.value, '');
+// Date safety: no future date, no clearing/rewinding already stored history.
+render(8, '2026-11-12');
+for (const date of ['', '2026-11-11', '2026-11-14']) {
+  elements.localPlanLast.value = date;
+  const before = requests.length;
+  await vm.runInContext('saveLocalPlan()', ctx);
+  assert.equal(requests.length, before);
+  assert.equal(elements.localPlanSaveStatus.dataset.messageKey, 'plan.dateInvalid');
+}
+elements.localPlanLast.value = '2026-11-12';
 replies = [new Error('offline')]; await vm.runInContext('saveLocalPlan()', ctx);
 assert.equal(elements.localPlanSaveStatus.dataset.messageKey, 'plan.failed');
 assert.equal(elements.localPlanEditor.disabled, false);
+const html = fs.readFileSync('src/index_html.h','utf8');
+assert.ok(html.indexOf('id="irrigationSettingsSection"') < html.indexOf('<div class="runsettings-operations-row">'));
+assert.ok(html.includes('<input id="localPlanLast" type="date"'));
 const impl = fs.readFileSync('src/irrigation_plan_impl.h','utf8');
 const local = impl.slice(impl.indexOf('void lpHandleLocal('),impl.indexOf('bool lpParseLight('));
 assert.ok(!local.includes('lpPersist('), 'Async callbacks must never write NVS');
@@ -69,4 +86,5 @@ for (const token of ['expected_revision','UINT32_MAX','revision_conflict','lpOp!
 assert.ok(impl.includes('lpPendingLocal=false;lpPendingKey=key'), 'HMAC writes must not inherit local authorization');
 assert.ok(impl.includes('if(!lpPendingLocal){'), 'Local edits must preserve history');
 assert.ok(impl.includes('same journal/queue as HMAC'));
-console.log('Local plan editor: read-only history, dirty state, revision conflicts, bounds, save confirmation, language and failure tests passed.');
+assert.ok(impl.match(/historyDateAllowed/g).length >= 2, 'Date guards must apply at reception and main-loop apply');
+console.log('Local plan editor: date import and history protection, dirty state, revision conflicts, bounds, save confirmation, language and failure tests passed.');

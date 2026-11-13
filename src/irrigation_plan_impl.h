@@ -176,19 +176,37 @@ void lpHandleLocal(AsyncWebServerRequest* r) {
   if(!b||b->tooLarge){reply(b&&b->tooLarge?413:400,"{\"ok\":false,\"error\":\"invalid_body\"}");return;}
   if(!r->contentType().startsWith("application/json")){reply(415,"{\"ok\":false,\"error\":\"content_type_must_be_application_json\"}");return;}
   JsonDocument doc;
-  if(deserializeJson(doc,b->data,b->len)||!doc.is<JsonObject>()||doc.size()!=4||
+  if(deserializeJson(doc,b->data,b->len)||!doc.is<JsonObject>()||(doc.size()!=4&&doc.size()!=5)||
      !doc["expected_revision"].is<uint32_t>()||!doc["enabled"].is<bool>()||
      !doc["every_n_days"].is<int>()||doc["every_n_days"].as<int>()<1||doc["every_n_days"].as<int>()>366||
      !doc["offset_after_light_on_min"].is<int>()||doc["offset_after_light_on_min"].as<int>()<0||doc["offset_after_light_on_min"].as<int>()>1440){
     reply(400,"{\"ok\":false,\"error\":\"invalid_plan\"}");return;
   }
+  for(JsonPair kv:doc.as<JsonObject>()){
+    const String key=kv.key().c_str();
+    if(key!="expected_revision"&&key!="enabled"&&key!="every_n_days"&&key!="offset_after_light_on_min"&&key!="last_run_date"){
+      reply(400,"{\"ok\":false,\"error\":\"invalid_plan\"}");return;
+    }
+  }
+  const String storedLast=lpState["last_run_date"]|String("");
+  String last=storedLast;
+  if(doc.size()==5){
+    if(!doc["last_run_date"].isNull()&&!doc["last_run_date"].is<const char*>()){
+      reply(400,"{\"ok\":false,\"error\":\"invalid_last_run_date\"}");return;
+    }
+    last=doc["last_run_date"]|String("");
+    if((last.length()&&(!isValidBackendCalendarDate(last)||(int64_t)time(nullptr)<gtplan::kValidEpoch))||
+       !gtplan::historyDateAllowed(storedLast.length()?lpParseDay(storedLast):-1,last.length()?lpParseDay(last):-1,lpDay(time(nullptr)))){
+      reply(400,"{\"ok\":false,\"error\":\"invalid_last_run_date\"}");return;
+    }
+  }
   const uint32_t revision=lpState["revision"].as<uint32_t>();
   if(doc["expected_revision"].as<uint32_t>()!=revision||revision==UINT32_MAX){reply(409,"{\"ok\":false,\"error\":\"revision_conflict\"}");return;}
   if(irrigation.irrigationRuns>0||lpOwns.load()||anyAsyncIrrigationPumpOnOrArmed()){reply(409,"{\"ok\":false,\"error\":\"watering_running\"}");return;}
   if(doc["enabled"].as<bool>()&&(int64_t)time(nullptr)<gtplan::kValidEpoch){reply(409,"{\"ok\":false,\"error\":\"time_not_synchronized\"}");return;}
-  // Last-run history is read-only for the dashboard; never synthesize/reset it.
+  // Import only a known date. Actual stored history cannot be cleared or moved back.
   doc.remove("expected_revision");doc["revision"]=revision+1;
-  doc["last_run_date"]=lpState["last_run_date"];
+  if(last.length())doc["last_run_date"]=last;else doc["last_run_date"]=nullptr;
   serializeJson(doc,lpPendingJson);lpPendingLocal=true;lpOp=PlanOp::Replace;++lpNextRequest;
   reply(202,String("{\"ok\":true,\"applyQueued\":true,\"requestId\":")+String(lpNextRequest)+"}");
 }
@@ -316,6 +334,11 @@ void irrigationPlanTick(){
       JsonDocument pending;deserializeJson(pending,lpPendingJson);bool ok=lpPendingLocal||(lpPendingKey==lpKey&&lpAuthEnabled);
       if(ok&&lpOp==PlanOp::Replace){
         ok=irrigation.irrigationRuns<=0&&!lpOwns.load()&&(!lpPendingLocal||(!anyAsyncIrrigationPumpOnOrArmed()&&pending["revision"].as<uint32_t>()==lpState["revision"].as<uint32_t>()+1));
+        if(ok&&lpPendingLocal){
+          const String last=pending["last_run_date"]|String(""),stored=lpState["last_run_date"]|String("");
+          ok=(!last.length()||now>=gtplan::kValidEpoch)&&
+             gtplan::historyDateAllowed(stored.length()?lpParseDay(stored):-1,last.length()?lpParseDay(last):-1,lpDay(time(nullptr)));
+        }
         if(ok){
           lpState["revision"]=pending["revision"];lpState["enabled"]=pending["enabled"];
           lpState["every_n_days"]=pending["every_n_days"];lpState["offset_after_light_on_min"]=pending["offset_after_light_on_min"];
@@ -323,6 +346,15 @@ void irrigationPlanTick(){
             lpState["input_last_run_date"]=pending["last_run_date"];
             String last=pending["last_run_date"]|String("");int baseline=last.length()?lpParseDay(last):lpDay(time(nullptr))-pending["every_n_days"].as<int>();
             if(baseline>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=baseline;lpState["last_run_date"]=pending["last_run_date"];}
+          }else if(!pending["last_run_date"].isNull()){
+            const String last=pending["last_run_date"].as<String>();
+            const String stored=lpState["last_run_date"]|String("");
+            if(!stored.length()||last.compareTo(stored)>0){
+              // With no real history, replace the synthetic recurrence seed.
+              const int day=lpParseDay(last);
+              if(!stored.length()||day>lpState["last_run_day"].as<int>())lpState["last_run_day"]=day;
+              lpState["last_run_date"]=last;
+            }
           }else if(lpState["last_run_day"].as<int>()<0 && now>=gtplan::kValidEpoch){
             // Seed recurrence only. A settings edit is never a watering event.
             lpState["last_run_day"]=lpDay(time(nullptr))-pending["every_n_days"].as<int>();

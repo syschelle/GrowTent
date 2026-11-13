@@ -13,6 +13,10 @@ inline int civilDay(int y, unsigned m, unsigned d) {
   const unsigned doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1;
   return era * 146097 + int(yoe * 365 + yoe / 4 - yoe / 100 + doy) - 719468;
 }
+// Unknown history is -1. Imports can advance known history, never erase/rewind it.
+inline bool historyDateAllowed(int storedDay, int incomingDay, int today) {
+  return incomingDay < 0 ? storedDay < 0 : incomingDay <= today && (storedDay < 0 || incomingDay >= storedDay);
+}
 inline bool intervalDue(int lightDay, int lastRunDay, int everyDays) {
   return everyDays >= 1 && lightDay > lastRunDay && lightDay - lastRunDay >= everyDays;
 }

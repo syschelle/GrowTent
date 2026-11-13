@@ -1,4 +1,4 @@
-# Security — v0.5.6
+# Security — v0.5.7
 
 v0.5.5 fixes status localization and asset cache versioning. Only assets requested with the matching firmware version receive immutable caching; missing or obsolete versions use no-store. Irrigation/HMAC behavior is unchanged.
 
@@ -14,4 +14,4 @@ See [IRRIGATION_PLAN_API.md](IRRIGATION_PLAN_API.md) for the complete protocol a
 
 ## v0.5.6 local editor
 
-GET/POST `/api/settings/irrigation-plan` uses the same trusted-LAN dashboard boundary as existing operating-setting routes, not backend HMAC authentication. Do not expose the dashboard directly to untrusted networks. POST accepts JSON with expected_revision, enabled, every_n_days and offset_after_light_on_min only. Last-run history is read-only. Local and authenticated backend mutations share one queue and NVS journal; revisions prevent stale dashboard overwrites. NVS writes remain on the main loop, with persistence confirmed before reporting applied. No keys are returned. Enabling local scheduling requires a valid clock; independent backend scheduling must be disabled.
+GET/POST `/api/settings/irrigation-plan` uses the same trusted-LAN dashboard boundary as existing operating-setting routes, not backend HMAC authentication. Do not expose the dashboard directly to untrusted networks. POST accepts JSON with expected_revision, enabled, every_n_days and offset_after_light_on_min only. v0.5.7 accepts an optional last_run_date baseline: no future, invalid, cleared or backward dates. Rechecked on the main loop before persistence. Local and authenticated backend mutations share one queue and NVS journal; revisions prevent stale dashboard overwrites. NVS writes remain on the main loop, with persistence confirmed before reporting applied. No keys are returned. Enabling local scheduling requires a valid clock; independent backend scheduling must be disabled.

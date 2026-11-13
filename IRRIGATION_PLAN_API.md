@@ -117,3 +117,7 @@ POST JSON must contain exactly expected_revision (uint32), enabled (boolean), ev
 Both channels share the same queue and journal. A local save increments revision and preserves execution claims and last_run_date. Backend clients must fetch the current revision before updating after a local edit. History remains read-only in the UI. last_run_date is the persisted start/claim date (or migrated backend baseline), not a successful-completion indicator. Manual starts with valid time also record the date when local scheduling is off.
 
 Disable independent backend scheduling before enabling the local plan. Event consumption/acknowledgement and push delivery still require the later backend integration. A full event outbox continues to block further scheduled starts.
+
+## v0.5.7 date import
+
+Local POST additionally accepts optional last_run_date (YYYY-MM-DD or null). A four-field request preserves existing history. A five-field request may import a known date: future/invalid dates and clearing/rewinding actual stored history are rejected. Main-loop apply rechecks against the latest history and clock. An initial known date replaces only the synthetic recurrence seed; handled occurrences are never rolled back. The UI exposes a native date field and explicitly instructs users to transfer known backend history only.

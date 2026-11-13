@@ -561,10 +561,10 @@ const char* htmlPage = R"rawliteral(
 
       </div>
 
-      <div class="runsettings-operations-row">
         <div class="runsettings-panel relay-extra runsettings-irrigation-settings-card" id="irrigationSettingsSection" style="display:none;">
           <h2 class="runsettings-panel-title" data-i18n="runsetting.wateringSettings">Bewässerungseinstellung</h2>
           <p class="hint runsettings-panel-hint" data-i18n="runsetting.pumpsHint">Aktivieren Sie nur die Pumpen für tatsächlich verwendete Töpfe.</p>
+          <div class="runsettings-irrigation-content">
           <fieldset id="localPlanEditor" disabled>
             <legend data-i18n="plan.title">Bewässerungsplan</legend>
             <label class="inline-checkbox"><input type="checkbox" id="localPlanEnabled"><span data-i18n="plan.enabled">Bewässerungsplan aktivieren</span></label>
@@ -576,11 +576,15 @@ const char* htmlPage = R"rawliteral(
               <label for="localPlanDelay" data-i18n="plan.delay">Verzögerung nach Licht-an im Shelly-Scheduler (Minuten)</label>
               <input id="localPlanDelay" type="number" min="0" max="1440" step="1" value="0">
             </div>
-            <p><span data-i18n="plan.last">Letzte Bewässerung</span>: <output id="localPlanLast">—</output></p>
+            <div class="runsettings-field">
+              <label for="localPlanLast" data-i18n="plan.last">Letzte Bewässerung</label>
+              <input id="localPlanLast" type="date" aria-describedby="localPlanHistoryHint">
+              <small id="localPlanHistoryHint" data-i18n="plan.historyHint">Wenn im ESP noch kein Datum gespeichert ist, letzten bekannten Termin aus dem Backend übernehmen. Nicht schätzen.</small>
+            </div>
             <p class="hint" data-i18n="plan.hint">Trocknung sperrt die Bewässerung automatisch. Der Plan wird separat gespeichert. Bei Aktivierung darf das Backend keinen eigenen Zeitplan mehr ausführen.</p>
             <button type="button" id="localPlanSave" data-i18n="plan.save">Plan speichern</button>
+            <p id="localPlanSaveStatus" role="status" aria-live="polite"></p>
           </fieldset>
-          <p id="localPlanSaveStatus" role="status" aria-live="polite"></p>
           <div class="runsettings-irrigation-checks runsettings-irrigation-checks-stacked">
             <div class="runsettings-pumps-box">
               <label class="inline-checkbox">
@@ -604,8 +608,10 @@ const char* htmlPage = R"rawliteral(
               <small data-i18n="runsetting.stopOnFloodAlarmHint">Wirkt nur bei aktiviertem Flood S Gen4 und einer laufenden automatischen Bewässerung.</small>
             </div>
           </div>
+          </div>
         </div>
 
+      <div class="runsettings-operations-row">
         <div class="runsettings-panel runsettings-irrigation-params relay-extra" id="irrigationParameterSection" style="display:none;">
           <h2 class="runsettings-panel-title" data-i18n="runsetting.irrigationParameters">Bewässerungsparameter</h2>
           <div class="runsettings-param-grid runsettings-param-grid-inline">
