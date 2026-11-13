@@ -65,7 +65,6 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "plan.enabled": { de: "Bewässerungsplan aktivieren", en: "Enable irrigation plan" },
   "plan.days": { de: "Alle X Tage bewässern", en: "Water every X days" },
   "plan.delay": { de: "Offset nach Licht-an (Minuten)", en: "Offset after light-on (minutes)" },
-  "plan.historyHint": { de: "Wenn im ESP noch kein Datum gespeichert ist, letzten bekannten Termin aus dem Backend übernehmen. Nicht schätzen.", en: "If no date is stored on the ESP, transfer the last known date from the backend. Do not guess." },
   "plan.dateInvalid": { de: "Datum ungültig: kein zukünftiger Termin; gespeicherte Bewässerung nicht zurückdatieren oder löschen.", en: "Invalid date: no future dates; stored watering history cannot be moved back or cleared." },
   "plan.last": { de: "Letzte Bewässerung", en: "Last watering" },
   "plan.hint": { de: "Trocknung sperrt die Bewässerung automatisch. Der Plan wird separat gespeichert. Bei Aktivierung darf das Backend keinen eigenen Zeitplan mehr ausführen.", en: "Drying automatically blocks watering. Save this plan separately. When enabled, the backend must stop running its own schedule." },
