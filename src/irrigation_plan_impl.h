@@ -20,6 +20,7 @@ LightSnapshot lpPendingLight;
 gtplan::ReplayWindow lpNonces;
 enum class PlanOp {None, Replace, Ack};
 PlanOp lpOp=PlanOp::None;
+bool lpPendingLocal=false;
 String lpPendingJson, lpPendingKey;
 uint32_t lpNextRequest=0, lpApplied=0, lpFailed=0;
 String lpLastError;
@@ -153,9 +154,45 @@ void lpHandle(AsyncWebServerRequest* r, PlanOp op, bool events=false) {
     uint32_t seq=doc["through_seq"].as<uint32_t>();
     if(seq>=lpState["next_seq"].as<uint32_t>()){reply(400,"{\"ok\":false,\"error\":\"ack_out_of_range\"}");return;}
   }
-  serializeJson(doc,lpPendingJson);lpPendingKey=key;lpOp=op;++lpNextRequest;
+  serializeJson(doc,lpPendingJson);lpPendingLocal=false;lpPendingKey=key;lpOp=op;++lpNextRequest;
   reply(202,String("{\"ok\":true,\"applyQueued\":true,\"requestId\":")+String(lpNextRequest)+"}");
 }
+// Local dashboard channel: same journal/queue as HMAC, without exposing its secret.
+void lpHandleLocal(AsyncWebServerRequest* r) {
+  auto reply=[&](int code,const String& text){sendBackendJson(r,code,text);};
+  LpLock guard;
+  if(!guard.held||!lpReady||lpFault){reply(503,"{\"ok\":false,\"error\":\"irrigation_storage_unavailable\"}");return;}
+  if(r->method()==AsyncWebRequestMethod::HTTP_GET){
+    JsonDocument doc;doc["ok"]=true;doc["revision"]=lpState["revision"];
+    doc["enabled"]=lpState["enabled"];doc["every_n_days"]=lpState["every_n_days"];
+    doc["offset_after_light_on_min"]=lpState["offset_after_light_on_min"];doc["last_run_date"]=lpState["last_run_date"];
+    doc["last_applied_request"]=lpApplied;doc["last_failed_request"]=lpFailed;
+    doc["pending_request"]=lpOp==PlanOp::None?0:lpNextRequest;
+    String json;serializeJson(doc,json);reply(200,json);return;
+  }
+  if(g_restartRequested||otaMaintenanceRequested()||otaIsUpdateInProgress()){reply(503,"{\"ok\":false,\"error\":\"restart_or_ota_pending\"}");return;}
+  if(lpOp!=PlanOp::None){reply(409,"{\"ok\":false,\"error\":\"irrigation_write_pending\"}");return;}
+  auto* b=static_cast<AsyncJsonBody*>(r->_tempObject);
+  if(!b||b->tooLarge){reply(b&&b->tooLarge?413:400,"{\"ok\":false,\"error\":\"invalid_body\"}");return;}
+  if(!r->contentType().startsWith("application/json")){reply(415,"{\"ok\":false,\"error\":\"content_type_must_be_application_json\"}");return;}
+  JsonDocument doc;
+  if(deserializeJson(doc,b->data,b->len)||!doc.is<JsonObject>()||doc.size()!=4||
+     !doc["expected_revision"].is<uint32_t>()||!doc["enabled"].is<bool>()||
+     !doc["every_n_days"].is<int>()||doc["every_n_days"].as<int>()<1||doc["every_n_days"].as<int>()>366||
+     !doc["offset_after_light_on_min"].is<int>()||doc["offset_after_light_on_min"].as<int>()<0||doc["offset_after_light_on_min"].as<int>()>1440){
+    reply(400,"{\"ok\":false,\"error\":\"invalid_plan\"}");return;
+  }
+  const uint32_t revision=lpState["revision"].as<uint32_t>();
+  if(doc["expected_revision"].as<uint32_t>()!=revision||revision==UINT32_MAX){reply(409,"{\"ok\":false,\"error\":\"revision_conflict\"}");return;}
+  if(irrigation.irrigationRuns>0||lpOwns.load()||anyAsyncIrrigationPumpOnOrArmed()){reply(409,"{\"ok\":false,\"error\":\"watering_running\"}");return;}
+  if(doc["enabled"].as<bool>()&&(int64_t)time(nullptr)<gtplan::kValidEpoch){reply(409,"{\"ok\":false,\"error\":\"time_not_synchronized\"}");return;}
+  // Last-run history is read-only for the dashboard; never synthesize/reset it.
+  doc.remove("expected_revision");doc["revision"]=revision+1;
+  doc["last_run_date"]=lpState["last_run_date"];
+  serializeJson(doc,lpPendingJson);lpPendingLocal=true;lpOp=PlanOp::Replace;++lpNextRequest;
+  reply(202,String("{\"ok\":true,\"applyQueued\":true,\"requestId\":")+String(lpNextRequest)+"}");
+}
+
 bool lpParseLight(const String& body,int generation,int (&minutes)[7],int (&off)[7]) {
   return gtplan::parseLightSchedule(body.c_str(),body.length(),generation,minutes,off);
 }
@@ -163,6 +200,9 @@ bool lpParseLight(const String& body,int generation,int (&minutes)[7],int (&off)
 String irrigationPlanStatusField(const char* key){
   LpLock guard;if(!guard.held)return "null";
   if(!strcmp(key,"enabled"))return lpEnabled.load()?"true":"false";
+  for(const auto* field:{"revision","every_n_days","offset_after_light_on_min","last_run_date"}) {
+    if(!strcmp(key,field)){String value;serializeJson(lpState[field],value);return value;}
+  }
   if(!strcmp(key,"lastScheduleSync"))return String(lpState["last_schedule_sync"].as<uint32_t>());
   if(!strcmp(key,"queuedEvents"))return String(lpState["events"].size());
   const char* status=lpFault?"storage_error":!lpEnabled.load()?"disabled":settings.grow.currentPhase==3?"drying_blocked":lpState["events"].size()>62?"event_queue_full":lpState["last_schedule_sync"].as<int64_t>()==0?"waiting_for_shelly":lpState["schedule_stale"].as<bool>()?"stale_shelly":"ready";
@@ -172,7 +212,18 @@ bool irrigationPlanEnabled(){return lpEnabled.load();}
 bool irrigationPlanOwnsCycle(){return lpOwns.load();}
 bool irrigationPlanReserveManualCycle(String& error){
   if(lpFault||!lpReady){error="irrigation_storage_unavailable";return false;}
-  if(!lpEnabled.load())return true;
+  if(!lpEnabled.load()){
+    LpLock guard;if(!guard.held){error="irrigation_busy";return false;}
+    const time_t now=time(nullptr);
+    if((int64_t)now>=gtplan::kValidEpoch){
+      const int day=lpDay(now);
+      if(day>lpState["last_run_day"].as<int>()){
+        lpState["last_run_day"]=day;lpState["last_run_date"]=lpDate(now);
+        if(!lpPersist()){error="irrigation_persist_failed";return false;}
+      }
+    }
+    return true;
+  }
   if(lpOwns.load()){if(lpStarting)return true;error="irrigation_cycle_pending";return false;}
   LpLock guard;
   if(!guard.held||!lpReady||lpFault){error="irrigation_storage_unavailable";return false;}
@@ -262,17 +313,22 @@ void irrigationPlanTick(){
       lpPersist();lpOwns.store(false);
     }
     if(lpOp!=PlanOp::None){
-      JsonDocument pending;deserializeJson(pending,lpPendingJson);bool ok=lpPendingKey==lpKey&&lpAuthEnabled;
+      JsonDocument pending;deserializeJson(pending,lpPendingJson);bool ok=lpPendingLocal||(lpPendingKey==lpKey&&lpAuthEnabled);
       if(ok&&lpOp==PlanOp::Replace){
-        ok=irrigation.irrigationRuns<=0&&!lpOwns.load();
+        ok=irrigation.irrigationRuns<=0&&!lpOwns.load()&&(!lpPendingLocal||(!anyAsyncIrrigationPumpOnOrArmed()&&pending["revision"].as<uint32_t>()==lpState["revision"].as<uint32_t>()+1));
         if(ok){
           lpState["revision"]=pending["revision"];lpState["enabled"]=pending["enabled"];
           lpState["every_n_days"]=pending["every_n_days"];lpState["offset_after_light_on_min"]=pending["offset_after_light_on_min"];
-          lpState["input_last_run_date"]=pending["last_run_date"];
-          String last=pending["last_run_date"]|String("");int baseline=last.length()?lpParseDay(last):lpDay(time(nullptr))-pending["every_n_days"].as<int>();
-          if(baseline>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=baseline;lpState["last_run_date"]=pending["last_run_date"];}
+          if(!lpPendingLocal){
+            lpState["input_last_run_date"]=pending["last_run_date"];
+            String last=pending["last_run_date"]|String("");int baseline=last.length()?lpParseDay(last):lpDay(time(nullptr))-pending["every_n_days"].as<int>();
+            if(baseline>lpState["last_run_day"].as<int>()){lpState["last_run_day"]=baseline;lpState["last_run_date"]=pending["last_run_date"];}
+          }else if(lpState["last_run_day"].as<int>()<0 && now>=gtplan::kValidEpoch){
+            // Seed recurrence only. A settings edit is never a watering event.
+            lpState["last_run_day"]=lpDay(time(nullptr))-pending["every_n_days"].as<int>();
+          }
           // First enable never backfills earlier dates; later edits never roll back handled dates.
-          if(lpState["last_handled_day"].as<int>()<lpDay(time(nullptr))-1)lpState["last_handled_day"]=lpDay(time(nullptr))-1;
+          if(now>=gtplan::kValidEpoch && lpState["last_handled_day"].as<int>()<lpDay(time(nullptr))-1)lpState["last_handled_day"]=lpDay(time(nullptr))-1;
           ok=lpPersist();if(ok)lpEnabled.store(lpState["enabled"]|false);
         }
       }else if(ok){
@@ -280,7 +336,7 @@ void irrigationPlanTick(){
         while(a.size()&&a[0]["seq"].as<uint32_t>()<=through)a.remove(0);ok=lpPersist();
       }
       if(ok)lpApplied=lpNextRequest;else{lpFailed=lpNextRequest;lpLastError="apply_failed";}
-      lpOp=PlanOp::None;lpPendingJson="";lpPendingKey="";
+      lpOp=PlanOp::None;lpPendingLocal=false;lpPendingJson="";lpPendingKey="";
     }
     if(lpFault||!lpEnabled.load()||now<gtplan::kValidEpoch||lpOwns.load()||g_restartRequested||otaMaintenanceRequested()||otaIsUpdateInProgress())return;
     const int today=lpDay(time(nullptr));
@@ -328,6 +384,8 @@ void irrigationPlanTick(){
   if(start){String error;lpStarting=true;const bool ok=startAsyncIrrigationNow(false,error);lpStarting=false;if(!ok)irrigationPlanCycleFinished(false);}
 }
 static void configureIrrigationPlanRoutes(){
+  asyncServer.on("/api/settings/irrigation-plan",AsyncWebRequestMethod::HTTP_GET,lpHandleLocal);
+  asyncServer.on("/api/settings/irrigation-plan",AsyncWebRequestMethod::HTTP_POST,lpHandleLocal,nullptr,handleAsyncJsonBody);
   asyncServer.on("/api/backend/irrigation-plan",AsyncWebRequestMethod::HTTP_GET,[](AsyncWebServerRequest* r){lpHandle(r,PlanOp::None);});
   asyncServer.on("/api/backend/irrigation-plan",AsyncWebRequestMethod::HTTP_POST,[](AsyncWebServerRequest* r){lpHandle(r,PlanOp::Replace);},nullptr,handleAsyncJsonBody);
   asyncServer.on("/api/backend/irrigation-events",AsyncWebRequestMethod::HTTP_GET,[](AsyncWebServerRequest* r){lpHandle(r,PlanOp::None,true);});
