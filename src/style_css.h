@@ -1243,10 +1243,12 @@ const char cssContent[] PROGMEM = R"rawliteral(
 /* Full-width irrigation settings above the parameters/heating row. */
 .runsettings-irrigation-settings-card{ margin-top:14px; margin-bottom:14px; }
 .runsettings-irrigation-content{ display:grid; grid-template-columns:minmax(0,3fr) minmax(230px,1fr); gap:16px; align-items:start; }
-#localPlanEditor{ min-width:0; margin:0; padding:12px; border:1px solid var(--border); border-radius:8px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+#localPlanEditor{ min-width:0; margin:0; padding:12px; border:1px solid var(--border); border-radius:8px; display:grid; grid-template-columns:minmax(0,11rem) minmax(0,16rem) minmax(0,19rem); gap:12px 20px; justify-content:start; }
 #localPlanEditor legend{ font-weight:600; padding:0 6px; }
 #localPlanEditor > .inline-checkbox, #localPlanEditor > .hint, #localPlanSaveStatus{ grid-column:1 / -1; }
-#localPlanEditor input[type="date"]{ width:100%; min-width:0; box-sizing:border-box; }
+#localPlanDays{ width:7rem; max-width:100%; }
+#localPlanDelay{ width:8rem; max-width:100%; }
+#localPlanEditor input[type="date"]{ width:12rem; max-width:100%; min-width:0; box-sizing:border-box; }
 #localPlanSave{ justify-self:start; width:auto; padding:8px 16px; border:0; border-radius:8px; background:var(--header); color:#fff; cursor:pointer; }
 #localPlanSaveStatus{ margin:0; }
 .runsettings-operations-row{ grid-template-columns:minmax(0,2.15fr) minmax(280px,1fr); }
