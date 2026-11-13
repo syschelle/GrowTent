@@ -4922,7 +4922,12 @@ static void handleAsyncWateringActionPost(AsyncWebServerRequest* request) {
   }
   if (action == "start") queueAsyncWateringAction(request, AsyncWateringActionType::StartApi);
   else if (action == "stop") queueAsyncWateringAction(request, AsyncWateringActionType::Stop, 0, 10000UL, guard);
-  else if (action == "toggle") queueAsyncWateringAction(request, AsyncWateringActionType::ToggleDashboard);
+  else if (action == "toggle") {
+    if (irrigationPlanEnabled() && irrigation.irrigationRuns <= 0) {
+      request->send(409, "application/json", "{\"ok\":false,\"err\":\"local_plan_owns_schedule\"}"); return;
+    }
+    queueAsyncWateringAction(request, AsyncWateringActionType::ToggleDashboard);
+  }
   else if (action == "pingtank") queueAsyncWateringAction(request, AsyncWateringActionType::TankPing);
   else {
     AsyncWebServerResponse* response = request->beginResponse(400, "application/json; charset=utf-8", "{\"ok\":false,\"err\":\"invalid_watering_action\"}");
@@ -4931,6 +4936,8 @@ static void handleAsyncWateringActionPost(AsyncWebServerRequest* request) {
 }
 
 static bool startAsyncIrrigationNow(bool startedViaApi, String& error) {
+  if (settings.grow.currentPhase == 3) { error = "drying_phase"; return false; }
+  if (startedViaApi && irrigationPlanEnabled()) { error = "local_plan_owns_schedule"; return false; }
   if (irrigation.irrigationRuns > 0) { error = "already_running"; return false; }
   if (activeRelayCount < 8) { error = "requires_8_relays"; return false; }
   if (asyncIrrigationFloodBlocked()) { error = "flood_alarm_active"; return false; }
@@ -4941,6 +4948,7 @@ static bool startAsyncIrrigationNow(bool startedViaApi, String& error) {
   if (mlPerTaskPerPot <= 0.0f) { error = "invalid_ml_per_task"; return false; }
   const int runs = (int)ceilf(irrigation.amount / mlPerTaskPerPot);
   if (runs <= 0) { error = "invalid_run_count"; return false; }
+  if (!irrigationPlanReserveManualCycle(error)) return false;
   irrigationStopRequested = false;
   irrigationStartNotifyViaApi = startedViaApi;
   irrigationStartNotifyPending = true;
@@ -7480,7 +7488,7 @@ static void processAsyncFactoryResetApply() {
     ++g_asyncFactoryResetDryRuns;
   } else {
     preferences.begin(PREF_NS, false);
-    ok = preferences.clear();
+    ok = irrigationPlanFactoryReset() && preferences.clear();
     preferences.end();
     if (ok) {
       // The GrowTent namespace contains our SSID/password. Additionally erase
@@ -8499,7 +8507,10 @@ static void handleAsyncHealth(AsyncWebServerRequest* request) {
   request->send(response);
 }
 
+#include "irrigation_plan_impl.h"
+
 static void registerAsyncPhase32Routes() {
+  configureIrrigationPlanRoutes();
   asyncServer.on("/", AsyncWebRequestMethod::HTTP_GET, handleAsyncRoot);
 
   // Phase 25 transport correction (v0.2.76): serve static assets through
@@ -8944,6 +8955,7 @@ void setup() {
   // This prevents a boot-time race where the UI could render empty/default grow dates
   // and write them back before the deferred initialization task restored NVS values.
   readPreferences();
+  irrigationPlanInit();
   logPrint("[BOOT] Persistent settings loaded before web server start");
   
   // Initialize relay outputs ASAP (prevent random toggles)
@@ -9144,6 +9156,7 @@ void loop() {
   processAsyncFloodEventApply();
   processAsyncStorageActionApply();
   processAsyncWateringActionApply();
+  irrigationPlanTick();
 
   // Observe WiFi link state once per second so even short disconnects become visible
   // in the system log. This is intentionally separate from the slower reconnect policy.

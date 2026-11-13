@@ -1940,6 +1940,17 @@ async function startNewGrow(){
         console.warn('Relay visibility update failed:', uiError);
       }
 
+      const planStatusEl = document.getElementById('localIrrigationPlanStatus');
+      if (planStatusEl) {
+        const lastSync = Number(data['irrigation.plan.lastScheduleSync']) || 0;
+        const de = (typeof language !== 'undefined' && language === 'de') || document.documentElement.lang === 'de';
+        const labels = de ? {disabled:'Deaktiviert',drying_blocked:'Trocknung – gesperrt',storage_error:'Speicherfehler',event_queue_full:'Ereignispuffer voll',waiting_for_shelly:'Warte auf Shelly-Zeitplan',stale_shelly:'Letzter gültiger Shelly-Zeitplan',ready:'Bereit'} : {disabled:'Disabled',drying_blocked:'Drying – blocked',storage_error:'Storage error',event_queue_full:'Event buffer full',waiting_for_shelly:'Waiting for Shelly schedule',stale_shelly:'Using last valid Shelly schedule',ready:'Ready'};
+        const status = String(data['irrigation.plan.status'] || 'waiting_for_shelly');
+        planStatusEl.textContent = (de ? 'Lokaler Plan: ' : 'Local plan: ') + (labels[status] || status) +
+          (de ? ' · Letzter Shelly-Abgleich: ' : ' · Last Shelly sync: ') + (lastSync ? new Date(lastSync * 1000).toLocaleString() : '—') +
+          (de ? ' · Ereignisse: ' : ' · Events: ') + (Number(data['irrigation.plan.queuedEvents']) || 0);
+      }
+
       // Header Flood status is global and must update on every page.
       updateFloodHeader(data);
 

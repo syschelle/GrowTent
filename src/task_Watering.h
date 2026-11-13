@@ -10,7 +10,7 @@ static bool irrigationDelayInterruptible(uint32_t durationMs) {
   const uint32_t startedAt = millis();
 
   while ((uint32_t)(millis() - startedAt) < durationMs) {
-    if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+    if (settings.grow.currentPhase == 3 || irrigationStopRequested || irrigation.irrigationRuns <= 0) {
       return false;
     }
 
@@ -22,10 +22,11 @@ static bool irrigationDelayInterruptible(uint32_t durationMs) {
     vTaskDelay(pdMS_TO_TICKS(sliceMs));
   }
 
-  return !(irrigationStopRequested || irrigation.irrigationRuns <= 0);
+  return !(settings.grow.currentPhase == 3 || irrigationStopRequested || irrigation.irrigationRuns <= 0);
 }
 
 static void acknowledgeIrrigationStop() {
+  irrigationPlanCycleFinished(false);
   stopAllIrrigationPumps();
   irrigationStartNotifyPending = false;
   irrigation.irrigationRuns = 0;
@@ -88,6 +89,7 @@ void taskWatering(void *parameter) {
     }
 
     if (activeRelayCount < 8) {
+      irrigationPlanCycleFinished(false);
       logPrint("[IRRIGATION] Aborted: irrigation requires 8 relays.");
       irrigationStartNotifyPending = false;
       irrigation.irrigationRuns = 0;
@@ -96,9 +98,12 @@ void taskWatering(void *parameter) {
       continue;
     }
 
+    if (settings.grow.currentPhase == 3) { acknowledgeIrrigationStop(); continue; }
+
     const size_t activePumpCount = enabledIrrigationPumpCount();
 
     if (activePumpCount == 0) {
+      irrigationPlanCycleFinished(false);
       logPrint("[IRRIGATION] Aborted: all irrigation pumps were disabled.");
       irrigationStartNotifyPending = false;
       irrigation.irrigationRuns = 0;
@@ -114,6 +119,7 @@ void taskWatering(void *parameter) {
       const bool startedViaApi = irrigationStartNotifyViaApi;
       irrigationStartNotifyPending = false;
 
+      if (!irrigationPlanOwnsCycle()) {
       if (language == "de") {
         if (startedViaApi) {
           sendPushover(
@@ -148,9 +154,11 @@ void taskWatering(void *parameter) {
         );
       }
 
+      }
+
       // A Flood alarm or dashboard/API stop may have arrived while notification
       // network I/O was in progress. Re-check before the first pump can start.
-      if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+      if (settings.grow.currentPhase == 3 || irrigationStopRequested || irrigation.irrigationRuns <= 0) {
         acknowledgeIrrigationStop();
         continue;
       }
@@ -169,17 +177,19 @@ void taskWatering(void *parameter) {
 
       const int relayIndex = IRRIGATION_PUMP_RELAY_INDEX[pump];
 
-      if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+      if (settings.grow.currentPhase == 3 || irrigationStopRequested || irrigation.irrigationRuns <= 0) {
         break;
       }
 
       setRelay(relayIndex, true);
+      if (!isRelayOn(relayIndex)) { requestIrrigationStop("pump_on_verify_failed"); irrigationPlanCycleFinished(false); break; }
 
       const bool pulseCompleted = irrigationDelayInterruptible(
         secondsToMilliseconds(irrigation.timePerTask)
       );
 
       setRelay(relayIndex, false);
+      if (isRelayOn(relayIndex)) { requestIrrigationStop("pump_off_verify_failed"); irrigationPlanCycleFinished(false); break; }
 
       if (!pulseCompleted) {
         break;
@@ -195,7 +205,7 @@ void taskWatering(void *parameter) {
       }
     }
 
-    if (irrigationStopRequested || irrigation.irrigationRuns <= 0) {
+    if (settings.grow.currentPhase == 3 || irrigationStopRequested || irrigation.irrigationRuns <= 0) {
       acknowledgeIrrigationStop();
       continue;
     }
@@ -207,12 +217,17 @@ void taskWatering(void *parameter) {
     if (irrigation.irrigationRuns <= 0) {
       irrigation.wTimeLeft = "00:00";
 
+      const bool managedCycle = irrigationPlanOwnsCycle();
+      irrigationPlanCycleFinished(true);
+      if (!managedCycle) {
       if (language == "de") {
         sendPushover(boxName + "Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
         sendGotify(boxName + "Bewässerung abgeschlossen.", "Bewässerung abgeschlossen.");
       } else {
         sendPushover(boxName + "Irrigation completed.", "Irrigation completed.");
         sendGotify(boxName + "Irrigation completed.", "Irrigation completed.");
+      }
+
       }
 
       vTaskDelay(pdMS_TO_TICKS(1000));

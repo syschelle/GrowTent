@@ -318,7 +318,16 @@ static String g_relay_schen_7() { return jBool(false); }
 static String g_relay_schst_7() { return String("null"); }
 static String g_relay_schen_7_end() { return String("null"); }
 
+static String g_localplan_enabled() { return irrigationPlanStatusField("enabled"); }
+static String g_localplan_status() { return irrigationPlanStatusField("status"); }
+static String g_localplan_sync() { return irrigationPlanStatusField("lastScheduleSync"); }
+static String g_localplan_events() { return irrigationPlanStatusField("queuedEvents"); }
+
 const VarItem VARS[] = {
+  {"irrigation.plan.enabled", g_localplan_enabled, false, "irrigation"},
+  {"irrigation.plan.status", g_localplan_status, false, "irrigation"},
+  {"irrigation.plan.lastScheduleSync", g_localplan_sync, false, "irrigation"},
+  {"irrigation.plan.queuedEvents", g_localplan_events, false, "irrigation"},
   {"api.version", g_apiVersion, false, "api"},
   {"debug.buildTag", g_buildTag, false, "debug"},
   // --- system ---

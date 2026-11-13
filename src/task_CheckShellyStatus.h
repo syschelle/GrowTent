@@ -98,6 +98,8 @@ void taskShellyStatus(void *parameter){
       continue;
     }
 
+    irrigationPlanRefreshShelly(false);
+
     // Poll exactly one Shelly per step instead of all configured devices back-to-back.
     // This keeps an unreachable device from creating a multi-second burst of
     // consecutive network timeouts that can make the web UI feel unresponsive.
