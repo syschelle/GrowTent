@@ -6,6 +6,10 @@
 using namespace gtplan;
 int main(){
   const int d=civilDay(2026,11,13);
+  assert(historyDateAllowed(-1,-1,d));assert(historyDateAllowed(-1,d-3,d));
+  assert(historyDateAllowed(d-2,d-2,d));assert(historyDateAllowed(d-2,d,d));
+  assert(!historyDateAllowed(d-2,-1,d));assert(!historyDateAllowed(d-2,d-3,d));
+  assert(!historyDateAllowed(-1,d+1,d));assert(!historyDateAllowed(d-2,d+1,d));
   assert(civilDay(2026,11,14)==d+1);assert(civilDay(2024,3,1)-civilDay(2024,2,28)==2);
   assert(intervalDue(d,d-3,3));assert(!intervalDue(d,d-2,3));assert(!intervalDue(d,d,1));
   const int64_t due=1800000000;

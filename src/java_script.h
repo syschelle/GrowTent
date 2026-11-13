@@ -65,6 +65,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "plan.enabled": { de: "Bewässerungsplan aktivieren", en: "Enable irrigation plan" },
   "plan.days": { de: "Alle X Tage bewässern", en: "Water every X days" },
   "plan.delay": { de: "Verzögerung nach Licht-an im Shelly-Scheduler (Minuten)", en: "Delay after light-on in the Shelly scheduler (minutes)" },
+  "plan.historyHint": { de: "Wenn im ESP noch kein Datum gespeichert ist, letzten bekannten Termin aus dem Backend übernehmen. Nicht schätzen.", en: "If no date is stored on the ESP, transfer the last known date from the backend. Do not guess." },
+  "plan.dateInvalid": { de: "Datum ungültig: kein zukünftiger Termin; gespeicherte Bewässerung nicht zurückdatieren oder löschen.", en: "Invalid date: no future dates; stored watering history cannot be moved back or cleared." },
   "plan.last": { de: "Letzte Bewässerung", en: "Last watering" },
   "plan.hint": { de: "Trocknung sperrt die Bewässerung automatisch. Der Plan wird separat gespeichert. Bei Aktivierung darf das Backend keinen eigenen Zeitplan mehr ausführen.", en: "Drying automatically blocks watering. Save this plan separately. When enabled, the backend must stop running its own schedule." },
   "plan.save": { de: "Plan speichern", en: "Save plan" },
@@ -1865,9 +1867,13 @@ async function startNewGrow(){
       editor.dataset.revision = state['irrigation.plan.revision'];
     }
     const last = state['irrigation.plan.lastRunDate'];
-    const date = typeof last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(last) ? new Date(`${last}T12:00:00`) : null;
-    document.getElementById('localPlanLast').textContent = date && !Number.isNaN(date.getTime())
-      ? date.toLocaleDateString(currentLang === 'de' ? 'de-DE' : 'en-US') : trKey('plan.never', 'Noch keine Bewässerung erfasst');
+    const dateInput = document.getElementById('localPlanLast');
+    const iso = typeof last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(last) ? last : '';
+    const today = new Date();
+    const max = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    dateInput.min = iso;
+    dateInput.max = max;
+    if (!localPlanDirty && !localPlanSaving) dateInput.value = iso;
   }
   function localPlanMessage(key, fallback) {
     const el = document.getElementById('localPlanSaveStatus');
@@ -1880,14 +1886,19 @@ async function startNewGrow(){
     if (!Number.isInteger(days) || days < 1 || days > 366 || !Number.isInteger(delay) || delay < 0 || delay > 1440) {
       localPlanMessage('plan.invalid', 'Ungültige Eingaben'); return;
     }
-    const payload = {expected_revision: Number(document.getElementById('localPlanEditor').dataset.revision),
+    const lastInput = document.getElementById('localPlanLast');
+    const lastDate = lastInput.value;
+    if ((lastDate && (!/^\d{4}-\d{2}-\d{2}$/.test(lastDate) || lastDate > lastInput.max || lastInput.min && lastDate < lastInput.min)) || (!lastDate && lastInput.min)) {
+      localPlanMessage('plan.dateInvalid', 'Ungültiges Datum'); return;
+    }
+    const payload = {last_run_date: lastDate || null, expected_revision: Number(document.getElementById('localPlanEditor').dataset.revision),
       enabled: document.getElementById('localPlanEnabled').checked, every_n_days: days, offset_after_light_on_min: delay};
     localPlanSaving = true; renderLocalPlanEditor(); localPlanMessage('plan.saving', 'Plan wird gespeichert …');
     try {
       const res = await fetch('/api/settings/irrigation-plan', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
       const result = await res.json();
       if (!res.ok || !result.ok) {
-        const key = result.error === 'revision_conflict' ? 'plan.conflict' : result.error === 'time_not_synchronized' ? 'plan.clock' : result.error === 'watering_running' ? 'plan.running' : 'plan.failed';
+        const key = result.error === 'invalid_last_run_date' ? 'plan.dateInvalid' : result.error === 'revision_conflict' ? 'plan.conflict' : result.error === 'time_not_synchronized' ? 'plan.clock' : result.error === 'watering_running' ? 'plan.running' : 'plan.failed';
         localPlanMessage(key, result.error || 'Speichern fehlgeschlagen'); return;
       }
       const deadline = Date.now() + 15000;

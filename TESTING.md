@@ -1,4 +1,4 @@
-# Testing — v0.5.6
+# Testing — v0.5.7
 
 ## Local plan status UI
 
@@ -30,3 +30,7 @@ No backend code was changed; end-to-end event ingestion and push delivery cannot
 ## v0.5.6 editor coverage
 
 `node tests/test_local_plan_editor.mjs` exercises the shipped renderer/save functions with a mock DOM/HTTP transport: history display, no synthetic date, unsaved edits, revision conflicts, invalid bounds, persistence acknowledgement, stale polling responses, language and network errors. Contract checks cover queue/auth separation and absence of flash writes in Async callbacks. Full board builds and schedule parser tests run in CI. Hardware/reboot, simultaneous real backend writes and browser checks remain OPEN.
+
+## v0.5.7 date/layout coverage
+
+The editor test covers the native date input, unknown history, preserving unsaved dates, date bounds, full-width tile ordering, and confirmation/error states. The production C++ historyDateAllowed policy is tested for unknown, same-day, advancing, future, erased and backward history. Both request acceptance and main-loop apply use it. Hardware history import and restart checks remain OPEN.
