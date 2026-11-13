@@ -111,7 +111,8 @@ bool lpAuthenticate(AsyncWebServerRequest* r, String& key, String& nonce) {
   if(result==gtplan::ReplayWindow::Full)return fail(429,"nonce_cache_full");
   return true;
 }
-void lpNextRun(JsonDocument& doc) {
+// Caller holds lpMutex. Read-only projection shared by signed and dashboard state.
+const char* lpNextRun(int64_t& next) {
   const int64_t now=(int64_t)time(nullptr);const char* status="ready";
   if(!lpReady||lpFault)status="storage_error";
   else if(!lpEnabled.load())status="disabled";
@@ -123,12 +124,16 @@ void lpNextRun(JsonDocument& doc) {
   else if((activeRelayCount!=6&&activeRelayCount!=8)||enabledIrrigationPumpCount()==0)status="no_pumps";
   else if(irrigation.timePerTask<=0||irrigation.betweenTasks<=0||!isfinite(irrigation.amountOfWater)||irrigation.amountOfWater<=0||!isfinite(irrigation.amount)||irrigation.amount<=0)status="invalid_configuration";
   else if(lpState["last_schedule_sync"].as<int64_t>()==0)status="waiting_for_shelly";
-  int64_t next=0;
+  next=0;
   if(!strcmp(status,"ready")){
     int on[7];for(int i=0;i<7;++i)on[i]=lpState["light_on_minutes"][i]|-1;
     next=gtplan::nextOccurrence(now,lpState["last_run_day"].as<int>(),lpState["every_n_days"].as<int>(),lpState["last_handled_day"].as<int>(),on,lpState["offset_after_light_on_min"].as<int>());
     status=!next?"no_schedule":lpState["schedule_stale"].as<bool>()?"stale_shelly":"ready";
   }
+  return status;
+}
+void lpNextRun(JsonDocument& doc){
+  int64_t next=0;const char* status=lpNextRun(next);
   if(next)doc["next_run_at"]=next;else doc["next_run_at"]=nullptr;
   doc["next_run_status"]=status;
 }
@@ -259,6 +264,12 @@ bool lpParseLight(const String& body,int generation,int (&minutes)[7],int (&off)
 }
 String irrigationPlanStatusField(const char* key){
   LpLock guard;if(!guard.held)return "null";
+  if(!strcmp(key,"nextRunAt")||!strcmp(key,"nextRunStatus")){
+    int64_t next=0;const char* status=lpNextRun(next);
+    if(!strcmp(key,"nextRunStatus"))return String("\"")+status+"\"";
+    if(!next)return "null";
+    char value[24];snprintf(value,sizeof(value),"%lld",(long long)next);return String(value);
+  }
   if(!strcmp(key,"enabled"))return lpEnabled.load()?"true":"false";
   for(const auto* field:{"revision","every_n_days","offset_after_light_on_min","last_run_date"}) {
     if(!strcmp(key,field)){String value;serializeJson(lpState[field],value);return value;}

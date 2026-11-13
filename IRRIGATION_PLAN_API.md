@@ -133,3 +133,7 @@ All full manual cycles now use the durable event stream and backend pushes, incl
 ## Next-run display (v0.5.12)
 
 Signed plan GET returns next_run_at (epoch seconds or null) and next_run_status. The ESP computes this read-only projection using its own local-calendar recurrence, handled dates, seven-day Shelly cache and elapsed offset, including midnight and DST. A missed occurrence outside the 60-second grace is skipped. Disabled/Drying/invalid clock/storage, active watering, full buffer, Flood, unavailable pumps/configuration or missing schedules return no timestamp and an explicit reason. A valid but stale cache may return a timestamp labelled stale_shelly. A future configuration, phase, safety or schedule change can change the forecast. Backend v0.355 displays these signed values without running its own scheduler or deriving a separate forecast.
+
+## Local next-run display (v0.5.13)
+
+/api/state adds irrigation.plan.nextRunAt (epoch seconds/null) and irrigation.plan.nextRunStatus (reason string). Both public dashboard metadata and signed plan output use the same pure projection. These fields grant no write authority. The local UI displays date/time in Europe/Berlin and marks unavailable/expired information.

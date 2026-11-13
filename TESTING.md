@@ -42,3 +42,7 @@ See IRRIGATION_PLAN_API.md for protocol v2 and signed idempotent manual starts. 
 ## v0.5.12 next-run projection
 
 Production policy tests cover daily/multi-day intervals, already handled dates, missed deadlines, weekly schedules, cross-midnight offsets and both Europe/Berlin DST transitions. Real-device timing/display verification remains open.
+
+## v0.5.13 local next-run UI
+
+Production JS tests cover the shared date/time output on settings/status, German/English reasons and unavailable data. Existing policy, parser, layout and firmware-build checks remain required. No live device/pump test is claimed.

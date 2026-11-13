@@ -13,7 +13,7 @@ const elements = Object.fromEntries(['localPlanEditor','localPlanEnabled','local
 const requests = [];
 let replies = [];
 class FixedDate extends Date { constructor(...args) { super(...(args.length ? args : ['2026-11-13T12:00:00Z'])); } }
-const ctx = vm.createContext({Date: FixedDate, document: {getElementById: id => elements[id]}, currentLang: 'de',
+const ctx = vm.createContext({window:{}, Date: FixedDate, document: {getElementById: id => elements[id]}, currentLang: 'de',
   trKey: (key, fallback) => dict[key]?.[ctx.currentLang] || fallback,
   setTimeout: fn => {fn();}, fetch: async (url, opts) => {
     requests.push({url,opts});

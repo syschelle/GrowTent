@@ -328,7 +328,12 @@ static String g_localplan_everyNDays() { return irrigationPlanStatusField("every
 static String g_localplan_offsetMinutes() { return irrigationPlanStatusField("offset_after_light_on_min"); }
 static String g_localplan_lastRunDate() { return irrigationPlanStatusField("last_run_date"); }
 
+static String g_localplan_nextAt() { return irrigationPlanStatusField("nextRunAt"); }
+static String g_localplan_nextStatus() { return irrigationPlanStatusField("nextRunStatus"); }
+
 const VarItem VARS[] = {
+  {"irrigation.plan.nextRunAt", g_localplan_nextAt, false, "irrigation"},
+  {"irrigation.plan.nextRunStatus", g_localplan_nextStatus, false, "irrigation"},
   {"irrigation.plan.revision", g_localplan_revision, false, "irrigation"},
   {"irrigation.plan.everyNDays", g_localplan_everyNDays, false, "irrigation"},
   {"irrigation.plan.offsetMinutes", g_localplan_offsetMinutes, false, "irrigation"},
