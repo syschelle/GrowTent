@@ -19,3 +19,9 @@ GET/POST `/api/settings/irrigation-plan` uses the same trusted-LAN dashboard bou
 ## v0.5.10 backend integration
 
 See IRRIGATION_PLAN_API.md for protocol v2 and signed idempotent manual starts. Command claims persist before starts; unknown expired commands cannot run. Full manual cycles use the backend event stream and require a valid clock and event capacity even with scheduling disabled. Real-device power-failure, pump/phase interlock and push integration validation remain OPEN.
+
+## v0.5.14 humidifier fan coupling
+
+The new local dashboard GET/POST `/api/settings/humidifier-fan` endpoint shares the existing trusted-LAN boundary and is not a backend HMAC route. JSON-only mutations validate a single relay field, exclude pumps and the active local heater, queue application to the main loop and verify NVS persistence before reporting applied. No Shelly credentials are exposed. Only successful, parsed ESP switch acknowledgements can start the fan timer; an unrecognized acknowledgement cannot turn it on. Responses from an old configuration and older concurrent commands are fenced out. Minutes schedules and manual relay actions cannot override the owned relay.
+
+The cache is refreshed at startup/assignment and hourly, including hourly retry after failures. A failed refresh retains a same-device last known duration and marks it stale. Changing the Shelly host/generation/credentials invalidates it. Unknown/disabled Auto-Off keeps the fan off. Active timers are not extended by cache refresh. Commands use a monotonic bounded deadline from HTTP request start. Reboot does not restore an active fan. Direct Shelly commands or timer edits between refreshes are outside this coupling; it is not a physical state mirror or hard real-time safety mechanism. Hardware validation remains open.

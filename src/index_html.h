@@ -673,6 +673,20 @@ const char* htmlPage = R"rawliteral(
         </div>
       </div>
 
+
+      <section class="runsettings-panel" id="humidifierFanPanel" style="margin-bottom:14px">
+        <h2 class="runsettings-panel-title" data-i18n="fan.title">Fan am Luftbefeuchter</h2>
+        <p data-i18n="fan.hint">Das ausgewählte Relais folgt den ESP-Schaltbefehlen für den Shelly-Luftbefeuchter. Seine Minutensteuerung pausiert während der Kopplung.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+          <label for="humidifierFanRelay" data-i18n="fan.relay">Fan-Relais</label>
+          <select id="humidifierFanRelay" style="width:170px" disabled><option value="0">—</option></select>
+          <button type="button" id="humidifierFanSave" data-i18n="fan.save" disabled>Kopplung speichern</button>
+          <output id="humidifierFanState" role="status" aria-live="polite">—</output>
+        </div>
+        <p data-i18n="fan.limit">Auto-Off wird beim Start und stündlich gelesen. Ohne gültigen aktivierten Timer bleibt der Fan aus. Direkte Änderungen am Shelly werden nicht sofort übernommen.</p>
+        <p id="humidifierFanMessage" role="status" aria-live="polite"></p>
+      </section>
+
       <div class="runsettings-panel runsettings-relay-panel relay-sched">
         <h2 class="runsettings-panel-title" data-i18n="runsetting.relayScheduling">ESP32 Relay Scheduling</h2>
         <p class="relay-sched-hint" data-i18n="runsetting.relay.minutesHint">Minutenformat: <b>0–59</b> (Minute innerhalb der Stunde).</p>

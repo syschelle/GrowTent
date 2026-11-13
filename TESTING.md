@@ -1,4 +1,4 @@
-# Testing — v0.5.10
+# Testing — v0.5.14
 
 ## Local plan status UI
 
@@ -46,3 +46,9 @@ Production policy tests cover daily/multi-day intervals, already handled dates, 
 ## v0.5.13 local next-run UI
 
 Production JS tests cover the shared date/time output on settings/status, German/English reasons and unavailable data. Existing policy, parser, layout and firmware-build checks remain required. No live device/pump test is claimed.
+
+## Humidifier fan coupling (v0.5.14)
+
+`python tests/test_humidifier_fan.py` exercises the production timer policy (failed commands, repeated ON, explicit OFF, disabled/unknown duration, late responses, hourly refresh, millis rollover and duration bounds) and integration boundaries. `node tests/test_humidifier_fan_ui.mjs` exercises the shipped editor: available relays, DE/EN status, dirty selection, confirmed/rejected saves, unavailable status and cached values. Existing irrigation policy/editor/UI checks remain required. CI builds the full firmware for this board.
+
+Hardware validation remains OPEN: authenticated Gen1/Gen2/Gen3 configuration responses, fan GPIO deadlines under network load, hourly cache refresh, unreachable Shelly with cached values, reboot/OTA, reassignment, timer changes and physical relay behavior. No hardware test or production installation is claimed.
