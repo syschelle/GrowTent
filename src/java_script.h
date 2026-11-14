@@ -22,6 +22,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   });
 
   addJSON('i18n', {
+  "shelly.column.function": {de:"Funktion",en:"Function"},
+  "shelly.lightPlan": {de:"Lichtzeitplan",en:"Light schedule"},
   "shelly.panel.main": {"de": "Hauptschalter", "en": "Main switch"},
   "shelly.panel.light": {"de": "Pflanzlicht", "en": "Grow light"},
   "shelly.panel.humidifier": {"de": "Luftbefeuchter", "en": "Humidifier"},

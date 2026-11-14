@@ -357,8 +357,55 @@ const char* htmlPage = R"rawliteral(
     <section id="shelly" class="page card shelly-settings-page">
       <h1 data-i18n="shelly.title">Shelly Einstellungen</h1>
       <form id="shellySettingsForm" onsubmit="event.preventDefault(); window.saveShellySettingsAll(event); return false;">
-        <section class="runsettings-panel shelly-auth-panel">
-      <h2 class="runsettings-panel-title" data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
+<section class="runsettings-panel shelly-devices-panel">
+<h2 class="runsettings-panel-title" data-i18n="status.shellyDevices">Shelly Geräte</h2>
+<div class="shelly-row-head" aria-hidden="true"><span data-i18n="shelly.column.function">Funktion</span><span data-i18n="shelly.shellyIP">Shelly IP-Adresse</span><span data-i18n="shelly.panel.generation">Erkannte Generation</span></div>
+<div class="shelly-device-row" data-shelly-role="main" role="group" aria-labelledby="shellyPanelMainSw">
+<div class="shelly-row-name"><label id="shellyPanelMainSw" for="shellyMainSwIP" data-i18n="shelly.panel.main">Hauptschalter</label></div>
+<div class="shelly-row-address"><input name="webShellyMainIP" id="shellyMainSwIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYMAINIP%"></div>
+<div class="shelly-row-generation"><span class="shelly-generation-label" data-i18n="shelly.panel.generation">Erkannte Generation</span><span class="shelly-generation-separator">: </span><strong class="shelly-gen-detected" id="shellyMainSwGenDetected">—</strong></div>
+</div>
+<div class="shelly-device-row" data-shelly-role="light" role="group" aria-labelledby="shellyPanelLight">
+<div class="shelly-row-name"><label id="shellyPanelLight" for="shellyLightIP" data-i18n="shelly.panel.light">Pflanzlicht</label></div>
+<div class="shelly-row-address"><input name="webShellyLightIP" id="shellyLightIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYLIGHTIP%"></div>
+<div class="shelly-row-generation"><span class="shelly-generation-label" data-i18n="shelly.panel.generation">Erkannte Generation</span><span class="shelly-generation-separator">: </span><strong class="shelly-gen-detected" id="shellyLightGenDetected">—</strong></div>
+</div>
+<div class="shelly-device-row" data-shelly-role="humidifier" role="group" aria-labelledby="shellyPanelHumidifier">
+<div class="shelly-row-name"><label id="shellyPanelHumidifier" for="shellyHumidifierIP" data-i18n="shelly.panel.humidifier">Luftbefeuchter</label></div>
+<div class="shelly-row-address"><input name="webShellyHumidifierIP" id="shellyHumidifierIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%"></div>
+<div class="shelly-row-generation"><span class="shelly-generation-label" data-i18n="shelly.panel.generation">Erkannte Generation</span><span class="shelly-generation-separator">: </span><strong class="shelly-gen-detected" id="shellyHumidifierGenDetected">—</strong></div>
+</div>
+<div class="shelly-device-row" data-shelly-role="heater" role="group" aria-labelledby="shellyPanelHeater">
+<div class="shelly-row-name"><label id="shellyPanelHeater" for="shellyHeaterIP" data-i18n="shelly.panel.heater">Heizung</label></div>
+<div class="shelly-row-address"><input name="webShellyHeaterIP" id="shellyHeaterIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATERIP%"></div>
+<div class="shelly-row-generation"><span class="shelly-generation-label" data-i18n="shelly.panel.generation">Erkannte Generation</span><span class="shelly-generation-separator">: </span><strong class="shelly-gen-detected" id="shellyHeaterGenDetected">—</strong></div>
+</div>
+<div class="shelly-device-row" data-shelly-role="fan" role="group" aria-labelledby="shellyPanelFan">
+<div class="shelly-row-name"><label id="shellyPanelFan" for="shellyFanIP" data-i18n="shelly.panel.fan">Lüfter</label></div>
+<div class="shelly-row-address"><input name="webShellyFanIP" id="shellyFanIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYFANIP%"></div>
+<div class="shelly-row-generation"><span class="shelly-generation-label" data-i18n="shelly.panel.generation">Erkannte Generation</span><span class="shelly-generation-separator">: </span><strong class="shelly-gen-detected" id="shellyFanGenDetected">—</strong></div>
+</div>
+<div class="shelly-device-row" data-shelly-role="exhaust" role="group" aria-labelledby="shellyPanelExhaust">
+<div class="shelly-row-name"><label id="shellyPanelExhaust" for="shellyExhaustIP" data-i18n="shelly.panel.exhaust">Abluft</label></div>
+<div class="shelly-row-address"><input name="webShellyExhaustIP" id="shellyExhaustIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYEXHAUSTIP%"></div>
+<div class="shelly-row-generation"><span class="shelly-generation-label" data-i18n="shelly.panel.generation">Erkannte Generation</span><span class="shelly-generation-separator">: </span><strong class="shelly-gen-detected" id="shellyExhaustGenDetected">—</strong></div>
+</div>
+<div class="shelly-device-row" data-shelly-role="heatmat" role="group" aria-labelledby="shellyPanelHeatMat">
+<div class="shelly-row-name"><label id="shellyPanelHeatMat" for="shellyHeatMatIP" data-i18n="shelly.panel.heatmat">Heizmatte</label><small data-i18n="shelly.heatMatMonitorOnly">Nur Monitoring; die Heizmatte wird vom GrowTent nicht geschaltet.</small></div>
+<div class="shelly-row-address"><input name="webShellyHeatMatIP" id="shellyHeatMatIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATMATIP%"></div>
+<div class="shelly-row-generation"><span class="shelly-generation-label" data-i18n="shelly.panel.generation">Erkannte Generation</span><span class="shelly-generation-separator">: </span><strong class="shelly-gen-detected" id="shellyHeatMatGenDetected">—</strong></div>
+</div>
+</section>
+<section class="runsettings-panel shelly-light-panel" aria-labelledby="shellyLightPlanHeading">
+<h2 id="shellyLightPlanHeading" class="runsettings-panel-title" data-i18n="shelly.lightPlan">Lichtzeitplan</h2>
+<div class="shelly-light-layout"><div class="shelly-light-fields"><div class="shelly-settings-field"><label for="shellyLightOnTime" data-i18n="shelly.panel.lightOn">Licht an</label><select name="webShellyLightOnTime" id="shellyLightOnTime" class="control-sm shelly-other"></select></div>
+<div class="shelly-settings-field"><label for="shellyLightDayHours" data-i18n="shelly.panel.lightHours">Leuchtdauer (Stunden)</label><select name="webShellyLightDayHours" id="shellyLightDayHours" class="control-sm shelly-other"></select></div>
+<div class="shelly-settings-field"><label for="shellyLightOffTime" data-i18n="shelly.panel.lightOff">Licht aus (berechnet)</label><input name="webShellyLightOffTime" id="shellyLightOffTime" class="control-sm shelly-other" type="text" readonly value="—"></div>
+</div>
+<button type="button" class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('light', this)">Schedule neu einlesen</button></div>
+</section>
+        <details class="runsettings-panel shelly-auth-panel">
+      <summary class="runsettings-panel-title" data-i18n="status.shellyAuth">Shelly Authentifizierung</summary>
 <div class="shelly-auth-grid">
       <div class="form-group shelly-settings-field">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
@@ -371,59 +418,9 @@ const char* htmlPage = R"rawliteral(
       </div>
 
 </div>
-</section>
-<div class="shelly-device-grid">
-<section class="runsettings-panel shelly-device-panel" data-shelly-role="main" aria-labelledby="shellyPanelMainSw">
-<h2 id="shellyPanelMainSw" class="runsettings-panel-title" data-i18n="shelly.panel.main">Hauptschalter</h2>
-<div class="shelly-settings-field"><label for="shellyMainSwIP" data-i18n="shelly.shellyIP">Shelly IP-Adresse:</label>
-<div class="shelly-device-address"><input name="webShellyMainIP" id="shellyMainSwIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYMAINIP%"></div></div>
-<p class="shelly-device-generation"><span data-i18n="shelly.panel.generation">Erkannte Generation</span>: <strong class="shelly-gen-detected" id="shellyMainSwGenDetected">—</strong></p>
-</section>
-<section class="runsettings-panel shelly-device-panel" data-shelly-role="light" aria-labelledby="shellyPanelLight">
-<h2 id="shellyPanelLight" class="runsettings-panel-title" data-i18n="shelly.panel.light">Pflanzlicht</h2>
-<div class="shelly-settings-field"><label for="shellyLightIP" data-i18n="shelly.shellyIP">Shelly IP-Adresse:</label>
-<div class="shelly-device-address"><input name="webShellyLightIP" id="shellyLightIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYLIGHTIP%"></div></div>
-<p class="shelly-device-generation"><span data-i18n="shelly.panel.generation">Erkannte Generation</span>: <strong class="shelly-gen-detected" id="shellyLightGenDetected">—</strong></p>
-<div class="shelly-light-fields"><div class="shelly-settings-field"><label for="shellyLightOnTime" data-i18n="shelly.panel.lightOn">Licht an</label><select name="webShellyLightOnTime" id="shellyLightOnTime" class="control-sm shelly-other"></select></div>
-<div class="shelly-settings-field"><label for="shellyLightDayHours" data-i18n="shelly.panel.lightHours">Leuchtdauer (Stunden)</label><select name="webShellyLightDayHours" id="shellyLightDayHours" class="control-sm shelly-other"></select></div>
-<div class="shelly-settings-field"><label for="shellyLightOffTime" data-i18n="shelly.panel.lightOff">Licht aus (berechnet)</label><input name="webShellyLightOffTime" id="shellyLightOffTime" class="control-sm shelly-other" type="text" readonly value="—"></div>
-</div>
-<button type="button" class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('light', this)">Schedule neu einlesen</button>
-</section>
-<section class="runsettings-panel shelly-device-panel" data-shelly-role="humidifier" aria-labelledby="shellyPanelHumidifier">
-<h2 id="shellyPanelHumidifier" class="runsettings-panel-title" data-i18n="shelly.panel.humidifier">Luftbefeuchter</h2>
-<div class="shelly-settings-field"><label for="shellyHumidifierIP" data-i18n="shelly.shellyIP">Shelly IP-Adresse:</label>
-<div class="shelly-device-address"><input name="webShellyHumidifierIP" id="shellyHumidifierIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHUMIDIFIERIP%"></div></div>
-<p class="shelly-device-generation"><span data-i18n="shelly.panel.generation">Erkannte Generation</span>: <strong class="shelly-gen-detected" id="shellyHumidifierGenDetected">—</strong></p>
-</section>
-<section class="runsettings-panel shelly-device-panel" data-shelly-role="heater" aria-labelledby="shellyPanelHeater">
-<h2 id="shellyPanelHeater" class="runsettings-panel-title" data-i18n="shelly.panel.heater">Heizung</h2>
-<div class="shelly-settings-field"><label for="shellyHeaterIP" data-i18n="shelly.shellyIP">Shelly IP-Adresse:</label>
-<div class="shelly-device-address"><input name="webShellyHeaterIP" id="shellyHeaterIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATERIP%"></div></div>
-<p class="shelly-device-generation"><span data-i18n="shelly.panel.generation">Erkannte Generation</span>: <strong class="shelly-gen-detected" id="shellyHeaterGenDetected">—</strong></p>
-</section>
-<section class="runsettings-panel shelly-device-panel" data-shelly-role="fan" aria-labelledby="shellyPanelFan">
-<h2 id="shellyPanelFan" class="runsettings-panel-title" data-i18n="shelly.panel.fan">Lüfter</h2>
-<div class="shelly-settings-field"><label for="shellyFanIP" data-i18n="shelly.shellyIP">Shelly IP-Adresse:</label>
-<div class="shelly-device-address"><input name="webShellyFanIP" id="shellyFanIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYFANIP%"></div></div>
-<p class="shelly-device-generation"><span data-i18n="shelly.panel.generation">Erkannte Generation</span>: <strong class="shelly-gen-detected" id="shellyFanGenDetected">—</strong></p>
-</section>
-<section class="runsettings-panel shelly-device-panel" data-shelly-role="exhaust" aria-labelledby="shellyPanelExhaust">
-<h2 id="shellyPanelExhaust" class="runsettings-panel-title" data-i18n="shelly.panel.exhaust">Abluft</h2>
-<div class="shelly-settings-field"><label for="shellyExhaustIP" data-i18n="shelly.shellyIP">Shelly IP-Adresse:</label>
-<div class="shelly-device-address"><input name="webShellyExhaustIP" id="shellyExhaustIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYEXHAUSTIP%"></div></div>
-<p class="shelly-device-generation"><span data-i18n="shelly.panel.generation">Erkannte Generation</span>: <strong class="shelly-gen-detected" id="shellyExhaustGenDetected">—</strong></p>
-</section>
-<section class="runsettings-panel shelly-device-panel" data-shelly-role="heatmat" aria-labelledby="shellyPanelHeatMat">
-<h2 id="shellyPanelHeatMat" class="runsettings-panel-title" data-i18n="shelly.panel.heatmat">Heizmatte</h2>
-<div class="shelly-settings-field"><label for="shellyHeatMatIP" data-i18n="shelly.shellyIP">Shelly IP-Adresse:</label>
-<div class="shelly-device-address"><input name="webShellyHeatMatIP" id="shellyHeatMatIP" class="control-sm shelly-ip" maxlength="15" type="text" inputmode="decimal" value="%SHELLYHEATMATIP%"></div></div>
-<p class="shelly-device-generation"><span data-i18n="shelly.panel.generation">Erkannte Generation</span>: <strong class="shelly-gen-detected" id="shellyHeatMatGenDetected">—</strong></p>
-<small data-i18n="shelly.heatMatMonitorOnly">Nur Monitoring; die Heizmatte wird vom GrowTent nicht geschaltet.</small>
-</section>
-</div>
-<section class="runsettings-panel shelly-flood-panel">
-      <h2 class="runsettings-panel-title" data-i18n="shelly.floodTitle">Flood S Gen4</h2>
+</details>
+<details class="runsettings-panel shelly-flood-panel">
+      <summary class="runsettings-panel-title" data-i18n="shelly.floodTitle">Flood S Gen4</summary>
       <div class="form-group">
         <label class="shelly-flood-toggle">
           <input name="webFloodEnabled" id="floodEnabled" type="checkbox" %FLOOD_ENABLED_CHECKED% onchange="updateFloodWebhookPreview()">
@@ -460,7 +457,7 @@ const char* htmlPage = R"rawliteral(
       </div>
 
 
-</section>
+</details>
 <div class="shelly-settings-actions"><button type="button" class="primary" id="saveshellysettingsBtn" data-i18n="settings.save" onclick="window.saveShellySettingsAll(event)">Speichern</button></div>
       </form>
     </section>
