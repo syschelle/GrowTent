@@ -9076,6 +9076,10 @@ static bool processOtaExclusivePlatformShutdown() {
     Serial.println("[OTA MAINT] application web server :8080 retained for OTA status");
   }
 
+  // OFF failures keep their retry requests armed; do not release runtime
+  // resources or allow OTA until every pump output is confirmed OFF.
+  if (!stopAllIrrigationPumps()) return true;
+
   // Application tasks self-delete at a safe point in their own loops. Do not
   // delete them externally while they might own a mutex or be inside HTTP code.
   if (!otaMaintenanceAllTasksStopped()) {
@@ -9131,9 +9135,12 @@ void loop() {
   }
   lastLoopEntryMs = loopNowMs;
 
-  // OTA queue is checked first. A real install may switch the entire
+  // Output OFF retries and the independent climate watchdog run before OTA.
+  // A real install may switch the entire
   // application into exclusive OTA mode; once requested, the normal runtime
   // performs no further controller/network/storage work until reboot.
+  processPumpAutoOff();
+  processClimateSafety();
   otaProcessQueue();
   humidifierFanTick(); // Force OFF before entering exclusive OTA mode.
   if (processOtaExclusivePlatformShutdown()) {
@@ -9157,6 +9164,8 @@ void loop() {
   processAsyncRelayActionApply();
   processAsyncRunProfileApply();
   processAsyncIrrigationConfigApply();
+  processClimateSafety();
+  processPumpAutoOff();
   processAsyncShellyActionApply();
   // Flood is applied before watering so an alarm wins a same-loop race.
   processAsyncFloodEventApply();

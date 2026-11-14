@@ -26,8 +26,8 @@ static bool irrigationDelayInterruptible(uint32_t durationMs) {
 }
 
 static void acknowledgeIrrigationStop() {
+  if (!stopAllIrrigationPumps()) return; // Keep stop request active until OFF succeeds.
   irrigationPlanCycleFinished(false);
-  stopAllIrrigationPumps();
   irrigationStartNotifyPending = false;
   irrigation.irrigationRuns = 0;
   irrigation.wTimeLeft = "00:00";
@@ -42,7 +42,7 @@ void taskWatering(void *parameter) {
     if (otaMaintenanceRequested()) {
       // Main-loop maintenance already forces all irrigation relays off before
       // the OTA worker is allowed to connect externally.
-      stopAllIrrigationPumps();
+      if (!stopAllIrrigationPumps()) { vTaskDelay(pdMS_TO_TICKS(10)); continue; }
       irrigation.irrigationRuns = 0;
       irrigation.wTimeLeft = "00:00";
       irrigationStartNotifyPending = false;

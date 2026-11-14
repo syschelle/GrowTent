@@ -20,6 +20,7 @@ jobs:
       - run: node tests/test_local_plan_ui.mjs
       - run: node tests/test_local_plan_editor.mjs
       - run: node tests/test_shelly_settings.mjs
+      - run: python tests/test_safety_runtime.py
       - run: python tests/test_humidifier_fan.py
       - run: node tests/test_humidifier_fan_ui.mjs
       - run: python tests/test_irrigation_plan.py

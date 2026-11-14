@@ -1,4 +1,4 @@
-# Testing — v0.5.20
+# Testing — v0.5.21
 
 ## Local plan status UI
 
@@ -76,3 +76,9 @@ The irrigation browser check measures the gaps after date inputs, before the dry
 ## v0.5.20 Push settings
 
 `node tests/test_push_settings_layout.cjs` renders production DE/EN fields at desktop/tablet/mobile widths and verifies permanent sections, associated labels, form membership, password masking, responsive alignment and no overflow. It executes the production submit listener with browser FormData and synthetic HTTP responses, checking provider flags/fields, status confirmation and recovery from save failure. No real notification is sent. Full firmware and existing checks remain required; live provider delivery and device validation remain open.
+
+## v0.5.21 pump shutdown and climate validity
+
+Run `python tests/test_safety_runtime.py`. It compiles the actual relay/pump/sample functions plus production climate_safety.cpp against fault-injecting GPIO/FreeRTOS/BME/WiFi stubs, with -Wall -Wextra -Werror. Cases: mutex timeout retains a due pulse; GPIO write refusal retains OFF retry; explicit stop arms an immediate retry; later successful OFF clears the timer; millis rollover; no/invalid/infinite/out-of-range-humidity measurements; sample recovery; 30-second expiry; heater ON denial and local OFF retry; fresh-operation silence, fault-only Shelly OFF requests/backoff, network outage and recovery. Wiring checks cover watering-stop/OTA confirmation, worker placement, registry null/freshness data and early independent safety ticks. CI builds both the new module and each board's existing production paths; S3 GPIO contract tests remain required.
+
+Live hardware checks remain OPEN: BME disconnection/recovery with local/Shelly heating and humidification; delay under actual network load; relay-lock contention and GPIO OFF feedback; OTA interlocks with active pumps; unreachable Shelly handling. Verify with disconnected loads first. Software GPIO readback is not mechanical relay or water-flow feedback. No TLS, VPD smoothing or Shelly-cache change is included in this release.
