@@ -20,12 +20,15 @@ jobs:
       - run: node tests/test_local_plan_ui.mjs
       - run: node tests/test_local_plan_editor.mjs
       - run: node tests/test_shelly_settings.mjs
+      - run: python tests/test_shelly_cache.py
+      - run: node tests/test_shelly_stale_ui.mjs
       - run: python tests/test_safety_runtime.py
       - run: python tests/test_humidifier_fan.py
       - run: node tests/test_humidifier_fan_ui.mjs
       - run: python tests/test_irrigation_plan.py
       - run: python -m platformio run -e nodemcu-32s
       - run: python tests/test_irrigation_schedule_parser.py .pio/libdeps/nodemcu-32s/ArduinoJson/src
+      - run: python tests/test_notification_payloads.py .pio/libdeps/nodemcu-32s/ArduinoJson/src
       - uses: actions/upload-artifact@v4
         with:
           name: firmware-test-build

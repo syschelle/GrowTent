@@ -1,4 +1,4 @@
-# Testing — v0.5.21
+# Testing — v0.5.22
 
 ## Local plan status UI
 
@@ -82,3 +82,9 @@ The irrigation browser check measures the gaps after date inputs, before the dry
 Run `python tests/test_safety_runtime.py`. It compiles the actual relay/pump/sample functions plus production climate_safety.cpp against fault-injecting GPIO/FreeRTOS/BME/WiFi stubs, with -Wall -Wextra -Werror. Cases: mutex timeout retains a due pulse; GPIO write refusal retains OFF retry; explicit stop arms an immediate retry; later successful OFF clears the timer; millis rollover; no/invalid/infinite/out-of-range-humidity measurements; sample recovery; 30-second expiry; heater ON denial and local OFF retry; fresh-operation silence, fault-only Shelly OFF requests/backoff, network outage and recovery. Wiring checks cover watering-stop/OTA confirmation, worker placement, registry null/freshness data and early independent safety ticks. CI builds both the new module and each board's existing production paths; S3 GPIO contract tests remain required.
 
 Live hardware checks remain OPEN: BME disconnection/recovery with local/Shelly heating and humidification; delay under actual network load; relay-lock contention and GPIO OFF feedback; OTA interlocks with active pumps; unreachable Shelly handling. Verify with disconnected loads first. Software GPIO readback is not mechanical relay or water-flow feedback. No TLS, VPD smoothing or Shelly-cache change is included in this release.
+
+## v0.5.22 Shelly status cache and push encoding
+
+Run `python tests/test_shelly_cache.py`, `node tests/test_shelly_stale_ui.mjs` and, after the board build, `python tests/test_notification_payloads.py .pio/libdeps/<environment>/ArduinoJson/src`. Cache tests compile production types/cache/publication/polling paths with platform/HTTP stubs: initial unknown, confirmed sample, immediate failure invalidation, 60-second expiry, command hints without renewed freshness, IP/credential/ABA changes during HTTP, out-of-order response fencing, generation discovery, empty slots, mutex failure, unchanged 30-second retry/backoff and rollover including a zero deadline. Production-source UI tests cover neutral unknown and true/false states for Gen1/2/3 in German/English. Push tests execute the real sendPushover/sendGotify functions against HTTP stubs, then independently decode the resulting form/query/JSON with Python, checking quotes, backslashes, CR/LF, tabs, all control bytes, UTF-8/emoji, empty values, priorities, disabled providers and log redaction. CI supplies the ArduinoJson version used by the actual board build.
+
+Existing v0.5.21 safety, irrigation/fan, S3 contracts and full firmware/layout checks remain required. Hardware/provider checks remain OPEN: unreachable device/backoff/recovery, in-flight settings edits, real UI/backend null handling and live provider delivery. No automated test contacts real controllers or providers.

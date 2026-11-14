@@ -903,8 +903,8 @@ window.triggerPump10s = function (relayNo) {
 function setShellyStateClass(el, isOn) {
   if (!el) return;
 
-  el.classList.remove('shelly-on', 'shelly-off');
-  el.classList.add(isOn ? 'shelly-on' : 'shelly-off');
+  el.classList.remove('shelly-on', 'shelly-off', 'shelly-unknown');
+  el.classList.add(isOn === true ? 'shelly-on' : isOn === false ? 'shelly-off' : 'shelly-unknown');
 }
 
 async function waitShellyActionApplied(requestId, timeoutMs = 45000) {
@@ -1748,9 +1748,9 @@ async function startNewGrow(){
         // by this dashboard. Keep the red/green ON/OFF status strip visible,
         // but leave it empty instead of showing misleading metric values.
         stateEl.style.display = 'flex';
-        stateEl.classList.toggle('shelly-on', !!status);
-        stateEl.classList.toggle('shelly-off', !status);
-        stateEl.innerHTML = hideMetrics ? '' : `
+        setShellyStateClass(stateEl,status);
+        const known = typeof status === 'boolean';
+        stateEl.innerHTML = !known ? (currentLang === 'de' ? 'Unbekannt' : 'Unknown') : hideMetrics ? '' : `
             <div>${p}</div>
             <div class="sub">${kwh} - ${eur}</div>
         `;

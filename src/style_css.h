@@ -490,6 +490,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
       opacity: 0.95;
     }
 
+    .shelly-unknown { background:#64748b; color:#fff; }
     .shelly-on {
       background-color: #28a745;
     }

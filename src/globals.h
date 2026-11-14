@@ -49,6 +49,9 @@ struct ShellySchedules {
 struct ShellyValues {
   bool  ok = false;
   bool  isOn = false;
+  bool  hasReading = false;
+  uint32_t sampledAtMs = 0;
+  uint32_t cacheEpoch = 0;
   float powerW = 0.0f;
   float energyWh = 0.0f;
 };
@@ -57,6 +60,7 @@ struct ShellyValues {
 struct ShellyDevice {
   String ip;
   int    gen  = 0;
+  uint32_t statusReadSequence = 0;
   float  energyOffsetWh = 0.0f; // baseline to show 0 at "new grow"
   ShellyValues values;
   ShellySchedules schedules;

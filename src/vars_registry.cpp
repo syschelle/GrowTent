@@ -1,6 +1,7 @@
 #include "vars_registry.h"
 #include "globals.h"
 #include "climate_safety.h"
+#include "shelly_cache.h"
 #include <esp_heap_caps.h>
 
 // These are defined in main.cpp (kept there intentionally)
@@ -201,6 +202,13 @@ static String g_irrigation_tank_level_percent() { return jNumOrNull(tankLevel, 0
 
 
 
+static String jShellyState(const ShellyDevice& device){const auto v=shellyCachedValues(device);return v.ok?jBool(v.isOn):String("null");}
+static String jShellyMetric(const ShellyDevice& device,int metric){
+  const auto v=shellyCachedValues(device);if(!v.ok)return String("null");
+  return metric==0?jNumOrNull(v.powerW,1):metric==1?jNumOrNull(v.energyWh,1):jNumOrNull(v.energyWh/1000.0f*powerPriceKwhEur,2);
+}
+static String jShellyAge(const ShellyDevice& device){const auto v=shellyCachedValues(device);return v.hasReading?String(uint32_t(millis()-v.sampledAtMs)):String("null");}
+
 // Shelly settings
 // For the main device we also show schedule & generation in one line
 static String g_sh_main_ip() { return jStr(settings.shelly.main.ip); }
@@ -208,60 +216,72 @@ static String g_sh_main_gen() { return jInt(settings.shelly.main.gen); }
 static String g_sh_main_on()  { return String("null"); }
 static String g_sh_main_off() { return String("null"); }
 static String g_sh_main_line(){ return jShellyLine(settings.shelly.main); }
-static String g_sh_main_isOn() { return jBool(shelly.main.values.isOn); }
-static String g_sh_main_Watt() { return jNumOrNull(shelly.main.values.powerW, 1); }
-static String g_sh_main_Wh() { return jNumOrNull(shelly.main.values.energyWh, 1); }
-static String g_sh_main_Cost() { return jNumOrNull((shelly.main.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+static String g_sh_main_fresh() { return jBool(shellyCachedValues(settings.shelly.main).ok); }
+static String g_sh_main_age() { return jShellyAge(settings.shelly.main); }
+static String g_sh_main_isOn() { return jShellyState(settings.shelly.main); }
+static String g_sh_main_Watt() { return jShellyMetric(settings.shelly.main,0); }
+static String g_sh_main_Wh() { return jShellyMetric(settings.shelly.main,1); }
+static String g_sh_main_Cost() { return jShellyMetric(settings.shelly.main,2); }
 // For the light devices we show schedule & generation in one line
 static String g_sh_light_ip()  { return jStr(settings.shelly.light.ip); }
 static String g_sh_light_gen() { return jInt(settings.shelly.light.gen); }
 static String g_sh_light_on()  { return jTimeOrNull(settings.shelly.light.schedules.days[0].onHour, settings.shelly.light.schedules.days[0].onMinute); }
 static String g_sh_light_off() { return jTimeOrNull(settings.shelly.light.schedules.days[0].offHour, settings.shelly.light.schedules.days[0].offMinute); }
 static String g_sh_light_line(){ return jShellyLine(settings.shelly.light); }
-static String g_sh_light_isOn() { return jBool(shelly.light.values.isOn); }
-static String g_sh_light_Watt() { return jNumOrNull(shelly.light.values.powerW, 1); } 
-static String g_sh_light_Wh() { return jNumOrNull(shelly.light.values.energyWh, 1); }
-static String g_sh_light_Cost() { return jNumOrNull((shelly.light.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+static String g_sh_light_fresh() { return jBool(shellyCachedValues(settings.shelly.light).ok); }
+static String g_sh_light_age() { return jShellyAge(settings.shelly.light); }
+static String g_sh_light_isOn() { return jShellyState(settings.shelly.light); }
+static String g_sh_light_Watt() { return jShellyMetric(settings.shelly.light,0); }
+static String g_sh_light_Wh() { return jShellyMetric(settings.shelly.light,1); }
+static String g_sh_light_Cost() { return jShellyMetric(settings.shelly.light,2); }
 // For the humidifier we don't have schedule info, so we show generation + IP in one line
 static String g_sh_hum_ip() { return jStr(settings.shelly.humidifier.ip); }
 static String g_sh_hum_gen() { return jInt(settings.shelly.humidifier.gen); }
 static String g_sh_hum_on()  { return String("null"); }
 static String g_sh_hum_off() { return String("null"); }
 static String g_sh_hum_line(){ return jShellyLine(settings.shelly.humidifier); }
-static String g_sh_hum_isOn() { return jBool(shelly.humidifier.values.isOn); }
-static String g_sh_hum_Watt() { return jNumOrNull(shelly.humidifier.values.powerW, 1); }
-static String g_sh_hum_Wh() { return jNumOrNull(shelly.humidifier.values.energyWh, 1); }
-static String g_sh_hum_Cost() { return jNumOrNull((shelly.humidifier.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+static String g_sh_hum_fresh() { return jBool(shellyCachedValues(settings.shelly.humidifier).ok); }
+static String g_sh_hum_age() { return jShellyAge(settings.shelly.humidifier); }
+static String g_sh_hum_isOn() { return jShellyState(settings.shelly.humidifier); }
+static String g_sh_hum_Watt() { return jShellyMetric(settings.shelly.humidifier,0); }
+static String g_sh_hum_Wh() { return jShellyMetric(settings.shelly.humidifier,1); }
+static String g_sh_hum_Cost() { return jShellyMetric(settings.shelly.humidifier,2); }
 // For the heater we also don't have schedule info, so we show generation + IP in one line
 static String g_sh_heater_ip() { return jStr(settings.shelly.heater.ip); }
 static String g_sh_heater_gen() { return jInt(settings.shelly.heater.gen); }
 static String g_sh_heater_on()  { return String("null"); } 
 static String g_sh_heater_off() { return String("null"); }
 static String g_sh_heater_line(){ return jShellyLine(settings.shelly.heater); }
-static String g_sh_heater_isOn() { return jBool(shelly.heater.values.isOn); }
-static String g_sh_heater_Watt() { return jNumOrNull(shelly.heater.values.powerW, 1); }
-static String g_sh_heater_Wh() { return jNumOrNull(shelly.heater.values.energyWh, 1); }
-static String g_sh_heater_Cost() { return jNumOrNull((shelly.heater.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+static String g_sh_heater_fresh() { return jBool(shellyCachedValues(settings.shelly.heater).ok); }
+static String g_sh_heater_age() { return jShellyAge(settings.shelly.heater); }
+static String g_sh_heater_isOn() { return jShellyState(settings.shelly.heater); }
+static String g_sh_heater_Watt() { return jShellyMetric(settings.shelly.heater,0); }
+static String g_sh_heater_Wh() { return jShellyMetric(settings.shelly.heater,1); }
+static String g_sh_heater_Cost() { return jShellyMetric(settings.shelly.heater,2); }
 // For the fan we also don't have schedule info, so we show generation + IP in one line
 static String g_sh_fan_ip() { return jStr(settings.shelly.fan.ip); }
 static String g_sh_fan_gen() { return jInt(settings.shelly.fan.gen); }
 static String g_sh_fan_on()  { return String("null"); }
 static String g_sh_fan_off() { return String("null"); }
 static String g_sh_fan_line(){ return jShellyLine(settings.shelly.fan); }
-static String g_sh_fan_isOn() { return jBool(shelly.fan.values.isOn); }
-static String g_sh_fan_Watt() { return jNumOrNull(shelly.fan.values.powerW, 1); }
-static String g_sh_fan_Wh() { return jNumOrNull(shelly.fan.values.energyWh, 1); }
-static String g_sh_fan_Cost() { return jNumOrNull((shelly.fan.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+static String g_sh_fan_fresh() { return jBool(shellyCachedValues(settings.shelly.fan).ok); }
+static String g_sh_fan_age() { return jShellyAge(settings.shelly.fan); }
+static String g_sh_fan_isOn() { return jShellyState(settings.shelly.fan); }
+static String g_sh_fan_Watt() { return jShellyMetric(settings.shelly.fan,0); }
+static String g_sh_fan_Wh() { return jShellyMetric(settings.shelly.fan,1); }
+static String g_sh_fan_Cost() { return jShellyMetric(settings.shelly.fan,2); }
 // For the exhaust we also don't have schedule info, so we show generation + IP in one line
 static String g_sh_exhaust_ip() { return jStr(settings.shelly.exhaust.ip); }
 static String g_sh_exhaust_gen() { return jInt(settings.shelly.exhaust.gen); }
 static String g_sh_exhaust_on()  { return String("null"); }
 static String g_sh_exhaust_off() { return String("null"); }
 static String g_sh_exhaust_line(){ return jShellyLine(settings.shelly.exhaust); }
-static String g_sh_exhaust_isOn() { return jBool(shelly.exhaust.values.isOn); }
-static String g_sh_exhaust_Watt() { return jNumOrNull(shelly.exhaust.values.powerW, 1); }
-static String g_sh_exhaust_Wh() { return jNumOrNull(shelly.exhaust.values.energyWh, 1); }
-static String g_sh_exhaust_Cost() { return jNumOrNull((shelly.exhaust.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+static String g_sh_exhaust_fresh() { return jBool(shellyCachedValues(settings.shelly.exhaust).ok); }
+static String g_sh_exhaust_age() { return jShellyAge(settings.shelly.exhaust); }
+static String g_sh_exhaust_isOn() { return jShellyState(settings.shelly.exhaust); }
+static String g_sh_exhaust_Watt() { return jShellyMetric(settings.shelly.exhaust,0); }
+static String g_sh_exhaust_Wh() { return jShellyMetric(settings.shelly.exhaust,1); }
+static String g_sh_exhaust_Cost() { return jShellyMetric(settings.shelly.exhaust,2); }
 // Heating mat: monitoring only, no ON/OFF control or schedule is exposed.
 static String g_sh_heatmat_ip() { return jStr(settings.shelly.heatmat.ip); }
 static String g_sh_heatmat_gen() { return jInt(settings.shelly.heatmat.gen); }
@@ -271,10 +291,12 @@ static String g_sh_heatmat_line() {
   line += String(settings.shelly.heatmat.gen);
   return jStr(line);
 }
-static String g_sh_heatmat_isOn() { return jBool(shelly.heatmat.values.isOn); }
-static String g_sh_heatmat_Watt() { return jNumOrNull(shelly.heatmat.values.powerW, 1); }
-static String g_sh_heatmat_Wh() { return jNumOrNull(shelly.heatmat.values.energyWh, 1); }
-static String g_sh_heatmat_Cost() { return jNumOrNull((shelly.heatmat.values.energyWh / 1000.0f) * powerPriceKwhEur, 2); }
+static String g_sh_heatmat_fresh() { return jBool(shellyCachedValues(settings.shelly.heatmat).ok); }
+static String g_sh_heatmat_age() { return jShellyAge(settings.shelly.heatmat); }
+static String g_sh_heatmat_isOn() { return jShellyState(settings.shelly.heatmat); }
+static String g_sh_heatmat_Watt() { return jShellyMetric(settings.shelly.heatmat,0); }
+static String g_sh_heatmat_Wh() { return jShellyMetric(settings.shelly.heatmat,1); }
+static String g_sh_heatmat_Cost() { return jShellyMetric(settings.shelly.heatmat,2); }
 // For username/password we always return masked value
 static String g_sh_user() { return jStr(settings.shelly.username); }
 static String g_sh_pass() { return jMasked(); }
@@ -426,6 +448,8 @@ const VarItem VARS[] = {
   {"settings.shelly.main.on",  g_sh_main_on,  false, "settings.shelly"},
   {"settings.shelly.main.off", g_sh_main_off, false, "settings.shelly"},
   {"settings.shelly.main.line", g_sh_main_line, false, "settings.shelly"},
+  {"cur.shelly.main.fresh", g_sh_main_fresh, false, "settings.shelly"},
+  {"cur.shelly.main.ageMs", g_sh_main_age, false, "settings.shelly"},
   {"cur.shelly.main.isOn", g_sh_main_isOn, false, "settings.shelly"},
   {"cur.shelly.main.Watt", g_sh_main_Watt, false, "settings.shelly"},
   {"cur.shelly.main.Wh", g_sh_main_Wh, false, "settings.shelly"},
@@ -435,6 +459,8 @@ const VarItem VARS[] = {
   {"settings.shelly.light.on",  g_sh_light_on,  false, "settings.shelly"},
   {"settings.shelly.light.off", g_sh_light_off, false, "settings.shelly"},
   {"settings.shelly.light.line", g_sh_light_line, false, "settings.shelly"},
+  {"cur.shelly.light.fresh", g_sh_light_fresh, false, "settings.shelly"},
+  {"cur.shelly.light.ageMs", g_sh_light_age, false, "settings.shelly"},
   {"cur.shelly.light.isOn", g_sh_light_isOn, false, "settings.shelly"},
   {"cur.shelly.light.Watt", g_sh_light_Watt, false, "settings.shelly"},
   {"cur.shelly.light.Wh", g_sh_light_Wh, false, "settings.shelly"},
@@ -444,6 +470,8 @@ const VarItem VARS[] = {
   {"settings.shelly.humidifier.on",  g_sh_hum_on,  false, "settings.shelly"},
   {"settings.shelly.humidifier.off", g_sh_hum_off, false, "settings.shelly"},
   {"settings.shelly.humidifier.line", g_sh_hum_line, false, "settings.shelly"},
+  {"cur.shelly.humidifier.fresh", g_sh_hum_fresh, false, "settings.shelly"},
+  {"cur.shelly.humidifier.ageMs", g_sh_hum_age, false, "settings.shelly"},
   {"cur.shelly.humidifier.isOn", g_sh_hum_isOn, false, "settings.shelly"},
   {"cur.shelly.humidifier.Watt", g_sh_hum_Watt, false, "settings.shelly"},
   {"cur.shelly.humidifier.Wh", g_sh_hum_Wh, false, "settings.shelly"},
@@ -453,6 +481,8 @@ const VarItem VARS[] = {
   {"settings.shelly.heater.on",  g_sh_heater_on,  false, "settings.shelly"},
   {"settings.shelly.heater.off", g_sh_heater_off, false, "settings.shelly"},
   {"settings.shelly.heater.line", g_sh_heater_line, false, "settings.shelly"},
+  {"cur.shelly.heater.fresh", g_sh_heater_fresh, false, "settings.shelly"},
+  {"cur.shelly.heater.ageMs", g_sh_heater_age, false, "settings.shelly"},
   {"cur.shelly.heater.isOn", g_sh_heater_isOn, false, "settings.shelly"},
   {"cur.shelly.heater.Watt", g_sh_heater_Watt, false, "settings.shelly"},
   {"cur.shelly.heater.Wh", g_sh_heater_Wh, false, "settings.shelly"},
@@ -462,6 +492,8 @@ const VarItem VARS[] = {
   {"settings.shelly.fan.on",  g_sh_fan_on,  false, "settings.shelly"},
   {"settings.shelly.fan.off", g_sh_fan_off, false, "settings.shelly"},
   {"settings.shelly.fan.line", g_sh_fan_line, false, "settings.shelly"},
+  {"cur.shelly.fan.fresh", g_sh_fan_fresh, false, "settings.shelly"},
+  {"cur.shelly.fan.ageMs", g_sh_fan_age, false, "settings.shelly"},
   {"cur.shelly.fan.isOn", g_sh_fan_isOn, false, "settings.shelly"},
   {"cur.shelly.fan.Watt", g_sh_fan_Watt, false, "settings.shelly"},
   {"cur.shelly.fan.Wh", g_sh_fan_Wh, false, "settings.shelly"},
@@ -471,6 +503,8 @@ const VarItem VARS[] = {
   {"settings.shelly.exhaust.on",  g_sh_exhaust_on,  false, "settings.shelly"},
   {"settings.shelly.exhaust.off", g_sh_exhaust_off, false, "settings.shelly"},
   {"settings.shelly.exhaust.line", g_sh_exhaust_line, false, "settings.shelly"},
+  {"cur.shelly.exhaust.fresh", g_sh_exhaust_fresh, false, "settings.shelly"},
+  {"cur.shelly.exhaust.ageMs", g_sh_exhaust_age, false, "settings.shelly"},
   {"cur.shelly.exhaust.isOn", g_sh_exhaust_isOn, false, "settings.shelly"},
   {"cur.shelly.exhaust.Watt", g_sh_exhaust_Watt, false, "settings.shelly"},
   {"cur.shelly.exhaust.Wh", g_sh_exhaust_Wh, false, "settings.shelly"},
@@ -478,6 +512,8 @@ const VarItem VARS[] = {
   {"settings.shelly.heatmat.ip", g_sh_heatmat_ip, false, "settings.shelly"},
   {"settings.shelly.heatmat.gen", g_sh_heatmat_gen, false, "settings.shelly"},
   {"settings.shelly.heatmat.line", g_sh_heatmat_line, false, "settings.shelly"},
+  {"cur.shelly.heatmat.fresh", g_sh_heatmat_fresh, false, "settings.shelly"},
+  {"cur.shelly.heatmat.ageMs", g_sh_heatmat_age, false, "settings.shelly"},
   {"cur.shelly.heatmat.isOn", g_sh_heatmat_isOn, false, "settings.shelly"},
   {"cur.shelly.heatmat.Watt", g_sh_heatmat_Watt, false, "settings.shelly"},
   {"cur.shelly.heatmat.Wh", g_sh_heatmat_Wh, false, "settings.shelly"},
