@@ -21,7 +21,7 @@ const fs=require('fs');const vm=require('vm');const assert=require('node:assert/
  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#shelly details')].every(d=>!d.open)),'Advanced settings start collapsed');
  assert.ok(await page.evaluate(()=>!document.getElementById('shellyLightOnTime').closest('.shelly-devices-panel')),'Light schedule is separate from device rows');
  fs.mkdirSync('layout-previews',{recursive:true});
- for(const lang of ['de','en'])for(const width of [1640,1000,390]){
+ for(const lang of ['de','en'])for(const width of [1640,1000,800,390]){
   await page.setViewportSize({width,height:1000});await page.evaluate(({dict,lang})=>{document.documentElement.lang=lang;document.querySelectorAll('#shelly [data-i18n]').forEach(el=>{const text=dict[el.dataset.i18n]?.[lang];if(text!==undefined){if(el.dataset.i18nAttr)el.setAttribute(el.dataset.i18nAttr,text);else el.textContent=text;}});},{dict,lang});
   await page.waitForTimeout(350);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Page overflow '+lang+' '+width);

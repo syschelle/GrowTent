@@ -1293,7 +1293,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .shelly-settings-page .shelly-flood-panel button { width:auto; flex:0 0 auto; min-width:120px; }
 .shelly-settings-actions { display:flex; justify-content:flex-end; }
 .shelly-settings-page .shelly-settings-actions button { width:auto; min-width:160px; }
-@media(max-width:760px) {
+@media(max-width:900px) {
  .shelly-row-head { display:none; }
  .shelly-device-row { grid-template-columns:minmax(0,1fr); gap:6px; padding:12px 0; }
  .shelly-generation-label,.shelly-generation-separator { display:inline; }
