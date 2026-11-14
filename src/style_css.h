@@ -1301,6 +1301,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
 }
 
 /* Push settings: two permanent provider sections with compact field rows. */
+.push-settings-page h1 { min-width:0; max-width:100%; overflow-wrap:anywhere; }
 .push-settings-panel-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 18px; }
 .push-settings-panel-head h2 { margin:0; font-size:inherit; font-weight:inherit; color:inherit; opacity:1; }
 .push-settings-panel-head .push-settings-toggle { display:inline-flex; align-items:center; gap:8px; margin:0; color:inherit; font-size:.9rem; cursor:pointer; }

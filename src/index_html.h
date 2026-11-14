@@ -749,7 +749,7 @@ const char* htmlPage = R"rawliteral(
     <!-- runsettings section -->
     <!-- Push settings -->
     <section id="message" class="page card push-settings-page">
-      <h1 data-i18n="message.title">Nachrichteneinstellungen</h1>
+      <h1 data-i18n="message.title">Push-Einstellungen</h1>
       <form action="/savemessagesettings" method="POST" id="messageSettingsForm">
 <section class="runsettings-panel push-settings-panel" data-push-provider="pushover" aria-labelledby="pushoverSettingsHeading">
 <div class="runsettings-panel-title push-settings-panel-head">
