@@ -19,6 +19,7 @@ jobs:
       - run: python -m pip install platformio==6.2.0
       - run: node tests/test_local_plan_ui.mjs
       - run: node tests/test_local_plan_editor.mjs
+      - run: node tests/test_shelly_settings.mjs
       - run: python tests/test_humidifier_fan.py
       - run: node tests/test_humidifier_fan_ui.mjs
       - run: python tests/test_irrigation_plan.py
@@ -42,6 +43,7 @@ jobs:
       - run: npm install --no-save --package-lock=false playwright@1.62.1
       - run: npx playwright install --with-deps chromium
       - run: node tests/test_irrigation_layout.cjs
+      - run: node tests/test_shelly_layout.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

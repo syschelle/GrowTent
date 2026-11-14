@@ -29,3 +29,7 @@ The cache is refreshed at startup/assignment and hourly, including hourly retry 
 ## v0.5.15 schedule UI lock
 
 The UI disables scheduling controls only for the confirmed fan relay and skips that row in the general save. This is a presentation constraint; existing firmware ownership enforcement remains authoritative. Failed status requests do not release the previous lock. No new API or authentication boundary is introduced.
+
+## v0.5.16 Shelly settings layout
+
+This release changes presentation, labels and form nesting only. Existing local dashboard access boundaries, write-only password handling, generation detection and Flood token rules remain in place. No credentials are introduced into screenshots or tests; all fixtures are synthetic.

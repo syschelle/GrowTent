@@ -22,6 +22,17 @@ const char jsContent[] PROGMEM = R"rawliteral(
   });
 
   addJSON('i18n', {
+  "shelly.panel.main": {"de": "Hauptschalter", "en": "Main switch"},
+  "shelly.panel.light": {"de": "Pflanzlicht", "en": "Grow light"},
+  "shelly.panel.humidifier": {"de": "Luftbefeuchter", "en": "Humidifier"},
+  "shelly.panel.heater": {"de": "Heizung", "en": "Heater"},
+  "shelly.panel.fan": {"de": "Lüfter", "en": "Fan"},
+  "shelly.panel.exhaust": {"de": "Abluft", "en": "Exhaust"},
+  "shelly.panel.heatmat": {"de": "Heizmatte", "en": "Heating mat"},
+  "shelly.panel.generation": {"de": "Erkannte Generation", "en": "Detected generation"},
+  "shelly.panel.lightOn": {"de": "Licht an", "en": "Light on"},
+  "shelly.panel.lightHours": {"de": "Leuchtdauer (Stunden)", "en": "Light duration (hours)"},
+  "shelly.panel.lightOff": {"de": "Licht aus (berechnet)", "en": "Light off (calculated)"},
 
   "fan.title": {de:"Fan am Luftbefeuchter", en:"Humidifier fan"},
   "fan.relay": {de:"Fan-Relais", en:"Fan relay"},
