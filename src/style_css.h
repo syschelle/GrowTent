@@ -1337,7 +1337,7 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .system-timezone-link { grid-column:2; width:fit-content; font-size:.85rem; overflow-wrap:anywhere; }
 .system-backend-fields { display:grid; grid-template-columns:minmax(160px,240px) minmax(0,1fr); gap:12px 24px; }
 .system-key-actions { display:flex; gap:8px; flex-wrap:wrap; }
-.system-settings-page .system-key-actions button { width:auto; margin:0; min-width:0; white-space:normal; }
+.system-settings-page .system-key-actions button { width:auto; margin:0; min-width:0; white-space:normal; background:var(--header); color:#fff; border:0; padding:8px 12px; }
 .system-settings-field small { font-size:.8rem; opacity:.75; overflow-wrap:anywhere; }
 .system-relay-fields { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px 16px; }
 .system-relay-fields .system-settings-field { margin:0; }
@@ -1345,14 +1345,14 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .system-settings-page .system-settings-actions button { width:auto; min-width:150px; }
 @media(max-width:1100px) {
  .system-settings-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
- .system-device-panel .system-settings-field:not(.checkbox),.system-time-panel .system-settings-field,.system-sensor-panel .system-settings-field:not(.checkbox) { display:flex; }
+ .system-device-panel .system-settings-field:not(.checkbox),.system-time-panel .system-settings-field,.system-sensor-panel .system-settings-field:not(.checkbox) { display:flex; align-items:stretch; text-align:left; }
  .system-appearance-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .system-timezone-link { grid-column:auto; }
 }
 @media(max-width:760px) {
  .system-settings-grid,.system-backend-fields { grid-template-columns:minmax(0,1fr); }
  .system-relay-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
- .system-settings-page h1 { overflow-wrap:anywhere; }
+ .system-settings-page h1 { overflow-wrap:anywhere; font-size:1.45rem; }
 }
 @media(max-width:420px) { .system-appearance-fields { grid-template-columns:minmax(0,1fr); } }
 )rawliteral";

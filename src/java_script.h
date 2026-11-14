@@ -301,6 +301,8 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "shelly.floodHint": { de: "Diese beiden URLs im Flood S Gen4 unter Actions hinterlegen. Der GrowTent-Controller pollt den Batteriesensor nicht.", en: "Configure these two URLs under Actions on the Flood S Gen4. The GrowTent controller does not poll the battery sensor." },
 
   /* -------------------- settings.* -------------------- */
+  "settings.relay5": { de: "Relaisname 5:", en: "Relay name 5:" },
+  "settings.relay6": { de: "Relaisname 6:", en: "Relay name 6:" },
   "settings.deviceGroup": { de: "Gerät", en: "Device" },
   "settings.appearanceGroup": { de: "Anzeige", en: "Display" },
   "settings.timeGroup": { de: "Zeit", en: "Time" },
@@ -315,7 +317,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "settings.title": { de: "Systemeinstellungen", en: "Settings" },
   "settings.debugEnabled": { de: "Debug aktivieren", en: "Enable debug" },
 
-  "settings.relayBoard": { de: "Welches Relay-Board?", en: "Which relay board?" },
+  "settings.relayBoard": { de: "Relais-Board", en: "Relay board" },
 
   "settings.boxName": { de: "Boxname:", en: "Box name:" },
   "settings.boxName.ph": { de: "z. B. Growtent-1", en: "e.g. Growtent-1" },
