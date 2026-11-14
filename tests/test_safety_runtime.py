@@ -94,8 +94,7 @@ uint32_t previousMillis=0,blinkInterval=1000,lastRead=0,READ_INTERVAL_MS=1000;
 constexpr float DEVICE_DISCONNECTED_C=-127;constexpr int STATUS_LED_PIN=2;
 void digitalWrite(int,bool){}
 bool getLocalTime(tm*){return false;}
-// The VPD algorithm is unchanged by this fix; this test isolates invalid-input publishing.
-float calcVPD(float t,float,float h){return t-h/100;}
+#include "vpd_calculation.h"
 """+smooth+prefix+r"""
 int main(){
  assert(!climateReadingsFresh()&&climateReadingAgeMs()==UINT32_MAX);assert(!strcmp(climateReadingStatus(),"unavailable"));
