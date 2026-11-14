@@ -425,7 +425,7 @@ const char* htmlPage = R"rawliteral(
 <section class="runsettings-panel shelly-flood-panel">
       <h2 class="runsettings-panel-title" data-i18n="shelly.floodTitle">Flood S Gen4</h2>
       <div class="form-group">
-        <label>
+        <label class="shelly-flood-toggle">
           <input name="webFloodEnabled" id="floodEnabled" type="checkbox" %FLOOD_ENABLED_CHECKED% onchange="updateFloodWebhookPreview()">
           <span data-i18n="shelly.floodEnabled">Flood S Gen4 Webhook aktivieren</span>
         </label>

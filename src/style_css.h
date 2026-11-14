@@ -1282,4 +1282,11 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .shelly-settings-actions { display:flex; justify-content:flex-end; }
 @media(max-width:1100px) { .shelly-device-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:700px) { .shelly-device-grid,.shelly-auth-grid { grid-template-columns:minmax(0,1fr); } .shelly-settings-page .shelly-ip { max-width:100%; } }
+
+.shelly-settings-page .shelly-light-fields { grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:0 12px; }
+.shelly-flood-panel .shelly-flood-toggle { display:flex; align-items:center; gap:8px; }
+.shelly-flood-panel #floodEnabled { width:auto; flex:0 0 auto; margin:0; }
+.shelly-settings-page .shelly-flood-panel button { width:auto; flex:0 0 auto; min-width:120px; }
+.shelly-settings-page .shelly-settings-actions button { width:auto; min-width:160px; }
+@media(max-width:700px) { .shelly-settings-page .shelly-light-fields { grid-template-columns:minmax(0,1fr); } }
 )rawliteral";
