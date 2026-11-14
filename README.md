@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.19.md`](RELEASE_NOTES_v0.5.19.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.20.md`](RELEASE_NOTES_v0.5.20.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -626,3 +626,7 @@ Shared credentials, seven device-role cards and Flood S Gen4 settings now use th
 Device function, IP and generation now form aligned rows. The light plan has its own section; credentials and Flood settings are always visible (v0.5.18). All settings still use the same save button.
 
 In v0.5.19, irrigation-plan status spacing is compact and the Auto-Off explanation is removed from the fan settings UI. Controller behavior remains unchanged; [HUMIDIFIER_FAN.md](HUMIDIFIER_FAN.md) retains the technical details.
+
+## Push settings layout (v0.5.20)
+
+Pushover and Gotify now have compact, permanently visible provider sections, header enable switches and responsive field rows. Existing save, test-notification and restart behavior remains unchanged.

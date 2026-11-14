@@ -1,4 +1,4 @@
-# Testing — v0.5.19
+# Testing — v0.5.20
 
 ## Local plan status UI
 
@@ -72,3 +72,7 @@ The Shelly layout test rejects details/summary controls, requires Authentication
 ## v0.5.19 compact operating settings
 
 The irrigation browser check measures the gaps after date inputs, before the drying note and before Save at 1640/1000/390px. It verifies the empty save-status row is hidden, nonempty feedback remains visible and the removed fan explanation is absent. Existing production plan/fan/save tests and full builds remain required. Device verification remains open.
+
+## v0.5.20 Push settings
+
+`node tests/test_push_settings_layout.cjs` renders production DE/EN fields at desktop/tablet/mobile widths and verifies permanent sections, associated labels, form membership, password masking, responsive alignment and no overflow. It executes the production submit listener with browser FormData and synthetic HTTP responses, checking provider flags/fields, status confirmation and recovery from save failure. No real notification is sent. Full firmware and existing checks remain required; live provider delivery and device validation remain open.

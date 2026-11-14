@@ -747,56 +747,39 @@ const char* htmlPage = R"rawliteral(
     </section>
 
     <!-- runsettings section -->
-    <form action="/savemessagesettings" method="POST" id="messageSettingsForm">
-    <section id="message" class="page card">
+    <!-- Push settings -->
+    <section id="message" class="page card push-settings-page">
       <h1 data-i18n="message.title">Nachrichteneinstellungen</h1>
-
-      <h2 data-i18n="message.pushoverSettings">Pushover Einstellungen</h2>
-
-      <div class="form-group checkbox">
-        <label class="inline-checkbox">
-         <input type="checkbox" name="webPushoverEnabled" id="webPushoverEnabled" %PUSHOVERENABLED%>
-         <span data-i18n="message.enabled">aktivieren</span>
-        </label>
-      </div>
-
-      <div class="form-group">
-        <label for="webPushoverUserKey" data-i18n="message.pushoverUserKey">Pushover Benutzer:</label>
-        <input name="webPushoverUserKey" id="webPushoverUserKey" type="password" autocomplete="new-password" data-i18n="message.pushoverUserKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERUSERKEY%">
-      </div>
-
-      <div class="form-group">
-        <label for="webPushoverAppKey" data-i18n="message.pushoverAppKey">Pushover Token:</label>
-        <input name="webPushoverAppKey" id="webPushoverAppKey" type="password" autocomplete="new-password" data-i18n="message.pushoverAppKey.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERAPPKEY%">
-      </div>
-
-      <div class="form-group">
-        <label for="webPushoverDevice" data-i18n="message.pushoverDevice">Pushover Gerät:</label>
-        <input name="webPushoverDevice" id="webPushoverDevice" type="text" data-i18n="message.pushoverDevice.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%PUSHOVERDEVICE%">
-      </div>
-
-      <h2 data-i18n="message.gotifySettings">Gotify Einstellungen</h2>
-
-      <div class="form-group checkbox">
-        <label class="inline-checkbox">
-         <input type="checkbox" name="webGotifyEnabled" id="webGotifyEnabled" %GOTIFYENABLED%>
-         <span data-i18n="message.enabled">aktivieren</span>
-        </label>
-      </div>
-
-      <div class="form-group">
-        <label for="webGotifyURL" data-i18n="message.gotifyURL">Gotify URL:</label>
-        <input name="webGotifyURL" id="webGotifyURL" type="text" data-i18n="message.gotifyUrl.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%GOTIFYURL%">
-      </div>
-
-      <div class="form-group">
-        <label for="webGotifyToken" data-i18n="message.gotifyToken">Gotify Token:</label>
-        <input name="webGotifyToken" id="webGotifyToken" type="password" autocomplete="new-password" data-i18n="message.gotifyToken.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%GOTIFYTOKEN%">
-      </div>
-
-      <button class="primary" id="saveMessageBtn" data-i18n="settings.save">Speichern</button>
+      <form action="/savemessagesettings" method="POST" id="messageSettingsForm">
+<section class="runsettings-panel push-settings-panel" data-push-provider="pushover" aria-labelledby="pushoverSettingsHeading">
+<div class="runsettings-panel-title push-settings-panel-head">
+<h2 id="pushoverSettingsHeading" data-i18n="message.pushoverSettings">Pushover Einstellungen</h2>
+<label class="push-settings-toggle"><input type="checkbox" name="webPushoverEnabled" id="webPushoverEnabled" %PUSHOVERENABLED%><span data-i18n="message.enabled">aktivieren</span></label>
+</div>
+<div class="push-settings-fields push-settings-fields-pushover">
+<div class="push-settings-field"><label for="webPushoverUserKey" data-i18n="message.pushoverUserKey">Pushover Benutzer:</label>
+<input name="webPushoverUserKey" id="webPushoverUserKey" type="password" autocomplete="new-password" data-i18n="message.pushoverUserKey.ph" data-i18n-attr="placeholder" value="%PUSHOVERUSERKEY%"></div>
+<div class="push-settings-field"><label for="webPushoverAppKey" data-i18n="message.pushoverAppKey">Pushover Token:</label>
+<input name="webPushoverAppKey" id="webPushoverAppKey" type="password" autocomplete="new-password" data-i18n="message.pushoverAppKey.ph" data-i18n-attr="placeholder" value="%PUSHOVERAPPKEY%"></div>
+<div class="push-settings-field"><label for="webPushoverDevice" data-i18n="message.pushoverDevice">Pushover Gerät:</label>
+<input name="webPushoverDevice" id="webPushoverDevice" type="text" data-i18n="message.pushoverDevice.ph" data-i18n-attr="placeholder" value="%PUSHOVERDEVICE%"></div>
+</div>
+</section>
+<section class="runsettings-panel push-settings-panel" data-push-provider="gotify" aria-labelledby="gotifySettingsHeading">
+<div class="runsettings-panel-title push-settings-panel-head">
+<h2 id="gotifySettingsHeading" data-i18n="message.gotifySettings">Gotify Einstellungen</h2>
+<label class="push-settings-toggle"><input type="checkbox" name="webGotifyEnabled" id="webGotifyEnabled" %GOTIFYENABLED%><span data-i18n="message.enabled">aktivieren</span></label>
+</div>
+<div class="push-settings-fields push-settings-fields-gotify">
+<div class="push-settings-field"><label for="webGotifyURL" data-i18n="message.gotifyURL">Gotify URL:</label>
+<input name="webGotifyURL" id="webGotifyURL" type="text" data-i18n="message.gotifyUrl.ph" data-i18n-attr="placeholder" value="%GOTIFYURL%"></div>
+<div class="push-settings-field"><label for="webGotifyToken" data-i18n="message.gotifyToken">Gotify Token:</label>
+<input name="webGotifyToken" id="webGotifyToken" type="password" autocomplete="new-password" data-i18n="message.gotifyToken.ph" data-i18n-attr="placeholder" value="%GOTIFYTOKEN%"></div>
+</div>
+</section>
+<div class="push-settings-actions"><button type="submit" class="primary" id="saveMessageBtn" data-i18n="settings.save">Speichern</button></div>
+      </form>
     </section>
-    </form>
 
     <!-- setting section -->
     <form id="systemSettingsForm" onsubmit="event.preventDefault(); window.saveSystemSettingsAll(event); return false;">

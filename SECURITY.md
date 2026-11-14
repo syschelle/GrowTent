@@ -45,3 +45,7 @@ Authentication and Flood S Gen4 are now static sections. Password masking, write
 ## v0.5.19 operating-settings presentation
 
 Only layout spacing and explanatory text change. Drying protection, fan Auto-Off validation/caching, pump interlocks and all access boundaries remain unchanged. Technical fan behavior and limitations remain documented in HUMIDIFIER_FAN.md.
+
+## v0.5.20 Push settings presentation
+
+The provider form layout changes without altering access boundaries, secret retention, save/status endpoints, notification delivery or restart logic. Credential inputs retain password masking and new-password autocomplete. Browser regression fixtures are synthetic and never contact real notification providers.
