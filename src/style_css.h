@@ -1299,4 +1299,20 @@ const char cssContent[] PROGMEM = R"rawliteral(
  .shelly-light-fields { width:100%; }
  .shelly-row-name small { max-width:100%; }
 }
+
+/* Push settings: two permanent provider sections with compact field rows. */
+.push-settings-page h1 { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.push-settings-panel-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 18px; }
+.push-settings-panel-head h2 { margin:0; font-size:inherit; font-weight:inherit; color:inherit; opacity:1; }
+.push-settings-panel-head .push-settings-toggle { display:inline-flex; align-items:center; gap:8px; margin:0; color:inherit; font-size:.9rem; cursor:pointer; }
+.push-settings-page input[type="checkbox"] { width:auto; min-width:0; margin:0; padding:0; flex:0 0 auto; accent-color:var(--header); }
+.push-settings-fields { display:grid; gap:12px 18px; }
+.push-settings-fields-pushover { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.push-settings-fields-gotify { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.push-settings-field { display:flex; flex-direction:column; justify-content:flex-end; gap:5px; min-width:0; }
+.push-settings-field label { margin:0; font-size:.9rem; font-weight:600; }
+.push-settings-field input { width:100%; max-width:100%; min-width:0; min-height:38px; padding:7px 9px; }
+.push-settings-actions { display:flex; justify-content:flex-end; }
+.push-settings-page .push-settings-actions button { width:auto; min-width:160px; }
+@media(max-width:900px) { .push-settings-fields-pushover,.push-settings-fields-gotify { grid-template-columns:minmax(0,1fr); } }
 )rawliteral";

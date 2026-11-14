@@ -378,7 +378,7 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "settings.relay4": { de: "Relaisname 4:", en: "Relay name 4:" },
 
   /* -------------------- message.* -------------------- */
-  "message.title": { de: "Nachrichteneinstellungen", en: "Message Settings" },
+  "message.title": { de: "Push-Einstellungen", en: "Push settings" },
   "message.enabled": { de: "aktivieren", en: "Enable" },
 
   "message.pushoverSettings": { de: "Pushover Einstellungen", en: "Pushover settings" },
