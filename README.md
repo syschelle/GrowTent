@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.22.md`](RELEASE_NOTES_v0.5.21.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.23.md`](RELEASE_NOTES_v0.5.23.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -638,3 +638,7 @@ Pump stop/Auto-Off requests remain armed until GPIO OFF is confirmed. Invalid cl
 ## Shelly freshness and notification encoding (v0.5.22)
 
 Status failures immediately make the corresponding Shelly reading unavailable; otherwise readings expire after 60 seconds without a successful status read. Existing switch/power/energy/cost API fields return null in that state, and the ESP UI shows neutral Unknown/Unbekannt rather than OFF. Each role adds `cur.shelly.<role>.fresh` and `.ageMs` (null until the first valid sample). Configuration changes invalidate cached values and in-flight status requests. Normal staggered polling and 30-second failure backoff are retained; switch command acknowledgements do not renew measurement age. Pushover fields and Gotify JSON/query values are encoded safely, preserving UTF-8 and special characters. TLS and VPD smoothing are unchanged.
+
+## VPD filter isolation (v0.5.23)
+
+Raw VPD is calculated directly from raw climate readings without changing filter state. The central control VPD retains its dedicated alpha-0.10 filter after Adaptive Climate Smoothing. API field names and controller thresholds remain unchanged. See RELEASE_NOTES_v0.5.23.md.

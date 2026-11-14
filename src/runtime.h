@@ -68,8 +68,8 @@ extern void logPrint(const String& msg);
 extern void appendLog(unsigned long timestamp, float temperature, float humidity, float vpd);
 extern void updateGrowTimeValues();
 
-// forward declaration for calcVPD (defined elsewhere)
-float calcVPD(float temperatureC, float leafOffset, float humidityPct);
+// Pure raw VPD calculation and isolated control filter.
+#include "vpd_calculation.h"
 
 // Apply all dynamic values to one small chunk of the main HTML template.
 // Keeping this separate allows the page to be streamed without allocating the
@@ -566,7 +566,7 @@ String readSensorData() {
         updateSmoothedClimate(rawTemp, rawHum);
 
         // === CALCULATE SMOOTHED VPD ===
-        cur.vpdSmoothedKpa = calcVPD(cur.temperatureSmoothedC, offsetLeafTemperature, cur.humiditySmoothedPct);
+        cur.vpdSmoothedKpa = calcControlVPD(cur.temperatureSmoothedC, offsetLeafTemperature, cur.humiditySmoothedPct);
 
         // === USE SMOOTHED VALUES FOR SYSTEM ===
         cur.temperatureC = cur.temperatureSmoothedC;

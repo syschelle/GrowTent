@@ -1,4 +1,4 @@
-# Testing — v0.5.22
+# Testing — v0.5.23
 
 ## Local plan status UI
 
@@ -88,3 +88,7 @@ Live hardware checks remain OPEN: BME disconnection/recovery with local/Shelly h
 Run `python tests/test_shelly_cache.py`, `node tests/test_shelly_stale_ui.mjs` and, after the board build, `python tests/test_notification_payloads.py .pio/libdeps/<environment>/ArduinoJson/src`. Cache tests compile production types/cache/publication/polling paths with platform/HTTP stubs: initial unknown, confirmed sample, immediate failure invalidation, 60-second expiry, command hints without renewed freshness, IP/credential/ABA changes during HTTP, out-of-order response fencing, generation discovery, empty slots, mutex failure, unchanged 30-second retry/backoff and rollover including a zero deadline. Production-source UI tests cover neutral unknown and true/false states for Gen1/2/3 in German/English. Push tests execute the real sendPushover/sendGotify functions against HTTP stubs, then independently decode the resulting form/query/JSON with Python, checking quotes, backslashes, CR/LF, tabs, all control bytes, UTF-8/emoji, empty values, priorities, disabled providers and log redaction. CI supplies the ArduinoJson version used by the actual board build.
 
 Existing v0.5.21 safety, irrigation/fan, S3 contracts and full firmware/layout checks remain required. Hardware/provider checks remain OPEN: unreachable device/backoff/recovery, in-flight settings edits, real UI/backend null handling and live provider delivery. No automated test contacts real controllers or providers.
+
+## VPD filter isolation (v0.5.23)
+
+`python tests/test_vpd_calculation.py` compiles the production C++ header and verifies raw call order/repetition independence, control-only alpha-0.10 updates, interleaved raw calls, invalid samples, humidity bounds, nonnegative VPD and runtime wiring. Existing Adaptive Climate Smoothing remains unchanged. Full firmware builds run in CI. Hardware step-response, actuator behavior and OTA verification remain OPEN.

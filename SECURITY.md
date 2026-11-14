@@ -57,3 +57,7 @@ This release retains pump OFF retry state after failed GPIO/mutex operations and
 ## v0.5.22 status-cache integrity and notification payloads
 
 Status snapshots are bound to configuration epochs and request sequences under a short cache mutex; network I/O occurs outside that lock. Failed, expired or superseded status data cannot be reused as fresh control/API values. Credentials are copied only for the request lifetime and are not logged. Form/query components use percent encoding; Gotify text is JSON quoted (including control bytes) before object serialization. Provider logs remain status/length-only. Existing authentication, HMAC and TLS policy are unchanged; no new write endpoint is introduced. Real-device/provider validation remains open.
+
+## v0.5.23 VPD state isolation
+
+Raw VPD telemetry cannot mutate the control VPD filter. Nonfinite inputs do not advance that filter; existing climate freshness and actuator safety gates remain in place. No authentication or API protocol changes.

@@ -22,6 +22,7 @@ jobs:
       - run: node tests/test_shelly_settings.mjs
       - run: python tests/test_shelly_cache.py
       - run: node tests/test_shelly_stale_ui.mjs
+      - run: python tests/test_vpd_calculation.py
       - run: python tests/test_safety_runtime.py
       - run: python tests/test_humidifier_fan.py
       - run: node tests/test_humidifier_fan_ui.mjs
