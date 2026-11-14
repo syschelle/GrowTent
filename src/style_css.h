@@ -1289,4 +1289,5 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .shelly-settings-page .shelly-flood-panel button { width:auto; flex:0 0 auto; min-width:120px; }
 .shelly-settings-page .shelly-settings-actions button { width:auto; min-width:160px; }
 @media(max-width:700px) { .shelly-settings-page .shelly-light-fields { grid-template-columns:minmax(0,1fr); } }
+.shelly-light-fields .shelly-settings-field { justify-content:flex-end; }
 )rawliteral";
