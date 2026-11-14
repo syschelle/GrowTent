@@ -1265,29 +1265,40 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .runsettings-relay-row.humidifier-fan-owned .sched-field { opacity:.55; }
 .fan-schedule-lock-note { grid-column:1 / -1; padding:4px 8px; overflow-wrap:anywhere; }
 
-/* Shelly settings share panel headers and spacing with operating settings. */
-.shelly-device-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start; margin-bottom:14px; }
-.shelly-device-grid > .runsettings-panel { margin-bottom:0; }
-.shelly-auth-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; max-width:820px; }
-.shelly-settings-page .shelly-settings-field { display:flex; flex-direction:column; gap:6px; min-width:0; margin:0 0 12px; }
-.shelly-settings-page .shelly-settings-field label { margin:0; }
+/* Compact Shelly settings: shared device rows and a separate light plan. */
 .shelly-settings-page .control-sm { box-sizing:border-box; width:100%; max-width:100%; min-width:0; }
-.shelly-settings-page .shelly-ip { width:100%; max-width:260px; }
-.shelly-device-generation { margin:0 0 12px; font-size:.88rem; overflow-wrap:anywhere; }
-.shelly-light-fields { display:grid; grid-template-columns:minmax(0,1fr); gap:0; }
-.shelly-settings-page .shelly-refresh-button { max-width:100%; white-space:normal; }
+.shelly-row-head,.shelly-device-row { display:grid; grid-template-columns:minmax(170px,1fr) minmax(160px,260px) minmax(120px,.7fr); gap:14px; align-items:center; }
+.shelly-row-head { font-size:.85rem; font-weight:700; padding:0 10px 8px; opacity:.75; }
+.shelly-device-row { padding:9px 10px; border-top:1px solid var(--border); }
+.shelly-row-name label { margin:0; font-weight:600; }
+.shelly-row-name small { display:block; max-width:420px; margin-top:3px; font-size:.8rem; opacity:.75; }
+.shelly-row-generation { font-size:.9rem; }
+.shelly-generation-label,.shelly-generation-separator { display:none; }
+.shelly-auth-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; max-width:820px; }
+.shelly-settings-page .shelly-settings-field { display:flex; flex-direction:column; justify-content:flex-end; gap:6px; min-width:0; margin:0; }
+.shelly-settings-page .shelly-settings-field label { margin:0; }
+.shelly-light-layout { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+.shelly-light-fields { display:grid; grid-template-columns:repeat(3,minmax(120px,180px)); gap:14px; }
+.shelly-settings-page .shelly-refresh-button { width:auto; max-width:100%; white-space:normal; margin:0; }
+.shelly-settings-page details.runsettings-panel { padding:0; }
+.shelly-settings-page details > summary.runsettings-panel-title { margin:0; cursor:pointer; list-style:revert; }
+.shelly-settings-page details[open] > summary.runsettings-panel-title { margin-bottom:14px; }
+.shelly-settings-page details > :not(summary) { margin-left:16px; margin-right:16px; }
+.shelly-settings-page details > :last-child { margin-bottom:16px; }
 .shelly-flood-panel .twoinone-label { display:flex; flex-wrap:wrap; gap:10px; min-width:0; }
 .shelly-flood-panel .twoinone-label input { flex:1 1 260px; min-width:0; }
 .shelly-flood-panel small { display:block; overflow-wrap:anywhere; }
-.shelly-settings-actions { display:flex; justify-content:flex-end; }
-@media(max-width:1100px) { .shelly-device-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media(max-width:700px) { .shelly-device-grid,.shelly-auth-grid { grid-template-columns:minmax(0,1fr); } .shelly-settings-page .shelly-ip { max-width:100%; } }
-
-.shelly-settings-page .shelly-light-fields { grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:0 12px; }
 .shelly-flood-panel .shelly-flood-toggle { display:flex; align-items:center; gap:8px; }
 .shelly-flood-panel #floodEnabled { width:auto; flex:0 0 auto; margin:0; }
 .shelly-settings-page .shelly-flood-panel button { width:auto; flex:0 0 auto; min-width:120px; }
+.shelly-settings-actions { display:flex; justify-content:flex-end; }
 .shelly-settings-page .shelly-settings-actions button { width:auto; min-width:160px; }
-@media(max-width:700px) { .shelly-settings-page .shelly-light-fields { grid-template-columns:minmax(0,1fr); } }
-.shelly-light-fields .shelly-settings-field { justify-content:flex-end; }
+@media(max-width:900px) {
+ .shelly-row-head { display:none; }
+ .shelly-device-row { grid-template-columns:minmax(0,1fr); gap:6px; padding:12px 0; }
+ .shelly-generation-label,.shelly-generation-separator { display:inline; }
+ .shelly-auth-grid,.shelly-light-fields { grid-template-columns:minmax(0,1fr); }
+ .shelly-light-fields { width:100%; }
+ .shelly-row-name small { max-width:100%; }
+}
 )rawliteral";

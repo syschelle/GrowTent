@@ -33,3 +33,7 @@ The UI disables scheduling controls only for the confirmed fan relay and skips t
 ## v0.5.16 Shelly settings layout
 
 This release changes presentation, labels and form nesting only. Existing local dashboard access boundaries, write-only password handling, generation detection and Flood token rules remain in place. No credentials are introduced into screenshots or tests; all fixtures are synthetic.
+
+## v0.5.17 compact Shelly layout
+
+Expandable credentials and Flood sections change presentation only; collapsed controls still participate in the existing save operation. No new endpoints, authentication or network requests are introduced. Password and Flood token handling are unchanged.

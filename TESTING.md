@@ -1,4 +1,4 @@
-# Testing — v0.5.16
+# Testing — v0.5.17
 
 ## Local plan status UI
 
@@ -60,3 +60,7 @@ The fan editor runtime test also verifies confirmed relay ownership, dirty/uncon
 ## Shelly settings cards (v0.5.16)
 
 `node tests/test_shelly_settings.mjs` exercises the production save handler, password omission/replacement and light schedule dirty handling. `node tests/test_shelly_layout.cjs` checks DE/EN cards, field labels, form membership, actions, mobile/desktop overflow and generates previews in CI. Full firmware and existing regression checks remain required. Device verification remains open.
+
+## v0.5.17 compact Shelly layout
+
+The Shelly browser regression now checks seven aligned device rows, separate light-plan fields, closed/open credentials and Flood details, valid labels/form membership and no overflow in German/English at desktop/tablet/mobile widths. Screenshot fixtures contain no live credentials. Production save tests still verify password retention/replacement, schedule dirty handling and Flood fields. Hardware verification remains open.
