@@ -37,3 +37,7 @@ This release changes presentation, labels and form nesting only. Existing local 
 ## v0.5.17 compact Shelly layout
 
 Expandable credentials and Flood sections change presentation only; collapsed controls still participate in the existing save operation. No new endpoints, authentication or network requests are introduced. Password and Flood token handling are unchanged.
+
+## v0.5.18 always-visible sections
+
+Authentication and Flood S Gen4 are now static sections. Password masking, write-only retention behavior, Flood token rules and dashboard access boundaries remain unchanged. No new endpoints or network requests are introduced.

@@ -404,8 +404,8 @@ const char* htmlPage = R"rawliteral(
 </div>
 <button type="button" class="primary shelly-refresh-button" data-i18n="shelly.refreshSchedule" onclick="refreshShellySchedule('light', this)">Schedule neu einlesen</button></div>
 </section>
-        <details class="runsettings-panel shelly-auth-panel">
-      <summary class="runsettings-panel-title" data-i18n="status.shellyAuth">Shelly Authentifizierung</summary>
+        <section class="runsettings-panel shelly-auth-panel">
+      <h2 class="runsettings-panel-title" data-i18n="status.shellyAuth">Shelly Authentifizierung</h2>
 <div class="shelly-auth-grid">
       <div class="form-group shelly-settings-field">
         <label for="shellyUsername" data-i18n="shelly.shellyAuthUser">Shelly Benutzername:</label>
@@ -418,9 +418,9 @@ const char* htmlPage = R"rawliteral(
       </div>
 
 </div>
-</details>
-<details class="runsettings-panel shelly-flood-panel">
-      <summary class="runsettings-panel-title" data-i18n="shelly.floodTitle">Flood S Gen4</summary>
+</section>
+<section class="runsettings-panel shelly-flood-panel">
+      <h2 class="runsettings-panel-title" data-i18n="shelly.floodTitle">Flood S Gen4</h2>
       <div class="form-group">
         <label class="shelly-flood-toggle">
           <input name="webFloodEnabled" id="floodEnabled" type="checkbox" %FLOOD_ENABLED_CHECKED% onchange="updateFloodWebhookPreview()">
@@ -457,7 +457,7 @@ const char* htmlPage = R"rawliteral(
       </div>
 
 
-</details>
+</section>
 <div class="shelly-settings-actions"><button type="button" class="primary" id="saveshellysettingsBtn" data-i18n="settings.save" onclick="window.saveShellySettingsAll(event)">Speichern</button></div>
       </form>
     </section>
