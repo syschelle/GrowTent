@@ -1,4 +1,4 @@
-# Testing — v0.5.15
+# Testing — v0.5.16
 
 ## Local plan status UI
 
@@ -56,3 +56,7 @@ Hardware validation remains OPEN: authenticated Gen1/Gen2/Gen3 configuration res
 ## v0.5.15 schedule UI lock
 
 The fan editor runtime test also verifies confirmed relay ownership, dirty/unconfirmed selection, reassignment, DE/EN notes, restoration of pre-existing disabled states and schedule values, and removal of the lock. The general settings save skips the owned row. Existing policy, editor and firmware/layout checks remain required. Device verification remains open.
+
+## Shelly settings cards (v0.5.16)
+
+`node tests/test_shelly_settings.mjs` exercises the production save handler, password omission/replacement and light schedule dirty handling. `node tests/test_shelly_layout.cjs` checks DE/EN cards, field labels, form membership, actions, mobile/desktop overflow and generates previews in CI. Full firmware and existing regression checks remain required. Device verification remains open.

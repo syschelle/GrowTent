@@ -1264,4 +1264,22 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .runsettings-relay-row.humidifier-fan-owned { background:rgba(127,127,127,.12); }
 .runsettings-relay-row.humidifier-fan-owned .sched-field { opacity:.55; }
 .fan-schedule-lock-note { grid-column:1 / -1; padding:4px 8px; overflow-wrap:anywhere; }
+
+/* Shelly settings share panel headers and spacing with operating settings. */
+.shelly-device-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start; margin-bottom:14px; }
+.shelly-device-grid > .runsettings-panel { margin-bottom:0; }
+.shelly-auth-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; max-width:820px; }
+.shelly-settings-page .shelly-settings-field { display:flex; flex-direction:column; gap:6px; min-width:0; margin:0 0 12px; }
+.shelly-settings-page .shelly-settings-field label { margin:0; }
+.shelly-settings-page .control-sm { box-sizing:border-box; width:100%; max-width:100%; min-width:0; }
+.shelly-settings-page .shelly-ip { width:100%; max-width:260px; }
+.shelly-device-generation { margin:0 0 12px; font-size:.88rem; overflow-wrap:anywhere; }
+.shelly-light-fields { display:grid; grid-template-columns:minmax(0,1fr); gap:0; }
+.shelly-settings-page .shelly-refresh-button { max-width:100%; white-space:normal; }
+.shelly-flood-panel .twoinone-label { display:flex; flex-wrap:wrap; gap:10px; min-width:0; }
+.shelly-flood-panel .twoinone-label input { flex:1 1 260px; min-width:0; }
+.shelly-flood-panel small { display:block; overflow-wrap:anywhere; }
+.shelly-settings-actions { display:flex; justify-content:flex-end; }
+@media(max-width:1100px) { .shelly-device-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:700px) { .shelly-device-grid,.shelly-auth-grid { grid-template-columns:minmax(0,1fr); } .shelly-settings-page .shelly-ip { max-width:100%; } }
 )rawliteral";
