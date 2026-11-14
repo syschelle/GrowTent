@@ -22,6 +22,7 @@
 #include "globals.h"
 #include "humidifier_fan.h"
 #include "ota.h"
+#include "climate_safety.h"
 #include <runtime.h>
 
 // Include platform-specific headers for inet_ntoa
@@ -626,24 +627,27 @@ bool isRelayOn(int idx) {
 }
 
 // set relay state by index (0-based) with mutex protection and update state array
-void setRelay(int idx, bool on) {
-  if (idx < 0 || idx >= NUM_RELAYS) return;
-  if (idx >= activeRelayCount) return;
-  if (humidifierFanOwnsRelay(idx)) return;
+bool setRelay(int idx, bool on) {
+  if (on && settings.heating.sourceType == 1 && settings.heating.Relay == idx + 1 && !climateReadingsFresh()) return false;
+  if (idx < 0 || idx >= NUM_RELAYS) return false;
+  if (idx >= activeRelayCount) return false;
+  if (humidifierFanOwnsRelay(idx)) return false;
 
   if (relayMutex) {
     if (xSemaphoreTake(relayMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-      if (humidifierFanOwnsRelay(idx)) { xSemaphoreGive(relayMutex); return; }
+      if (humidifierFanOwnsRelay(idx)) { xSemaphoreGive(relayMutex); return false; }
       digitalWrite(relayPins[idx], on ? HIGH : LOW);
-      relayStates[idx] = on;
+      relayStates[idx] = (digitalRead(relayPins[idx]) == HIGH);
       xSemaphoreGive(relayMutex);
     } else {
       logPrint("[RELAY] mutex timeout in setRelay()");
+      return false;
     }
   } else {
     digitalWrite(relayPins[idx], on ? HIGH : LOW);
-    relayStates[idx] = on;
+    relayStates[idx] = (digitalRead(relayPins[idx]) == HIGH);
   }
+  return (digitalRead(relayPins[idx]) == HIGH) == on;
 }
 
 // Send notification via Pushover
@@ -1743,6 +1747,9 @@ static bool shellyResetEnergyCounters(ShellyDevice &dev, uint8_t switchId = 0, u
 static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t switchId = 0, uint16_t port = 80) {
   if (WiFi.status() != WL_CONNECTED) return false;
   if (host.length() == 0) return false;
+  if (on && switchId == 0 && !climateReadingsFresh() &&
+      (host == settings.shelly.humidifier.ip ||
+       (settings.heating.sourceType == 2 && host == settings.shelly.heater.ip))) return false;
 
   IPAddress parsedHost;
   if (!parsedHost.fromString(host)) {
@@ -1956,8 +1963,8 @@ static void controlHeaterByTemperature() {
     // 0 = disabled, 1 = ESP relay, 2 = Shelly heater
     if (settings.heating.sourceType == 0) return;
 
-    // Abort if there is no valid temperature reading
-    if (isnan(cur.temperatureC)) return;
+    // The independent safety tick owns OFF retries, bypassing minimum-on time.
+    if (!climateReadingsFresh() || !isfinite(cur.temperatureC)) return;
 
     // Control tuning. These defaults were historically fixed at
     // 0.25 C / 180 s / 120 s / 120 s. v0.2.66 keeps those defaults but
@@ -2036,9 +2043,7 @@ static void controlHeaterByTemperature() {
 
         if (settings.heating.sourceType == 1) {
             const int idx = settings.heating.Relay - 1;
-            digitalWrite(relayPins[idx], wantOn ? HIGH : LOW);
-            relayStates[idx] = wantOn;
-            switched = true;
+            switched = setRelay(idx, wantOn);
         } else if (settings.heating.sourceType == 2) {
             if (settings.shelly.heater.ip.length() > 0) {
                 switched = shellySwitchSet(
@@ -2077,7 +2082,7 @@ void controlMinVPD() {
   const uint32_t minSwitchIntervalMs = 10000UL;   // 10 s between switch attempts
   const uint32_t statusFailureLogIntervalMs = 60000UL;
 
-  if (!settings.grow.minVpdMonEnabled) return;
+  if (!settings.grow.minVpdMonEnabled || !climateReadingsFresh()) return;
 
   String ip = settings.shelly.exhaust.ip;
   ip.trim();
@@ -2229,6 +2234,8 @@ static void applyRelaySchedules() {
       shouldBeOn = false;
     }
 
+    if (!climateReadingsFresh() && settings.heating.sourceType == 1 && settings.heating.Relay == i + 1) shouldBeOn = false;
+
     // Read current physical relay state (HIGH = ON in this project)
     const bool isOn = (digitalRead(relayPins[i]) == HIGH);
 
@@ -2278,7 +2285,7 @@ static void controlHumidifierByVPD() {
     lastCheckMs = now;
 
     // Validate sensor and target values
-    if (!isfinite(cur.vpdKpa)) return;
+    if (!climateReadingsFresh() || !isfinite(cur.vpdKpa)) return;
     if (!isfinite(settings.grow.targetVPD)) return;
     if (settings.shelly.humidifier.ip.length() == 0) return;
 
@@ -2366,15 +2373,18 @@ static void processPumpAutoOff() {
     }
 
     if (relayActive[idx] && (int32_t)(now - relayOffTime[idx]) >= 0) {
-      setRelay(idx, false);
-      relayActive[idx] = false;
+      if (setRelay(idx, false)) {
+        relayActive[idx] = false;
+        relayOffTime[idx] = 0;
+      } // Keep an expired timer armed until OFF is confirmed; retry next loop.
     }
   }
 }
 
 // Immediately turns off all irrigation pump relays and clears any manual
 // pump auto-off timers. Safe to call repeatedly.
-static void stopAllIrrigationPumps() {
+static bool stopAllIrrigationPumps() {
+    bool allOff = true;
     for (size_t pump = 0; pump < IRRIGATION_PUMP_COUNT; ++pump) {
         const int idx = IRRIGATION_PUMP_RELAY_INDEX[pump];
 
@@ -2382,10 +2392,17 @@ static void stopAllIrrigationPumps() {
             continue;
         }
 
-        setRelay(idx, false);
-        relayActive[idx] = false;
-        relayOffTime[idx] = 0;
+        if (setRelay(idx, false)) {
+            relayActive[idx] = false;
+            relayOffTime[idx] = 0;
+        } else {
+            // Retain a due OFF request even after a failed stop/OTA attempt.
+            relayOffTime[idx] = millis();
+            relayActive[idx] = true;
+            allOff = false;
+        }
     }
+    return allOff;
 }
 
 // Requests an immediate irrigation stop. The HTTP handler switches the pumps
@@ -2396,12 +2413,12 @@ static void requestIrrigationStop(const char* source) {
     irrigationStartNotifyPending = false;
     irrigation.irrigationRuns = 0;
     irrigation.wTimeLeft = "00:00";
-    stopAllIrrigationPumps();
+    const bool allOff = stopAllIrrigationPumps();
 
     logPrint(
         String("[IRRIGATION] Stop requested by ") +
         (source ? source : "unknown") +
-        ". All irrigation pumps OFF."
+        (allOff ? ". All irrigation pumps OFF." : ". Pump OFF pending; retry remains armed.")
     );
 }
 
@@ -2461,4 +2478,46 @@ String calculateEndtimeWatering() {
     );
 
     return String(buf);
+}
+
+// Climate failure handling is independent of the BME task. No network I/O here.
+static void processClimateSafety() {
+  static bool reported = false;
+  static bool previousFresh = false;
+  const bool fresh = climateReadingsFresh();
+  if (!reported || fresh != previousFresh) {
+    logPrint(String("[CLIMATE][SAFETY] ") + climateReadingStatus());
+    reported = true; previousFresh = fresh;
+  }
+  if (!fresh && settings.heating.sourceType == 1) {
+    const int index = settings.heating.Relay - 1;
+    // A transient relay lock/output failure is retried on every loop.
+    if (index >= 0 && index < activeRelayCount && !humidifierFanOwnsRelay(index) && isRelayOn(index)) setRelay(index, false);
+  }
+}
+
+// Use the existing Shelly worker. One OFF attempt per turn; retries only during
+// a climate fault, at most once per device every 10 seconds. No extra polling
+// or network traffic is introduced while climate readings are fresh.
+static bool processClimateSafetyShellyOff() {
+  static uint32_t lastAttempt[2] = {0, 0};
+  static bool attempted[2] = {false, false};
+  static uint8_t next = 0;
+  if (climateReadingsFresh()) { attempted[0] = attempted[1] = false; return false; }
+  if (WiFi.status() != WL_CONNECTED) return false;
+  for (int n = 0; n < 2; ++n) {
+    const uint8_t slot = next; next = (next + 1) % 2;
+    ShellyDevice& device = slot == 0 ? settings.shelly.humidifier : settings.shelly.heater;
+    if ((slot == 1 && settings.heating.sourceType != 2) || device.ip.isEmpty()) continue;
+    const uint32_t now = millis();
+    if (attempted[slot] && uint32_t(now - lastAttempt[slot]) < 10000UL) continue;
+    // Check again immediately before dispatching; a recovered sample ends retries.
+    if (climateReadingsFresh()) return false;
+    attempted[slot] = true; lastAttempt[slot] = now;
+    const bool ok = shellySwitchOff(device.ip, device.gen, 0, 80);
+    logPrint(String("[CLIMATE][SAFETY] ") + (slot == 0 ? "humidifier" : "heater") +
+             (ok ? " OFF command accepted" : " OFF failed; retry pending"));
+    return true;
+  }
+  return false;
 }

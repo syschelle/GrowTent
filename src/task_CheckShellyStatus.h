@@ -98,6 +98,11 @@ void taskShellyStatus(void *parameter){
       continue;
     }
 
+    if (processClimateSafetyShellyOff()) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      continue;
+    }
+
     irrigationPlanRefreshShelly(false);
     humidifierFanRefreshConfig();
 

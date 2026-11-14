@@ -49,3 +49,7 @@ Only layout spacing and explanatory text change. Drying protection, fan Auto-Off
 ## v0.5.20 Push settings presentation
 
 The provider form layout changes without altering access boundaries, secret retention, save/status endpoints, notification delivery or restart logic. Credential inputs retain password masking and new-password autocomplete. Browser regression fixtures are synthetic and never contact real notification providers.
+
+## v0.5.21 actuator safety and sensor freshness
+
+This release retains pump OFF retry state after failed GPIO/mutex operations and gates stop/OTA acknowledgements on GPIO OFF. Climate validity is shared through atomic state, expires after 30 seconds and blocks heater/humidifier ON dispatch while invalid. The main loop handles local heater OFF retries independently of the BME task; the existing Shelly worker performs rate-limited fault-only OFF requests. An unreachable remote actuator or stalled main loop cannot be made fail-safe by software alone; hardware/load and outage tests remain open. No new write endpoint, credential exposure, TLS change or HMAC/protocol change is introduced.

@@ -1,5 +1,6 @@
 #include "vars_registry.h"
 #include "globals.h"
+#include "climate_safety.h"
 #include <esp_heap_caps.h>
 
 // These are defined in main.cpp (kept there intentionally)
@@ -111,14 +112,14 @@ static String g_espMode() { return jBool(espMode); }
 static String g_ssid() { return jStr(ssidName); }
 static String g_txPower() { return jNumOrNull(txPower, 1); }
 
-static String g_temp() { return jNumOrNull(cur.temperatureC, 1); }
-static String g_temp_raw() { return jNumOrNull(cur.temperatureRawC, 2); }
-static String g_hum() { return jNumOrNull(cur.humidityPct, 1); }
-static String g_hum_raw() { return jNumOrNull(cur.humidityRawPct, 1); }
+static String g_temp() { return jNumOrNull(climateReadingsFresh() ? cur.temperatureC : NAN, 1); }
+static String g_temp_raw() { return jNumOrNull(climateReadingsFresh() ? cur.temperatureRawC : NAN, 2); }
+static String g_hum() { return jNumOrNull(climateReadingsFresh() ? cur.humidityPct : NAN, 1); }
+static String g_hum_raw() { return jNumOrNull(climateReadingsFresh() ? cur.humidityRawPct : NAN, 1); }
 static String g_extName() { return jStr(DS18B20Name); }
 static String g_extTemp() { return jNumOrNull(cur.extTempC, 1); }
-static String g_vpd() { return jNumOrNull(cur.vpdKpa, 2); }
-static String g_vpd_raw() { return jNumOrNull(cur.vpdRawKpa, 2); }
+static String g_vpd() { return jNumOrNull(climateReadingsFresh() ? cur.vpdKpa : NAN, 2); }
+static String g_vpd_raw() { return jNumOrNull(climateReadingsFresh() ? cur.vpdRawKpa : NAN, 2); }
 
 static String g_reffetiveAlfaTemp() { return jNumOrNull(cur.alphaTempEffective, 2); }
 static String g_reffetiveAlfaHum() { return jNumOrNull(cur.alphaHumidityEffective, 2); }
@@ -148,6 +149,10 @@ static String g_avgTemp() { return jNumOrNull(avgTemp(), 1); }
 static String g_avgHum() { return jNumOrNull(avgHum(), 1); }
 static String g_avgVpd() { return jNumOrNull(avgVPD(), 2); }
 static String g_avgWater() { return jNumOrNull(avgWaterTemp(), 1); }
+
+static String g_climateFresh() { return jBool(climateReadingsFresh()); }
+static String g_climateStatus() { return jStr(climateReadingStatus()); }
+static String g_climateAgeMs() { const uint32_t age=climateReadingAgeMs(); return age==UINT32_MAX ? String("null") : String(age); }
 
 // Settings shortcuts
 static String g_ui_box() { return jStr(settings.ui.boxName); }
@@ -360,6 +365,9 @@ const VarItem VARS[] = {
   {"wifi.txPowerDB", g_txPower, false, "wifi"},
 
   // --- sensors ---
+  {"sensors.climate.fresh", g_climateFresh, false, "sensors"},
+  {"sensors.climate.status", g_climateStatus, false, "sensors"},
+  {"sensors.climate.ageMs", g_climateAgeMs, false, "sensors"},
   {"sensors.cur.temperatureC", g_temp, false, "sensors"},
   {"sensors.cur.temperatureRawC", g_temp_raw, false, "sensors"},
   {"sensors.cur.humidityPct", g_hum, false, "sensors"},
