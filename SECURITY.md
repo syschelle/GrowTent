@@ -61,3 +61,7 @@ Status snapshots are bound to configuration epochs and request sequences under a
 ## v0.5.23 VPD state isolation
 
 Raw VPD telemetry cannot mutate the control VPD filter. Nonfinite inputs do not advance that filter; existing climate freshness and actuator safety gates remain in place. No authentication or API protocol changes.
+
+## v0.5.24 system settings layout
+
+This release reorganizes existing controls only. HMAC secrets remain password fields with empty-input retention, and the existing validated save/ACK/restart sequence is unchanged. The external timezone lookup opens with noopener/noreferrer. No authentication, GPIO or control-policy changes.

@@ -1316,4 +1316,43 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .push-settings-actions { display:flex; justify-content:flex-end; }
 .push-settings-page .push-settings-actions button { width:auto; min-width:160px; }
 @media(max-width:900px) { .push-settings-fields-pushover,.push-settings-fields-gotify { grid-template-columns:minmax(0,1fr); } }
+
+/* Compact system settings, shared with the operating-settings card style. */
+.system-settings-grid { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,7fr); gap:14px; align-items:start; }
+.system-settings-grid .system-settings-panel { margin:0; }
+.system-settings-panel h2 { color:#fff; opacity:1; }
+.system-backend-panel,.system-relay-panel { grid-column:1 / -1; }
+.system-settings-field { display:flex; flex-direction:column; gap:5px; min-width:0; margin:0 0 10px; }
+.system-settings-field:last-child { margin-bottom:0; }
+.system-settings-field label,.system-settings-field .label-inline { margin:0; }
+.system-settings-field label:not(.inline-checkbox) { font-size:.9rem; font-weight:600; }
+.system-settings-page input:not([type="checkbox"]),.system-settings-page select { box-sizing:border-box; width:100%; max-width:100%; min-width:0; min-height:36px; padding:6px 9px; }
+.system-settings-page input[type="checkbox"] { width:auto; min-width:0; margin:0; flex:0 0 auto; }
+.system-settings-page .inline-checkbox { display:inline-flex; align-items:center; gap:8px; }
+.system-device-panel .system-settings-field:not(.checkbox),.system-time-panel .system-settings-field,.system-sensor-panel .system-settings-field:not(.checkbox) { display:grid; grid-template-columns:145px minmax(0,1fr); align-items:center; gap:6px 12px; }
+.system-device-panel #webRelayCount { max-width:150px; }
+.system-device-panel #webPowerPriceKwh { max-width:150px; }
+.system-appearance-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 16px; }
+.system-appearance-fields .system-settings-field { margin:0; }
+.system-timezone-link { grid-column:2; width:fit-content; font-size:.85rem; overflow-wrap:anywhere; }
+.system-backend-fields { display:grid; grid-template-columns:minmax(160px,240px) minmax(0,1fr); gap:12px 24px; }
+.system-key-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.system-settings-page .system-key-actions button { width:auto; margin:0; min-width:0; white-space:normal; }
+.system-settings-field small { font-size:.8rem; opacity:.75; overflow-wrap:anywhere; }
+.system-relay-fields { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px 16px; }
+.system-relay-fields .system-settings-field { margin:0; }
+.system-settings-actions { display:flex; justify-content:flex-end; margin-top:14px; }
+.system-settings-page .system-settings-actions button { width:auto; min-width:150px; }
+@media(max-width:1100px) {
+ .system-settings-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .system-device-panel .system-settings-field:not(.checkbox),.system-time-panel .system-settings-field,.system-sensor-panel .system-settings-field:not(.checkbox) { display:flex; }
+ .system-appearance-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .system-timezone-link { grid-column:auto; }
+}
+@media(max-width:760px) {
+ .system-settings-grid,.system-backend-fields { grid-template-columns:minmax(0,1fr); }
+ .system-relay-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .system-settings-page h1 { overflow-wrap:anywhere; }
+}
+@media(max-width:420px) { .system-appearance-fields { grid-template-columns:minmax(0,1fr); } }
 )rawliteral";

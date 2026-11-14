@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.23.md`](RELEASE_NOTES_v0.5.23.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.24.md`](RELEASE_NOTES_v0.5.24.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -642,3 +642,7 @@ Status failures immediately make the corresponding Shelly reading unavailable; o
 ## VPD filter isolation (v0.5.23)
 
 Raw VPD is calculated directly from raw climate readings without changing filter state. The central control VPD retains its dedicated alpha-0.10 filter after Adaptive Climate Smoothing. API field names and controller thresholds remain unchanged. See RELEASE_NOTES_v0.5.23.md.
+
+## Compact system settings (v0.5.24)
+
+System settings use six permanently open cards: Device (including electricity price), Display, Time (including the POSIX timezone-list link), DS18B20 sensor, Backend access (HMAC) and Relay names. The layout adapts to mobile and supports German/English plus light/dark themes. Existing save behavior and secret retention are unchanged. The S3 board remains fixed at six channels with pump outputs 1–3 reserved.
