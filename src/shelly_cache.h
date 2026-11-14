@@ -19,4 +19,4 @@ void invalidateShellyCacheLocked(); // caller holds ShellyCacheLock
 bool shellyValuesFresh(const ShellyValues& values, uint32_t nowMs);
 ShellyValues shellyCachedValues(const ShellyDevice& device);
 void expireShellyCache(); // main-loop watchdog, no HTTP
-void noteShellySwitch(const String& host, bool on); // state hint, never renews telemetry freshness
+void noteShellySwitch(const String& host, bool on, uint32_t epoch); // state hint, never renews telemetry freshness

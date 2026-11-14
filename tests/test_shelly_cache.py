@@ -41,15 +41,16 @@ int main(){
  assert(!shellyCachedValues(d).ok&&!shellyCachedValues(d).hasReading);
  auto v=getShellyValues(d,0,80);assert(v.ok&&shellyCachedValues(d).ok&&d.values.powerW==21);
  clockMs+=SHELLY_STATUS_MAX_AGE_MS-1;assert(shellyCachedValues(d).ok);
- noteShellySwitch("A",false);assert(d.values.sampledAtMs==100);++clockMs;assert(!shellyCachedValues(d).ok);
+ noteShellySwitch("A",false,shellyCacheEpoch());assert(d.values.sampledAtMs==100);++clockMs;assert(!shellyCachedValues(d).ok);
  expireShellyCache();assert(!d.values.ok);
  v=getShellyValues(d,0,80);assert(v.ok);readOK=false;assert(!getShellyValues(d,0,80).ok);
  assert(d.values.hasReading&&!d.values.ok&&d.values.powerW==21);
- noteShellySwitch("A",true);assert(!shellyCachedValues(d).ok);
+ noteShellySwitch("A",true,shellyCacheEpoch());assert(!shellyCachedValues(d).ok);
  readOK=true;assert(getShellyValues(d,0,80).ok);
  // IP change during HTTP must invalidate even if the old request succeeds.
  duringRead=[&](){ShellyCacheLock lock;assert(lock.held);invalidateShellyCacheLocked();d.ip="B";};
  assert(!getShellyValues(d,0,80).ok);assert(!shellyCachedValues(d).ok&&!d.values.hasReading);
+ const uint32_t staleCommandEpoch=shellyCacheEpoch()-1;d.values.isOn=false;noteShellySwitch("B",true,staleCommandEpoch);assert(!d.values.isOn);
  // Epoch catches A->B->A and credentials-only changes, not just IP equality.
  assert(getShellyValues(d,0,80).ok);
  duringRead=[&](){ShellyCacheLock lock;invalidateShellyCacheLocked();d.ip="C";d.ip="B";};

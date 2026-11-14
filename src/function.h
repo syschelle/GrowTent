@@ -1773,6 +1773,7 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
     return false;
   }
 
+  const uint32_t commandCacheEpoch=shellyCacheEpoch();
   const uint64_t fanGeneration=(switchId==0 && port==80)?humidifierFanCommandGeneration(host,gen):0;
   const uint32_t fanStartedMs=millis();
   String path;
@@ -1800,14 +1801,14 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
   }
   logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
   const bool success=ok && code==200;
-  bool fanAccepted=success;
-  if(fanGeneration && success) {
+  bool confirmed=false;
+  if(success) {
     JsonDocument response;
-    fanAccepted=!deserializeJson(response,body) && response["error"].isNull() &&
+    confirmed=!deserializeJson(response,body) && response["error"].isNull() &&
       (gen==1 ? (response["ison"].is<bool>() && response["ison"].as<bool>()==on) : response["was_on"].is<bool>());
   }
-  humidifierFanCommandResult(fanGeneration,on,fanAccepted,fanStartedMs);
-  if(success)noteShellySwitch(host,on);
+  humidifierFanCommandResult(fanGeneration,on,confirmed,fanStartedMs);
+  if(confirmed)noteShellySwitch(host,on,commandCacheEpoch);
   return success;
 }
 

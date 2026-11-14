@@ -28,9 +28,9 @@ void expireShellyCache(){
     &shelly.main,&shelly.light,&shelly.humidifier,&shelly.heater,&shelly.fan,&shelly.exhaust,&shelly.heatmat};
   for(auto* d:devices)if(!shellyValuesFresh(d->values,now))d->values.ok=false;
 }
-void noteShellySwitch(const String& host,bool on){
-  ShellyCacheLock lock;if(!lock.held)return;
+void noteShellySwitch(const String& host,bool on,uint32_t epoch){
+  ShellyCacheLock lock;if(!lock.held || epoch!=shellyCacheEpoch())return;
   ShellyDevice* configured[]={&settings.shelly.main,&settings.shelly.light,&settings.shelly.humidifier,&settings.shelly.heater,&settings.shelly.fan,&settings.shelly.exhaust,&settings.shelly.heatmat};
   ShellyDevice* runtime[]={&shelly.main,&shelly.light,&shelly.humidifier,&shelly.heater,&shelly.fan,&shelly.exhaust,&shelly.heatmat};
-  for(int i=0;i<7;++i)if(configured[i]->ip==host){configured[i]->values.isOn=on;runtime[i]->values.isOn=on;}
+  for(int i=0;i<7;++i)if(configured[i]->ip==host){++configured[i]->statusReadSequence;configured[i]->values.isOn=on;runtime[i]->values.isOn=on;}
 }
