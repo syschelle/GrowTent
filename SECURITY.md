@@ -41,3 +41,7 @@ Expandable credentials and Flood sections change presentation only; collapsed co
 ## v0.5.18 always-visible sections
 
 Authentication and Flood S Gen4 are now static sections. Password masking, write-only retention behavior, Flood token rules and dashboard access boundaries remain unchanged. No new endpoints or network requests are introduced.
+
+## v0.5.19 operating-settings presentation
+
+Only layout spacing and explanatory text change. Drying protection, fan Auto-Off validation/caching, pump interlocks and all access boundaries remain unchanged. Technical fan behavior and limitations remain documented in HUMIDIFIER_FAN.md.
