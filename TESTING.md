@@ -1,4 +1,4 @@
-# Testing — v0.5.18
+# Testing — v0.5.19
 
 ## Local plan status UI
 
@@ -68,3 +68,7 @@ The Shelly browser regression now checks seven aligned device rows, separate lig
 ## v0.5.18 always-visible sections
 
 The Shelly layout test rejects details/summary controls, requires Authentication and Flood S Gen4 to be regular sections, and verifies that all credential/Flood fields and webhook links are visible and enabled without clicks in DE/EN at 1640/1000/800/390px. Existing alignment, form, overflow, save and firmware checks remain required. Device verification remains open.
+
+## v0.5.19 compact operating settings
+
+The irrigation browser check measures the gaps after date inputs, before the drying note and before Save at 1640/1000/390px. It verifies the empty save-status row is hidden, nonempty feedback remains visible and the removed fan explanation is absent. Existing production plan/fan/save tests and full builds remain required. Device verification remains open.

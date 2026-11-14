@@ -674,7 +674,7 @@ const char* htmlPage = R"rawliteral(
           <button type="button" id="humidifierFanSave" data-i18n="fan.save" disabled>Kopplung speichern</button>
           <output id="humidifierFanState" role="status" aria-live="polite">—</output>
         </div>
-        <p data-i18n="fan.limit">Auto-Off wird beim Start und stündlich gelesen. Ohne gültigen aktivierten Timer bleibt der Fan aus. Direkte Änderungen am Shelly werden nicht sofort übernommen.</p>
+
         <p id="humidifierFanMessage" role="status" aria-live="polite"></p>
       </section>
 

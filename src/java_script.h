@@ -40,7 +40,6 @@ const char jsContent[] PROGMEM = R"rawliteral(
   "fan.relay": {de:"Fan-Relais", en:"Fan relay"},
   "fan.save": {de:"Kopplung speichern", en:"Save coupling"},
   "fan.hint": {de:"Das ausgewählte Relais folgt den ESP-Schaltbefehlen für den Shelly-Luftbefeuchter. Seine Minutensteuerung pausiert während der Kopplung.", en:"The selected relay follows ESP commands to the humidifier Shelly. Its minute schedule is paused while coupled."},
-  "fan.limit": {de:"Auto-Off wird beim Start und stündlich gelesen. Ohne gültigen aktivierten Timer bleibt der Fan aus. Direkte Änderungen am Shelly werden nicht sofort übernommen.", en:"Auto-Off is read at startup and hourly. The fan stays off without a valid enabled timer. Direct changes on the Shelly are not reflected immediately."},
 
 
   /* -------------------- a11y / info -------------------- */
