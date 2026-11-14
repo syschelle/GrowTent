@@ -50,6 +50,7 @@ jobs:
       - run: node tests/test_irrigation_layout.cjs
       - run: node tests/test_shelly_layout.cjs
       - run: node tests/test_push_settings_layout.cjs
+      - run: node tests/test_system_settings_layout.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

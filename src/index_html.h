@@ -190,7 +190,7 @@ const char* htmlPage = R"rawliteral(
       </div>
     </div>
     <div class="spacer"></div>
-    
+
     <div class="tile-row" id="irrigationSection" style="display:none;">
       <div class="tile">
         <h2 data-i18n="status.irrigation">Irrigation</h2>
@@ -229,7 +229,7 @@ const char* htmlPage = R"rawliteral(
             </div>
             <div class="metric-value">
               <span class="unit" data-i18n="status.endIn" >Ende in </span><span id="irTimeLeftSpan"  ></span>
-            </div> 
+            </div>
             <div class="spacermini"></div>
             <button class="primary" id="startWateringButton" onclick="toggleWatering()" disabled>Bewässerung starten</button>
           </div>
@@ -299,7 +299,7 @@ const char* htmlPage = R"rawliteral(
         <div class="info" id="shellyHeatMatInfo">—</div>
       </div>
     </div>
-    
+
     </section>
 
     <!-- diary section -->
@@ -781,153 +781,132 @@ const char* htmlPage = R"rawliteral(
       </form>
     </section>
 
-    <!-- setting section -->
+    <!-- Compact system settings: preserve existing controls and save ownership. -->
     <form id="systemSettingsForm" onsubmit="event.preventDefault(); window.saveSystemSettingsAll(event); return false;">
-      <section id="settings" class="page card">
+      <section id="settings" class="page card system-settings-page">
         <h1 data-i18n="settings.title">Systemeinstellungen</h1>
-
-        <div class="form-group checkbox">
-          <label class="inline-checkbox">
-            <input type="checkbox" name="webDebugEnable" id="webDebugEnable" %DBG_CHECKED%>
-            <span>Debug mode</span>
-          </label>
-        </div>
-
-        <div class="form-group">
+        <div class="system-settings-grid">
+<section class="runsettings-panel system-settings-panel system-device-panel" aria-labelledby="system-device-heading">
+<h2 class="runsettings-panel-title" id="system-device-heading" data-i18n="settings.deviceGroup">Gerät</h2>
+<div class="system-settings-field">
+          <label for="webBoxName" data-i18n="settings.boxName">Boxname:</label>
+          <input name="webBoxName" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" value="%CONTROLLERNAME%">
+          </div><div class="system-settings-field">
           <label for="webRelayCount" data-i18n="settings.relayBoard">welches Relay-Board?</label>
           <select name="webRelayCount" id="webRelayCount" class="control-sm shelly-other">
             <option value="4" %RELAYCOUNT4_SEL%>4x</option>
             <option value="8" %RELAYCOUNT8_SEL%>8x</option>
           </select>
+        </div><div class="system-settings-field">
+          <label for="webPowerPriceKwh" data-i18n="settings.powerPriceLabel">Strompreis (€/kWh)</label>
+          <input name="webPowerPriceKwh" id="webPowerPriceKwh" type="number" step="0.01" min="0" value="%POWERPRICEKWH%">
+        </div><div class="system-settings-field checkbox">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webDebugEnable" id="webDebugEnable" %DBG_CHECKED%>
+            <span data-i18n="settings.debugEnabled">Debug-Modus aktivieren</span>
+          </label>
         </div>
-
-        <div class="form-group">
-          <label for="webBoxName" data-i18n="settings.boxName">Boxname:</label>
-          <input name="webBoxName" id="webBoxName" type="text" data-i18n="settings.boxName.ph" data-i18n-attr="placeholder" style="width: 320px;" value="%CONTROLLERNAME%">
-          </div>
-
-        <div class="form-group">
-          <label for="webNTPServer" data-i18n="settings.ntpserver">NTP-Server:</label>
-          <input name="webNTPServer" id="webNTPServer" type="text" data-i18n="settings.ntpserver.ph" data-i18n-attr="placeholder" style="width: 250px;" value="%NTPSERVER%">
-        </div>
-
-        <div class="form-group">
-          <div class="label-inline">
-            <label for="webTimeZoneInfo" data-i18n="settings.timeZoneInfo">Zeitzone:</label>
-            &nbsp;<a href="https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json" target="_blank" rel="noopener noreferrer">🌐</a>
-          </div>
-          <input name="webTimeZoneInfo" id="webTimeZoneInfo" type="text" data-i18n="settings.timeZoneInfo.ph" data-i18n-attr="placeholder" style="width: 350px;" value="%TZINFO%">
-        </div>
-
-        <div class="form-group">
+</section>
+<section class="runsettings-panel system-settings-panel system-appearance-panel" aria-labelledby="system-appearance-heading">
+<h2 class="runsettings-panel-title" id="system-appearance-heading" data-i18n="settings.appearanceGroup">Anzeige</h2>
+<div class="system-appearance-fields"><div class="system-settings-field">
           <label for="language" data-i18n="settings.language">Sprache:</label>
-          <select name="webLanguage" id="language" style="width: 100px;">
+          <select name="webLanguage" id="language">
             <!-- Optionen vermutlich per JS/i18n gefüllt -->
           </select>
-        </div>
-
-        <div class="form-group">
+        </div><div class="system-settings-field">
           <label for="theme" data-i18n="settings.theme">Theme:</label>
-          <select name="webTheme" id="theme" style="width: 100px;">
+          <select name="webTheme" id="theme">
             <option value="light" data-i18n="settings.themeLight">Hell</option>
             <option value="dark"  data-i18n="settings.themeDark">Dunkel</option>
           </select>
-        </div>
-
-        <div class="form-group">
-          <label for="dateFormat" data-i18n="settings.dateFormat">Datumsformat:</label>
-          <select name="webDateFormat" id="dateFormat" style="width: 140px;">
-            <option value="YYYY-MM-DD" data-i18n="settings.df_ymd">YYYY-MM-DD</option>
-            <option value="DD.MM.YYYY" data-i18n="settings.df_dmy">DD.MM.YYYY</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="timeFormat" data-i18n="settings.timeFormat">Zeitformat:</label>
-          <select name="webTimeFormat" id="timeFormat" style="width: 100px;">
-            <option value="24" data-i18n="settings.tf_HHmm">24h</option>
-            <option value="12" data-i18n="settings.tf_hhmma">12h AM/PM</option>
-          </select>
-        </div>
-
-        <div class="form-group">
+        </div><div class="system-settings-field">
           <label for="tempUnit" data-i18n="settings.tempUnit">Temperatur-Einheit:</label>
-          <select name="webTempUnit" id="tempUnit" style="width: 140px;">
+          <select name="webTempUnit" id="tempUnit">
             <option value="C" data-i18n="settings.celsius">°C (Celsius)</option>
             <option value="F" data-i18n="settings.fahrenheit">°F (Fahrenheit)</option>
           </select>
-        </div>
+        </div><div class="system-settings-field">
+          <label for="dateFormat" data-i18n="settings.dateFormat">Datumsformat:</label>
+          <select name="webDateFormat" id="dateFormat">
+            <option value="YYYY-MM-DD" data-i18n="settings.df_ymd">YYYY-MM-DD</option>
+            <option value="DD.MM.YYYY" data-i18n="settings.df_dmy">DD.MM.YYYY</option>
+          </select>
+        </div><div class="system-settings-field">
+          <label for="timeFormat" data-i18n="settings.timeFormat">Zeitformat:</label>
+          <select name="webTimeFormat" id="timeFormat">
+            <option value="24" data-i18n="settings.tf_HHmm">24h</option>
+            <option value="12" data-i18n="settings.tf_hhmma">12h AM/PM</option>
+          </select>
+        </div></div>
+</section>
+<section class="runsettings-panel system-settings-panel system-time-panel" aria-labelledby="system-time-heading">
+<h2 class="runsettings-panel-title" id="system-time-heading" data-i18n="settings.timeGroup">Zeit</h2>
+<div class="system-settings-field">
+          <label for="webNTPServer" data-i18n="settings.ntpserver">NTP-Server:</label>
+          <input name="webNTPServer" id="webNTPServer" type="text" data-i18n="settings.ntpserver.ph" data-i18n-attr="placeholder" value="%NTPSERVER%">
+        </div><div class="system-settings-field">
+          <div class="label-inline">
+            <label for="webTimeZoneInfo" data-i18n="settings.posixTimeZone">Zeitzone (POSIX)</label>
 
-        <h2 data-i18n="settings.backendWrite.title">Backend Write API</h2>
-        <p class="hint" data-i18n="settings.backendWrite.hint">Erlaubt dem GrowTent-Backend ausschließlich Soll-Temperatur, Soll-VPD, Blüte-/Trocknungsdatum und aktuelle Phase über eine HMAC-gesicherte Schnittstelle zu ändern.</p>
-
-        <div class="form-group checkbox">
-          <label class="inline-checkbox">
-            <input type="checkbox" name="webBackendWriteEnabled" id="webBackendWriteEnabled" %BACKEND_WRITE_ENABLED_CHECKED%>
-            <span data-i18n="settings.backendWrite.enabled">Backend Write API aktivieren</span>
-          </label>
-        </div>
-
-        <div class="form-group">
-          <label for="webBackendWriteAllowedIp" data-i18n="settings.backendWrite.allowedIp">Erlaubte Backend-IP:</label>
-          <input name="webBackendWriteAllowedIp" id="webBackendWriteAllowedIp" type="text" inputmode="decimal" maxlength="15" style="width: 180px;" value="%BACKEND_WRITE_ALLOWED_IP%" placeholder="192.168.178.10">
-        </div>
-
-        <div class="form-group">
-          <label for="webBackendWriteSecret" data-i18n="settings.backendWrite.secret">HMAC API-Schlüssel:</label>
-          <input name="webBackendWriteSecret" id="webBackendWriteSecret" type="password" autocomplete="new-password" maxlength="64" style="width: 520px; max-width: 100%;" value="" placeholder="%BACKEND_WRITE_SECRET_PLACEHOLDER%">
-          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-            <button type="button" class="btn" id="generateBackendWriteSecretBtn" data-i18n="settings.backendWrite.generate">Neuen 256-Bit-Schlüssel erzeugen</button>
-            <button type="button" class="btn" id="copyBackendWriteSecretBtn" data-i18n="settings.backendWrite.copy">Schlüssel kopieren</button>
           </div>
-          <small data-i18n="settings.backendWrite.secretHint">Der Schlüssel wird nach dem Speichern nicht wieder angezeigt. Leeres Feld bedeutet: vorhandenen Schlüssel behalten.</small>
-        </div>
-
-        <h2 data-i18n="settings.powerPrice">Preis pro kWh</h2> 
-        <div class="form-group">
-          <label for="webPowerPriceKwh">Power price (€/kWh):</label>
-          <input name="webPowerPriceKwh" id="webPowerPriceKwh" type="number" step="0.01" min="0" style="width: 120px;" value="%POWERPRICEKWH%">
-        </div>
-
-        <h2 data-i18n="settings.DS18B20">DS18B20 Sensor</h2>        
-        <div class="form-group checkbox">
+          <input name="webTimeZoneInfo" id="webTimeZoneInfo" type="text" data-i18n="settings.timeZoneInfo.ph" data-i18n-attr="placeholder" value="%TZINFO%">
+        <a class="system-timezone-link" href="https://github.com/nayarsystems/posix_tz_db/blob/master/zones.json" target="_blank" rel="noopener noreferrer" data-i18n="settings.timeZoneList">Zeitzonen-Liste ↗</a>
+</div>
+</section>
+<section class="runsettings-panel system-settings-panel system-sensor-panel" aria-labelledby="system-sensor-heading">
+<h2 class="runsettings-panel-title" id="system-sensor-heading" data-i18n="settings.sensorGroup">DS18B20-Sensor</h2>
+<div class="system-settings-field checkbox">
           <label class="inline-checkbox">
            <input type="checkbox" name="webDS18B20Enable" id="webDS18B20Enable" %DS18B20ENABLE%>
            <span data-i18n="settings.enabled">aktivieren</span>
           </label>
+        </div><div class="system-settings-field">
+          <label for="webDS18B20Name" data-i18n="settings.sensorName">Sensorname</label>
+<input name="webDS18B20Name" id="webDS18B20Name" type="text" data-i18n="settings.DS18B20Name.ph" data-i18n-attr="placeholder" maxlength="400" value="%DS18B20NAME%">
         </div>
-
-        <div class="form-group">
-          <input name="webDS18B20Name" id="webDS18B20Name" type="text" data-i18n="settings.DS18B20Name.ph" data-i18n-attr="placeholder" style="width: 250px;" maxlength="400" value="%DS18B20NAME%">
-        </div>
-
-        <h2 data-i18n="settings.relaySettings">Relais Einstellungen</h2>
-        <div class="form-group">
-          <label for="webRelay1" data-i18n="settings.relay1">Relay 1:</label>
-          <input name="webRelayName1" id="webRelayName1" type="text" data-i18n="settings.relay1.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES1%">
-        </div>
-
-        <div class="form-group">
-          <label for="webRelay2" data-i18n="settings.relay2">Relay 2:</label>
-          <input name="webRelayName2" id="webRelayName2" type="text" data-i18n="settings.relay2.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES2%">
-        </div>
-
-        <div class="form-group">
-          <label for="webRelay3" data-i18n="settings.relay3">Relay 3:</label>
-          <input name="webRelayName3" id="webRelayName3" type="text" data-i18n="settings.relay3.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES3%">
-        </div>
-
-        <div class="form-group">
-          <label for="webRelay4" data-i18n="settings.relay4">Relay 4:</label>
-          <input name="webRelayName4" id="webRelayName4" type="text" data-i18n="settings.relay4.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES4%">
-        </div>
-
-        <div class="form-group relay-extra" id="settingsRelay5Row" style="display:none;">
+</section>
+<section class="runsettings-panel system-settings-panel system-backend-panel" aria-labelledby="system-backend-heading">
+<h2 class="runsettings-panel-title" id="system-backend-heading" data-i18n="settings.backendGroup">Backend-Zugriff (HMAC)</h2>
+<div class="system-settings-field checkbox">
+          <label class="inline-checkbox">
+            <input type="checkbox" name="webBackendWriteEnabled" id="webBackendWriteEnabled" %BACKEND_WRITE_ENABLED_CHECKED%>
+            <span data-i18n="settings.backendWrite.enabled">Backend Write API aktivieren</span>
+          </label>
+        </div><div class="system-backend-fields"><div class="system-settings-field">
+          <label for="webBackendWriteAllowedIp" data-i18n="settings.backendWrite.allowedIp">Erlaubte Backend-IP:</label>
+          <input name="webBackendWriteAllowedIp" id="webBackendWriteAllowedIp" type="text" inputmode="decimal" maxlength="15" value="%BACKEND_WRITE_ALLOWED_IP%" placeholder="192.168.178.10">
+        </div><div class="system-settings-field">
+          <label for="webBackendWriteSecret" data-i18n="settings.backendWrite.secret">HMAC API-Schlüssel:</label>
+          <input name="webBackendWriteSecret" id="webBackendWriteSecret" type="password" autocomplete="new-password" maxlength="64" value="" placeholder="%BACKEND_WRITE_SECRET_PLACEHOLDER%">
+          <div class="system-key-actions">
+            <button type="button" class="btn" id="generateBackendWriteSecretBtn" data-i18n="settings.backendWrite.generate">Neuen 256-Bit-Schlüssel erzeugen</button>
+            <button type="button" class="btn" id="copyBackendWriteSecretBtn" data-i18n="settings.backendWrite.copy">Schlüssel kopieren</button>
+          </div>
+          <small data-i18n="settings.backendWrite.secretHint">Der Schlüssel wird nach dem Speichern nicht wieder angezeigt. Leeres Feld bedeutet: vorhandenen Schlüssel behalten.</small>
+        </div></div>
+</section>
+<section class="runsettings-panel system-settings-panel system-relay-panel" aria-labelledby="system-relay-heading">
+<h2 class="runsettings-panel-title" id="system-relay-heading" data-i18n="settings.relayNamesGroup">Relaisnamen</h2>
+<div class="system-relay-fields"><div class="system-settings-field">
+          <label for="webRelayName1" data-i18n="settings.relay1">Relay 1:</label>
+          <input name="webRelayName1" id="webRelayName1" type="text" data-i18n="settings.relay1.ph" data-i18n-attr="placeholder" maxlength="15" value="%RELAYNAMES1%">
+        </div><div class="system-settings-field">
+          <label for="webRelayName2" data-i18n="settings.relay2">Relay 2:</label>
+          <input name="webRelayName2" id="webRelayName2" type="text" data-i18n="settings.relay2.ph" data-i18n-attr="placeholder" maxlength="15" value="%RELAYNAMES2%">
+        </div><div class="system-settings-field">
+          <label for="webRelayName3" data-i18n="settings.relay3">Relay 3:</label>
+          <input name="webRelayName3" id="webRelayName3" type="text" data-i18n="settings.relay3.ph" data-i18n-attr="placeholder" maxlength="15" value="%RELAYNAMES3%">
+        </div><div class="system-settings-field">
+          <label for="webRelayName4" data-i18n="settings.relay4">Relay 4:</label>
+          <input name="webRelayName4" id="webRelayName4" type="text" data-i18n="settings.relay4.ph" data-i18n-attr="placeholder" maxlength="15" value="%RELAYNAMES4%">
+        </div><div class="system-settings-field relay-extra" id="settingsRelay5Row" style="display:none;">
           <label for="webRelayName5" data-i18n="settings.relay5">Relay 5:</label>
-          <input name="webRelayName5" id="webRelayName5" type="text" data-i18n="settings.relay5.ph" data-i18n-attr="placeholder" style="width: 120px;" maxlength="15" value="%RELAYNAMES5%">
-        </div>
-
-        <button class="primary" id="saveSettingsBtn" type="button" data-i18n="settings.save" onclick="window.saveSystemSettingsAll(event)">Speichern</button>
+          <input name="webRelayName5" id="webRelayName5" type="text" data-i18n="settings.relay5.ph" data-i18n-attr="placeholder" maxlength="15" value="%RELAYNAMES5%">
+        </div></div>
+</section>
+</div>
+<div class="system-settings-actions"><button class="primary" id="saveSettingsBtn" type="button" data-i18n="settings.save" onclick="window.saveSystemSettingsAll(event)">Speichern</button></div>
       </section>
     </form>
 
@@ -1009,7 +988,7 @@ const char* htmlPage = R"rawliteral(
     </section>
   </main>
   </div>
-  
+
  <script src="/script.js?v=%FWVERSION%"></script>
 </body>
 </html>
