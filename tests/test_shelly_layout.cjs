@@ -17,8 +17,8 @@ const fs=require('fs');const vm=require('vm');const assert=require('node:assert/
    save:document.getElementById('saveshellysettingsBtn').getAttribute('onclick'),refresh:document.querySelector('#shelly .shelly-refresh-button').getAttribute('onclick')};
  });
  assert.ok(structure.form&&structure.labels&&structure.unique&&structure.readOnly,JSON.stringify(structure));assert.equal(structure.password,'password');assert.match(structure.save,/saveShellySettingsAll/);assert.match(structure.refresh,/refreshShellySchedule/);
- assert.equal(await page.locator('#shelly details').count(),2);
- assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#shelly details')].every(d=>!d.open)),'Advanced settings start collapsed');
+ assert.equal(await page.locator('#shelly details,#shelly summary').count(),0);
+ assert.equal(await page.locator('#shelly section.shelly-auth-panel,#shelly section.shelly-flood-panel').count(),2);
  assert.ok(await page.evaluate(()=>!document.getElementById('shellyLightOnTime').closest('.shelly-devices-panel')),'Light schedule is separate from device rows');
  fs.mkdirSync('layout-previews',{recursive:true});
  for(const lang of ['de','en'])for(const width of [1640,1000,800,390]){
@@ -33,14 +33,17 @@ const fs=require('fs');const vm=require('vm');const assert=require('node:assert/
     assert.ok(boxes.every(b=>b.height<110),'Compact rows');
     assert.ok(boxes.slice(1).every((b,i)=>b.y-boxes[i].bottom<2),'No gaps between device rows');
   }
-  for(const summary of await page.locator('#shelly details > summary').all())await summary.click();
-  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#shelly details')].every(d=>d.open)),'Native details open');
-  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('#shelly details input')].every(input=>!input.disabled)),'Collapsed settings remain editable');
-  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Expanded sections do not overflow');
-  await page.screenshot({path:`layout-previews/shelly-expanded-${lang}-${width}.png`,fullPage:true});
-  for(const summary of await page.locator('#shelly details > summary').all())await summary.click();
+  assert.ok(await page.locator('#shellyUsername').isVisible(),'Username is always visible');
+  assert.ok(await page.locator('#shellyPassword').isVisible(),'Password is always visible');
+  assert.ok(await page.locator('#floodEnabled').isVisible(),'Flood toggle is always visible');
+  assert.ok(await page.locator('#floodToken').isVisible(),'Flood token is always visible');
+  assert.ok(await page.locator('#floodAlarmUrl').isVisible(),'Flood alarm link is always visible');
+  assert.ok(await page.locator('#floodClearUrl').isVisible(),'Flood clear link is always visible');
+  assert.ok(await page.evaluate(()=>[...document.querySelectorAll('.shelly-auth-panel input,.shelly-flood-panel input')].every(input=>!input.disabled)),'Visible settings remain enabled');
+  await page.evaluate(()=>scrollTo(0,0));
+  await page.waitForTimeout(100);
   await page.screenshot({path:`layout-previews/shelly-${lang}-${width}.png`,fullPage:true});
-  console.log(`Shelly ${lang} ${width}px: aligned rows, native details, valid form, no overflow`);
+  console.log(`Shelly ${lang} ${width}px: aligned rows, always-visible authentication/Flood, valid form, no overflow`);
  }
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -1280,11 +1280,6 @@ const char cssContent[] PROGMEM = R"rawliteral(
 .shelly-light-layout { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
 .shelly-light-fields { display:grid; grid-template-columns:repeat(3,minmax(120px,180px)); gap:14px; }
 .shelly-settings-page .shelly-refresh-button { width:auto; max-width:100%; white-space:normal; margin:0; }
-.shelly-settings-page details.runsettings-panel { padding:0; }
-.shelly-settings-page details > summary.runsettings-panel-title { margin:0; cursor:pointer; list-style:revert; }
-.shelly-settings-page details[open] > summary.runsettings-panel-title { margin-bottom:14px; }
-.shelly-settings-page details > :not(summary) { margin-left:16px; margin-right:16px; }
-.shelly-settings-page details > :last-child { margin-bottom:16px; }
 .shelly-flood-panel .twoinone-label { display:flex; flex-wrap:wrap; gap:10px; min-width:0; }
 .shelly-flood-panel .twoinone-label input { flex:1 1 260px; min-width:0; }
 .shelly-flood-panel small { display:block; overflow-wrap:anywhere; }
