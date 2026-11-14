@@ -3740,8 +3740,7 @@ static bool safelyForceHeatingOutputOff(int sourceType, int relay, const char* c
                String(context ? context : "unknown"));
       return false;
     }
-    shelly.heater.values.isOn = false;
-    shelly.heater.values.ok = true;
+    // shellySwitchSet records the state hint without reviving stale telemetry.
     logPrint("[ASYNC][HEATCFG] Shelly heater forced OFF context=" +
              String(context ? context : "unknown"));
     return true;
@@ -6647,29 +6646,36 @@ static bool reloadAsyncShellyRuntimeFromPreferences(String& resultJson, String& 
   }
   detectedJson += "}";
 
-  for (uint8_t i = 0; i < 7; ++i) {
-    ShellyDevice* dev = asyncShellyRuntimeDeviceMutable(i);
-    if (!dev) {
-      errOut = "unknown_shelly_role";
-      resultJson = "{\"ok\":false,\"err\":\"unknown_shelly_role\"}";
-      return false;
-    }
-    const bool changed = dev->ip != stored.ip[i] || dev->gen != stored.gen[i];
-    dev->ip = stored.ip[i];
-    dev->gen = stored.gen[i];
-    if (changed) {
-      dev->values = ShellyValues{};
-      for (int d = 0; d < 7; ++d) {
-        dev->schedules.days[d].onHour = -1;
-        dev->schedules.days[d].onMinute = -1;
-        dev->schedules.days[d].offHour = -1;
-        dev->schedules.days[d].offMinute = -1;
+  {
+    ShellyCacheLock cacheLock;
+    if(!cacheLock.held){errOut="shelly_cache_busy";resultJson="{\"ok\":false,\"err\":\"shelly_cache_busy\"}";return false;}
+    bool identityChanged=settings.shelly.username!=stored.username || settings.shelly.password!=stored.password;
+    for(uint8_t i=0;i<7;++i){const ShellyDevice* dev=asyncShellyRuntimeDevice(i);if(dev && (dev->ip!=stored.ip[i]||dev->gen!=stored.gen[i]))identityChanged=true;}
+    if(identityChanged)invalidateShellyCacheLocked();
+    for (uint8_t i = 0; i < 7; ++i) {
+      ShellyDevice* dev = asyncShellyRuntimeDeviceMutable(i);
+      if (!dev) {
+        errOut = "unknown_shelly_role";
+        resultJson = "{\"ok\":false,\"err\":\"unknown_shelly_role\"}";
+        return false;
+      }
+      const bool changed = dev->ip != stored.ip[i] || dev->gen != stored.gen[i];
+      dev->ip = stored.ip[i];
+      dev->gen = stored.gen[i];
+      if (changed) {
+        dev->values = ShellyValues{};
+        for (int d = 0; d < 7; ++d) {
+          dev->schedules.days[d].onHour = -1;
+          dev->schedules.days[d].onMinute = -1;
+          dev->schedules.days[d].offHour = -1;
+          dev->schedules.days[d].offMinute = -1;
+        }
       }
     }
-  }
 
-  settings.shelly.username = stored.username;
-  settings.shelly.password = stored.password;
+    settings.shelly.username = stored.username;
+    settings.shelly.password = stored.password;
+  } // Publish the complete config before any status reader resumes.
   settings.flood.enabled = stored.floodEnabled;
   settings.flood.webhookToken = stored.floodToken;
   settings.grow.lightOnTime = stored.lightOnTime;
@@ -8924,6 +8930,7 @@ static void taskDeferredInit(void* /*pv*/) {
 // -------------------- setup --------------------
 void setup() {
   Serial.begin(115200);
+  if(!initShellyCache())Serial.println("[SHELLY] status cache unavailable; readings fail closed");
 
   // Create mutex for relay state access (used by both HTTP handlers and watering task)
   relayMutex = xSemaphoreCreateMutex();
@@ -9139,6 +9146,7 @@ void loop() {
   // A real install may switch the entire
   // application into exclusive OTA mode; once requested, the normal runtime
   // performs no further controller/network/storage work until reboot.
+  expireShellyCache();
   processPumpAutoOff();
   processClimateSafety();
   otaProcessQueue();

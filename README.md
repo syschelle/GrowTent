@@ -4,7 +4,7 @@
 
 GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.21.md`](RELEASE_NOTES_v0.5.21.md).
+The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.22.md`](RELEASE_NOTES_v0.5.21.md).
 
 For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
 
@@ -634,3 +634,7 @@ Pushover and Gotify now have compact, permanently visible provider sections, hea
 ## Pump OFF retries and climate freshness (v0.5.21)
 
 Pump stop/Auto-Off requests remain armed until GPIO OFF is confirmed. Invalid climate measurements immediately disable heater/humidifier ON commands; missing fresh BME data expires after 30 seconds. The main loop retries a local heater OFF, while the existing Shelly worker sends fault-only, rate-limited OFF requests for the humidifier and a configured Shelly heating source. No additional normal-operation polling is added. New diagnostic state keys are `sensors.climate.fresh`, `sensors.climate.status` (`unavailable`, `invalid`, `stale`, `ok`) and `sensors.climate.ageMs` (null until the first valid reading). Invalid/stale temperature, humidity and VPD values are returned as JSON null. Control resumes after valid measurements return. GPIO feedback does not measure relay contacts; a disconnected Shelly cannot receive an OFF command. See RELEASE_NOTES_v0.5.21.md and TESTING.md.
+
+## Shelly freshness and notification encoding (v0.5.22)
+
+Status failures immediately make the corresponding Shelly reading unavailable; otherwise readings expire after 60 seconds without a successful status read. Existing switch/power/energy/cost API fields return null in that state, and the ESP UI shows neutral Unknown/Unbekannt rather than OFF. Each role adds `cur.shelly.<role>.fresh` and `.ageMs` (null until the first valid sample). Configuration changes invalidate cached values and in-flight status requests. Normal staggered polling and 30-second failure backoff are retained; switch command acknowledgements do not renew measurement age. Pushover fields and Gotify JSON/query values are encoded safely, preserving UTF-8 and special characters. TLS and VPD smoothing are unchanged.

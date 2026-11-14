@@ -11,11 +11,7 @@ extern int amountOfWater;
 void taskShellyStatus(void *parameter){
   static UBaseType_t minFreeBytes = UINT32_MAX;
 
-  struct PollState {
-    ShellyValues lastGood;
-    bool haveGood = false;
-    uint32_t retryAfterMs = 0;
-  };
+  struct PollState { uint32_t epoch=0,retryAfterMs=0; bool backingOff=false; };
 
   static PollState mainState;
   static PollState lightState;
@@ -28,36 +24,20 @@ void taskShellyStatus(void *parameter){
   constexpr uint32_t RETRY_BACKOFF_MS = 30000UL;
 
   auto pollDevice = [&](ShellyDevice& configured, ShellyDevice& runtime, PollState& state) {
-    // An empty IP means "not configured". Never poll it and never emit an error.
-    if (configured.ip.length() == 0) {
-      runtime.values = ShellyValues{};
-      state.haveGood = false;
-      state.retryAfterMs = 0;
-      return;
+    {
+      ShellyCacheLock lock;if(!lock.held)return;
+      const uint32_t epoch=shellyCacheEpoch();
+      if(state.epoch!=epoch){state.epoch=epoch;state.backingOff=false;}
+      if(configured.ip.isEmpty()){configured.values=ShellyValues{};runtime.values=ShellyValues{};state.backingOff=false;return;}
+      if(state.backingOff && int32_t(millis()-state.retryAfterMs)<0)return;
     }
-
-    const uint32_t now = millis();
-    if (state.retryAfterMs != 0 && (int32_t)(now - state.retryAfterMs) < 0) {
-      return;
-    }
-
-    ShellyValues current = getShellyValues(configured, 0);
-    if (current.ok) {
-      runtime.values = current;
-      state.lastGood = current;
-      state.haveGood = true;
-      state.retryAfterMs = 0;
-      return;
-    }
-
-    // Keep the last valid reading on transient failures. Retry later instead of
-    // running the same unreachable device into an HTTP timeout every 10 seconds.
-    if (state.haveGood) {
-      runtime.values = state.lastGood;
-    } else {
-      runtime.values = ShellyValues{};
-    }
-    state.retryAfterMs = now + RETRY_BACKOFF_MS;
+    getShellyValues(configured,0);
+    ShellyCacheLock lock;if(!lock.held)return;
+    // Mirror authoritative state, never restore a private lastGood copy.
+    runtime.values=configured.values;
+    if(state.epoch!=shellyCacheEpoch()){state.epoch=shellyCacheEpoch();state.backingOff=false;return;}
+    state.backingOff=!shellyValuesFresh(configured.values,millis());
+    if(state.backingOff)state.retryAfterMs=millis()+RETRY_BACKOFF_MS;
   };
 
   for (;;) {

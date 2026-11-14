@@ -23,6 +23,8 @@
 #include "humidifier_fan.h"
 #include "ota.h"
 #include "climate_safety.h"
+#include "shelly_cache.h"
+#include "notification_payload.h"
 #include <runtime.h>
 
 // Include platform-specific headers for inet_ntoa
@@ -663,13 +665,7 @@ bool sendPushover(const String& message, const String& title) {
 
     https.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
-    String body =
-      "token=" + String(pushoverAppKey) +
-      "&user="  + String(pushoverUserKey) +
-      "&device=" + String(pushoverDevice) +
-      "&title=" + title +
-      "&priority=1" +
-      "&message=" + message;
+    const String body=makePushoverPayload(pushoverAppKey,pushoverUserKey,pushoverDevice,title,message);
 
     int code = https.POST(body);
     String resp = https.getString();
@@ -691,7 +687,7 @@ bool sendPushover(const String& message, const String& title) {
 // Send notification via Gotify
 bool sendGotify(const String& msg, const String& title, int priority) {
   if (gotifySent) {
-    String GOTIFY_URL = String("https://") + gotifyServer + "/message?token=" + gotifyToken;
+    String GOTIFY_URL = String("https://") + gotifyServer + "/message?token=" + notificationFormEncode(gotifyToken);
   
     // priority: -2 (lowest) to 10 (highest)
     WiFiClientSecure client;
@@ -702,12 +698,7 @@ bool sendGotify(const String& msg, const String& title, int priority) {
 
     http.addHeader("Content-Type", "application/json");
 
-    // JSON Body
-    String body = "{";
-    body += "\"title\":\"" + title + "\",";
-    body += "\"message\":\"" + msg + "\",";
-    body += "\"priority\":" + String(priority);
-    body += "}";
+    const String body=makeGotifyPayload(title,msg,priority);
 
     int code = http.POST(body);
     String resp = http.getString();
@@ -1572,7 +1563,7 @@ static bool persistAutoDetectedShellyGeneration(ShellyDevice& dev, int detectedG
   return ok;
 }
 
-ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
+static ShellyValues fetchShellyValuesSnapshot(ShellyDevice& dev, int switchId, int port, const String& user, const String& pass) {
   ShellyValues v; // default ok=false
 
   // Empty IP means this Shelly slot is not configured. Do not poll and do not log an error.
@@ -1593,7 +1584,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
     int detectHttpCode = -1;
     String detectedModel;
     if (!detectShellyGeneration(dev.ip, port,
-                                settings.shelly.username, settings.shelly.password,
+                                user, pass,
                                 detectedGen, detectedModel, detectHttpCode)) {
       logPrint("[SHELLY][DETECT] unresolved generation for " + dev.ip +
                " HTTP=" + String(detectHttpCode));
@@ -1619,11 +1610,11 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
   if (parseAsGen1) {
     ok = httpGetGen1(dev.ip, port, path,
-                     settings.shelly.username, settings.shelly.password,
+                     user, pass,
                      code, body);
   } else {
     ok = httpGetWithDigestAutoAuth(dev.ip, port, path,
-                                   settings.shelly.username, settings.shelly.password,
+                                   user, pass,
                                    code, body);
   }
 
@@ -1633,7 +1624,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
     int fallbackCode = 0;
     String fallbackBody;
     const bool fallbackOk = httpGetGen1(dev.ip, port, "/status",
-                                        settings.shelly.username, settings.shelly.password,
+                                        user, pass,
                                         fallbackCode, fallbackBody);
     if (fallbackOk && fallbackBody.length() > 0) {
       ok = true;
@@ -1668,7 +1659,7 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
 
   if (parseAsGen1) {
     // Gen1: relays[x].ison, meters[x].power, meters[x].total
-    if (!doc["relays"][switchId].is<JsonObject>()) {
+    if (!doc["relays"][switchId].is<JsonObject>() || !doc["relays"][switchId]["ison"].is<bool>()) {
       logPrint("[SHELLY] Gen1 probe rejected: missing relays[" + String(switchId) + "] on " + dev.ip);
       return v;
     }
@@ -1685,6 +1676,8 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
                " (configured Gen" + String(configuredGen) + ") runtime corrected");
     }
   } else {
+    // A syntactically valid error/wrong-channel response is not a status sample.
+    if(!doc["output"].is<bool>() || !doc["id"].is<int>() || doc["id"].as<int>()!=switchId)return v;
     // Gen2+: Switch.GetStatus
     v.isOn     = doc["output"] | false;
     v.powerW   = doc["apower"] | NAN;
@@ -1692,14 +1685,37 @@ ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
   }
 
   v.ok = true;
-  dev.values = v;
-
-  const bool isLightShelly =
-  settings.shelly.light.ip.length() > 0 && dev.ip == settings.shelly.light.ip;
-
-  if (isLightShelly) refreshShellyLightSchedule(false);
-
   return v;
+}
+
+ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {
+  ShellyDevice snapshot;String user,pass;uint32_t epoch,sequence;int configuredGen;
+  {
+    ShellyCacheLock lock;if(!lock.held)return ShellyValues{};
+    snapshot=dev;user=settings.shelly.username;pass=settings.shelly.password;
+    epoch=shellyCacheEpoch();sequence=++dev.statusReadSequence;configuredGen=dev.gen;
+  }
+  // Never keep the cache/config lock across HTTP or JSON parsing.
+  ShellyValues result=fetchShellyValuesSnapshot(snapshot,switchId,port,user,pass);
+  bool light=false;
+  {
+    ShellyCacheLock lock;if(!lock.held)return ShellyValues{};
+    // Config epochs also reject A->B->A changes and credentials-only edits.
+    // A newer read wins even if an older response happens to arrive last.
+    if(epoch!=shellyCacheEpoch() || sequence!=dev.statusReadSequence ||
+       dev.ip!=snapshot.ip || dev.gen!=configuredGen ||
+       user!=settings.shelly.username || pass!=settings.shelly.password)return ShellyValues{};
+    if(result.ok){
+      dev.gen=snapshot.gen;result.hasReading=true;result.sampledAtMs=millis();
+      result.cacheEpoch=epoch;dev.values=result;
+      light=!settings.shelly.light.ip.isEmpty() && dev.ip==settings.shelly.light.ip;
+    }else{
+      // Retain last-known numbers only as history, never as a fresh/OK state.
+      dev.values.ok=false;
+    }
+  }
+  if(light)refreshShellyLightSchedule(false);
+  return result;
 }
 
 // =======================
@@ -1757,6 +1773,7 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
     return false;
   }
 
+  const uint32_t commandCacheEpoch=shellyCacheEpoch();
   const uint64_t fanGeneration=(switchId==0 && port==80)?humidifierFanCommandGeneration(host,gen):0;
   const uint32_t fanStartedMs=millis();
   String path;
@@ -1784,13 +1801,14 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
   }
   logPrint("[SHELLY] HTTP=" + String(code) + " bodyLen=" + String(body.length()));
   const bool success=ok && code==200;
-  bool fanAccepted=success;
-  if(fanGeneration && success) {
+  bool confirmed=false;
+  if(success) {
     JsonDocument response;
-    fanAccepted=!deserializeJson(response,body) && response["error"].isNull() &&
+    confirmed=!deserializeJson(response,body) && response["error"].isNull() &&
       (gen==1 ? (response["ison"].is<bool>() && response["ison"].as<bool>()==on) : response["was_on"].is<bool>());
   }
-  humidifierFanCommandResult(fanGeneration,on,fanAccepted,fanStartedMs);
+  humidifierFanCommandResult(fanGeneration,on,confirmed,fanStartedMs);
+  if(confirmed)noteShellySwitch(host,on,commandCacheEpoch);
   return success;
 }
 
@@ -1992,8 +2010,9 @@ static void controlHeaterByTemperature() {
         const int idx = heatRelay - 1;
         isOn = (digitalRead(relayPins[idx]) == HIGH);
     } else if (settings.heating.sourceType == 2) {
-        if (!shelly.heater.values.ok) return; // no reliable state yet
-        isOn = shelly.heater.values.isOn;
+        const ShellyValues heater=shellyCachedValues(settings.shelly.heater);
+        if (!heater.ok) return; // no fresh confirmed state yet
+        isOn = heater.isOn;
     } else {
         return;
     }
@@ -2055,8 +2074,7 @@ static void controlHeaterByTemperature() {
                 );
 
                 if (switched) {
-                    shelly.heater.values.isOn = wantOn;
-                    shelly.heater.values.ok = true;
+                    // The switch helper updates state hints without renewing telemetry age.
                 }
             }
         }
@@ -2103,25 +2121,15 @@ void controlMinVPD() {
 
   // The regular Shelly worker refreshes settings.shelly.exhaust.values roughly
   // every 10 seconds. Reuse that state instead of keeping a second, divergent
-  // state cache inside this controller. Only perform a direct read when no
-  // valid status is available yet (for example directly after boot).
-  ShellyValues exhaustValues = settings.shelly.exhaust.values;
+  // state cache inside this controller. Let the worker retain its retry/backoff
+  // policy when status is unavailable.
+  const ShellyValues exhaustValues=shellyCachedValues(settings.shelly.exhaust);
   if (!exhaustValues.ok || settings.shelly.exhaust.gen < 1 || settings.shelly.exhaust.gen > 4) {
-    ShellyValues refreshed = getShellyValues(settings.shelly.exhaust, 0, 80);
-    if (!refreshed.ok) {
-      const uint32_t now = millis();
-      if (lastStatusFailureLogMs == 0 ||
-          (uint32_t)(now - lastStatusFailureLogMs) >= statusFailureLogIntervalMs) {
-        lastStatusFailureLogMs = now;
-        logPrint("[minVPD][ERROR] Exhaust status unavailable current=" + String(currentVpd, 2) +
-                 " minEff=" + String(minEff, 2));
-      }
-      return;
+    const uint32_t now=millis();
+    if(lastStatusFailureLogMs==0 || uint32_t(now-lastStatusFailureLogMs)>=statusFailureLogIntervalMs){
+      lastStatusFailureLogMs=now;logPrint("[minVPD] Waiting for fresh Shelly exhaust status");
     }
-    exhaustValues = refreshed;
-    // Mirror the freshly read value into the display/runtime cache used by
-    // /api/state so the control path and UI agree immediately.
-    shelly.exhaust.values = refreshed;
+    return; // The existing polling worker owns retry/backoff; no extra direct polls.
   }
 
   const bool actualOn = exhaustValues.isOn;
@@ -2159,12 +2167,7 @@ void controlMinVPD() {
     return;
   }
 
-  // Keep both caches synchronized immediately after a successful command.
-  settings.shelly.exhaust.values.ok = true;
-  settings.shelly.exhaust.values.isOn = shouldBeOn;
-  shelly.exhaust.values.ok = true;
-  shelly.exhaust.values.isOn = shouldBeOn;
-
+  // Switch acknowledgements do not renew cached telemetry timestamps.
   logPrint("[minVPD] Exhaust " + String(shouldBeOn ? "ON" : "OFF") +
            " successful current=" + String(currentVpd, 2) +
            " minEff=" + String(minEff, 2));
@@ -2197,8 +2200,9 @@ static void applyRelaySchedules() {
   const int nowMin = t.tm_min;
 
   // Determine whether Shelly light status is reliable
-  const bool lightStatusValid = shelly.light.values.ok;
-  const bool lightIsOn = lightStatusValid ? shelly.light.values.isOn : false;
+  const ShellyValues light=shellyCachedValues(settings.shelly.light);
+  const bool lightStatusValid = light.ok;
+  const bool lightIsOn = lightStatusValid ? light.isOn : false;
 
   // Only relays 1..5 currently support minute scheduling
   const int scheduledRelayCount = (activeRelayCount < 5) ? activeRelayCount : 5;
@@ -2312,7 +2316,8 @@ static void controlHumidifierByVPD() {
 
     // Only send ON if Shelly status is known and currently OFF.
     // Shelly auto-off will switch it off again after the configured pulse.
-    if (shelly.humidifier.values.ok && !shelly.humidifier.values.isOn) {
+    const ShellyValues humidifier=shellyCachedValues(settings.shelly.humidifier);
+    if (humidifier.ok && !humidifier.isOn) {
         bool ok = shellySwitchOn(
             settings.shelly.humidifier.ip,
             settings.shelly.humidifier.gen,

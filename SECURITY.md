@@ -53,3 +53,7 @@ The provider form layout changes without altering access boundaries, secret rete
 ## v0.5.21 actuator safety and sensor freshness
 
 This release retains pump OFF retry state after failed GPIO/mutex operations and gates stop/OTA acknowledgements on GPIO OFF. Climate validity is shared through atomic state, expires after 30 seconds and blocks heater/humidifier ON dispatch while invalid. The main loop handles local heater OFF retries independently of the BME task; the existing Shelly worker performs rate-limited fault-only OFF requests. An unreachable remote actuator or stalled main loop cannot be made fail-safe by software alone; hardware/load and outage tests remain open. No new write endpoint, credential exposure, TLS change or HMAC/protocol change is introduced.
+
+## v0.5.22 status-cache integrity and notification payloads
+
+Status snapshots are bound to configuration epochs and request sequences under a short cache mutex; network I/O occurs outside that lock. Failed, expired or superseded status data cannot be reused as fresh control/API values. Credentials are copied only for the request lifetime and are not logged. Form/query components use percent encoding; Gotify text is JSON quoted (including control bytes) before object serialization. Provider logs remain status/length-only. Existing authentication, HMAC and TLS policy are unchanged; no new write endpoint is introduced. Real-device/provider validation remains open.
