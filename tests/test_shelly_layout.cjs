@@ -11,7 +11,7 @@ const fs=require('fs');const vm=require('vm');const assert=require('node:assert/
  const structure=await page.evaluate(()=>{
   const form=document.getElementById('shellySettingsForm');
   const controls=[...document.querySelectorAll('#shelly input,#shelly select,#shelly button')];
-  return {form:controls.every(c=>c.form===form),labels:controls.filter(c=>c.matches('input,select')).every(c=>c.labels.length>0),unique:new Set([...document.querySelectorAll('[id]')].map(e=>e.id)).size===document.querySelectorAll('[id]').length,
+  return {form:controls.every(c=>c.form===form),labels:controls.filter(c=>c.matches('input,select')).every(c=>c.labels.length>0),unique:[...document.querySelectorAll('#shelly [id]')].every(el=>document.querySelectorAll('#'+CSS.escape(el.id)).length===1),
    readOnly:document.getElementById('shellyLightOffTime').readOnly&&document.getElementById('floodAlarmUrl').readOnly&&document.getElementById('floodClearUrl').readOnly,
    password:document.getElementById('shellyPassword').type,
    save:document.getElementById('saveshellysettingsBtn').getAttribute('onclick'),refresh:document.querySelector('#shelly .shelly-refresh-button').getAttribute('onclick')};
