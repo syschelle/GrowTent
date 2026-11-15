@@ -96,3 +96,7 @@ Existing v0.5.21 safety, irrigation/fan, S3 contracts and full firmware/layout c
 ## Compact system settings (v0.5.24)
 
 `node tests/test_system_settings_layout.cjs` renders the shipped HTML/CSS with production translations at 1640/1000/800/390px in German/English and light/dark themes. It checks six permanently open cards, labels/unique IDs/form ownership, electricity price placement, POSIX lookup URL, overflow, fixed S3 board/pump separation and the actual save handler with synthetic transport: field payloads, backend configuration ACK before restart, empty-key retention and failure recovery. Screenshots are CI artifacts. Full firmware and prior host/browser checks remain required. Physical-device save/reboot/OTA verification remains OPEN.
+
+## Current-only release notes
+
+`python scripts/check_release_notes.py` requires exactly one root release-notes file matching the source version and title. Build/release CI invokes it; tag publishing also verifies tag/source agreement. This repository-only cleanup does not alter firmware or runtime behavior.

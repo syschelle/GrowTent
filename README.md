@@ -531,7 +531,7 @@ The release workflow is triggered by a `v*` Git tag.
 For the current release the authoritative release-notes file is:
 
 ```text
-RELEASE_NOTES_v0.5.13.md
+RELEASE_NOTES_v0.5.24.md
 ```
 
 The release workflow:
@@ -558,7 +558,7 @@ tests/test_async_transport_stress.sh
 tests/test_ota_transport.sh
 platformio.ini
 README.md
-RELEASE_NOTES_v0.5.13.md
+RELEASE_NOTES_v0.5.24.md
 LICENSE
 ```
 
@@ -593,7 +593,7 @@ Important source files:
 
 The current development changes are documented in:
 
-[`RELEASE_NOTES_v0.5.13.md`](RELEASE_NOTES_v0.5.13.md)
+[`RELEASE_NOTES_v0.5.24.md`](RELEASE_NOTES_v0.5.24.md)
 
 The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
 
@@ -633,7 +633,7 @@ Pushover and Gotify now have compact, permanently visible provider sections, hea
 
 ## Pump OFF retries and climate freshness (v0.5.21)
 
-Pump stop/Auto-Off requests remain armed until GPIO OFF is confirmed. Invalid climate measurements immediately disable heater/humidifier ON commands; missing fresh BME data expires after 30 seconds. The main loop retries a local heater OFF, while the existing Shelly worker sends fault-only, rate-limited OFF requests for the humidifier and a configured Shelly heating source. No additional normal-operation polling is added. New diagnostic state keys are `sensors.climate.fresh`, `sensors.climate.status` (`unavailable`, `invalid`, `stale`, `ok`) and `sensors.climate.ageMs` (null until the first valid reading). Invalid/stale temperature, humidity and VPD values are returned as JSON null. Control resumes after valid measurements return. GPIO feedback does not measure relay contacts; a disconnected Shelly cannot receive an OFF command. See RELEASE_NOTES_v0.5.21.md and TESTING.md.
+Pump stop/Auto-Off requests remain armed until GPIO OFF is confirmed. Invalid climate measurements immediately disable heater/humidifier ON commands; missing fresh BME data expires after 30 seconds. The main loop retries a local heater OFF, while the existing Shelly worker sends fault-only, rate-limited OFF requests for the humidifier and a configured Shelly heating source. No additional normal-operation polling is added. New diagnostic state keys are `sensors.climate.fresh`, `sensors.climate.status` (`unavailable`, `invalid`, `stale`, `ok`) and `sensors.climate.ageMs` (null until the first valid reading). Invalid/stale temperature, humidity and VPD values are returned as JSON null. Control resumes after valid measurements return. GPIO feedback does not measure relay contacts; a disconnected Shelly cannot receive an OFF command. See [RELEASE_NOTES_v0.5.21.md](https://github.com/syschelle/GrowTent/blob/f58c2576219e5fa0effa1b181bea37312b09031d/RELEASE_NOTES_v0.5.21.md) and TESTING.md.
 
 ## Shelly freshness and notification encoding (v0.5.22)
 
@@ -641,8 +641,14 @@ Status failures immediately make the corresponding Shelly reading unavailable; o
 
 ## VPD filter isolation (v0.5.23)
 
-Raw VPD is calculated directly from raw climate readings without changing filter state. The central control VPD retains its dedicated alpha-0.10 filter after Adaptive Climate Smoothing. API field names and controller thresholds remain unchanged. See RELEASE_NOTES_v0.5.23.md.
+Raw VPD is calculated directly from raw climate readings without changing filter state. The central control VPD retains its dedicated alpha-0.10 filter after Adaptive Climate Smoothing. API field names and controller thresholds remain unchanged. See [RELEASE_NOTES_v0.5.23.md](https://github.com/syschelle/GrowTent/blob/f58c2576219e5fa0effa1b181bea37312b09031d/RELEASE_NOTES_v0.5.23.md).
 
 ## Compact system settings (v0.5.24)
 
 System settings use six permanently open cards: Device (including electricity price), Display, Time (including the POSIX timezone-list link), DS18B20 sensor, Backend access (HMAC) and Relay names. The layout adapts to mobile and supports German/English plus light/dark themes. Existing save behavior and secret retention are unchanged. The S3 board remains fixed at six channels with pump outputs 1–3 reserved.
+
+## Release notes policy
+
+Keep exactly one versioned release-notes file in the repository root: `RELEASE_NOTES_<current-version>.md`, matching `FW_VERSION` in `src/build_version.h`. When bumping the version, replace the previous file rather than accumulating notes. Historical notes remain available in Git history and published GitHub Releases. Never delete tags/releases or rewrite Git history for this cleanup.
+
+Run `python scripts/check_release_notes.py` before pushing. Branch/PR and release builds enforce this invariant; tag builds also require the tag to match the source version.
