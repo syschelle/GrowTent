@@ -1,654 +1,197 @@
 # GrowTent
 
-> ⚡ Smart ESP32 grow-tent controller with climate monitoring, automation, irrigation, Shelly integration and OTA updates.
+ESP32 NodeMCU-32S firmware for climate monitoring, VPD automation, irrigation and Shelly integration. For the Waveshare six-channel ESP32-S3 board, use [GrowTent-S3](https://github.com/syschelle/GrowTent-S3).
 
-GrowTent is an ESP32 NodeMCU-32S based controller for climate monitoring and automation in a grow tent. It reads temperature and humidity from a BME280, optionally reads a DS18B20 water-temperature sensor, calculates VPD, controls relays and irrigation, and integrates with Shelly devices.
+Pair it with the [GrowTent Backend](https://github.com/syschelle/growtent-backend) for centralized history and multi-tent monitoring.
 
-The firmware provides a German/English web interface and a JSON API. Starting with **v0.4.0**, the application web server is fully based on **ESPAsyncWebServer**. The current development changes are documented in [`RELEASE_NOTES_v0.5.24.md`](RELEASE_NOTES_v0.5.24.md).
+## Hardware and relay assignment
 
-For centralized history, multi-tent management and higher-level coordination, GrowTent can be paired with the [GrowTent Backend](https://github.com/syschelle/growtent-backend).
+BME280 at I2C address `0x76`, optional DS18B20 on GPIO4, and HC-SR04 with TRIG GPIO16 / ECHO GPIO17.
 
----
-
-## Local irrigation planning (v0.5.4)
-
-Firmware-side autonomous scheduling is prepared; backend integration follows separately. The local plan is disabled by default. See [the HMAC plan/event API and safety contract](IRRIGATION_PLAN_API.md), [testing](TESTING.md) and [security](SECURITY.md).
-
-## 🚀 Features
-
-- **German/English ESP32 web interface** for live status and configuration
-- **Adaptive BME280 smoothing**
-  - temperature and humidity are smoothed for stable control values
-  - fast environmental changes are still detected quickly
-- **VPD calculation and target-based automation**
-- **Optional DS18B20 water-temperature sensor**
-- **4- or 8-relay configuration**
-- **Minute-based relay schedules**
-- **Conditional relay operation based on light state**
-- **Heating control**
-  - ESP relay or Shelly heater
-  - predictive temperature trend handling
-  - configurable hysteresis and minimum on/off times
-- **Shelly integration**
-  - main power
-  - grow light
-  - humidifier
-  - heater
-  - fan
-  - exhaust
-  - heating-mat monitoring
-  - automatic Shelly generation detection
-- **Irrigation support on 8-relay systems**
-  - pumps on relays 6–8
-  - individual pump enable/disable
-  - per-pump calibration
-  - sequential watering without pump overlap
-  - manual 10-second pump test
-- **HC-SR04 tank-level measurement**
-- **Shelly Flood S Gen4 integration**
-  - event-driven webhook handling
-  - watering start interlock
-  - optional active-watering abort
-- **Grow Diary stored in LittleFS**
-- **Built-in system log**
-- **GitHub OTA update check and installation**
-- **Release-specific static-asset cache busting**
-- **Fixed-length Async response transport for important API and asset responses**
-- **Designed for stable long-term unattended operation**
-- **Page-aware browser polling**
-  - periodic `/api/state` polling only on Status
-  - periodic log polling only on System Log
-  - settings pages remain static while edited
-
----
-
-## 🌡️ Climate measurement and VPD
-
-### BME280
-
-The BME280 supplies:
-
-- temperature in **°C**
-- relative humidity in %
-- air pressure
-
-Temperature values remain Celsius-native inside the firmware.
-
-The dashboard can display °C or °F, but the conversion is performed only in the browser presentation/input layer.
-
-Absolute temperature conversion:
-
-```text
-°F = °C × 1.8 + 32
-°C = (°F - 32) / 1.8
-```
-
-Temperature differences, such as the leaf-temperature offset:
-
-```text
-Δ°F = Δ°C × 1.8
-Δ°C = Δ°F / 1.8
-```
-
-The following remain Celsius-based regardless of the dashboard display setting:
-
-- BME280 temperature
-- DS18B20 / water temperature
-- stored target temperature
-- stored leaf-temperature offset
-- VPD and heater calculations
-- `/api/state`
-- `/api/stats`
-- external backend/API integrations
-
-### Adaptive climate smoothing
-
-The sensor task uses adaptive smoothing to balance stability and responsiveness.
-
-Small sensor changes are smoothed strongly, while larger environmental changes are allowed to influence the control value more quickly. This reduces unnecessary control oscillation without making the controller unresponsive.
-
-### VPD
-
-VPD is calculated from Celsius temperature and relative humidity:
-
-```text
-svp = 0.6108 × exp((17.27 × T) / (T + 237.3))
-VPD = svp - (RH / 100 × svp)
-```
-
-VPD remains independent of the selected dashboard temperature unit.
-
----
-
-## 🖥️ Web interface
-
-Normal application access:
-
-```text
-http://<esp-ip>:8080/
-```
-
-The frontend is embedded in firmware:
-
-- `/` — dashboard
-- `/style.css` — stylesheet
-- `/script.js` — JavaScript
-
-The dashboard provides:
-
-- Status
-- Running Settings / Betriebseinstellungen
-- System Settings / Systemeinstellungen
-- System Log
-- Factory Reset
-- Messages
-- OTA Update
-- Grow Diary
-
-The installed firmware version is shown in the dashboard header.
-
-### Status dashboard
-
-<img width="1658" height="1167" alt="GrowTent status dashboard" src="https://github.com/user-attachments/assets/3eaaaf75-0dce-4206-9e91-79ac6b099125" />
-
-The Status page shows the current climate values, VPD, relay state, irrigation state and configured Shelly devices. Temperature values follow the selected °C/°F presentation setting while API values remain Celsius-native.
-
----
-
-## 🌐 Current web-server architecture
-
-### Normal operation
-
-- Permanent dashboard and API server: **ESPAsyncWebServer**
-- Application port: **TCP/8080**
-- No normal application listener on TCP/80
-- Primary state endpoint: `GET /api/state`
-- Compatibility endpoint: `GET /api/stats`
-- Health endpoint: `GET /api/async/health`
-
-Async HTTP callbacks do not directly execute long-running or safety-critical hardware, storage, network or restart operations. Such work is handed off to the Arduino loop or the responsible worker/task.
-
-### Wi-Fi provisioning
-
-TCP/80 is reserved exclusively for the asynchronous captive portal while Wi-Fi provisioning is active.
-
-- Captive portal: **TCP/80**
-- Captive DNS is active only during provisioning
-- Candidate Wi-Fi credentials are tested before replacing stored credentials
-- A fallback AP is stopped again after the stored STA connection recovers
-- Normal operation returns to STA-only mode with TCP/80 closed
-
----
-
-## 🔌 Hardware
-
-### Controller
-
-- ESP32 NodeMCU-32S
-- PlatformIO target: `nodemcu-32s`
-- The ESP32 is part of the existing relay-board hardware platform
-
-### Sensors
-
-- BME280, I2C address `0x76`
-- DS18B20, GPIO `4`
-- HC-SR04 tank sensor
-  - TRIG: GPIO `16`
-  - ECHO: GPIO `17`
-
-### Relay mapping
-
-| Relay | GPIO | Typical use |
+| Relay | GPIO | Role |
 | ---: | ---: | --- |
-| 1 | 32 | configurable relay |
-| 2 | 33 | configurable relay |
-| 3 | 25 | configurable relay |
-| 4 | 26 | configurable relay |
-| 5 | 27 | configurable relay |
-| 6 | 14 | irrigation pump 1 |
-| 7 | 12 | irrigation pump 2 |
-| 8 | 13 | irrigation pump 3 |
+| 1 | 32 | General relay |
+| 2 | 33 | General relay |
+| 3 | 25 | General relay |
+| 4 | 26 | General relay |
+| 5 | 27 | General relay (8-channel configuration) |
+| 6 | 14 | Pump 1 |
+| 7 | 12 | Pump 2 |
+| 8 | 13 | Pump 3 |
 
-For a 4-relay configuration only relays 1–4 are active.
+Select a 4- or 8-relay board in System Settings. Only relays 1–4 are active in the 4-relay configuration; pump irrigation requires eight channels.
 
----
+## Features
 
-## 💧 Irrigation
+- German/English responsive web interface, light/dark themes and configurable date, time and temperature display.
+- BME280 climate measurement with adaptive smoothing, leaf-temperature offset and target-based VPD control.
+- Optional named DS18B20 temperature sensor and HC-SR04 tank-level measurement.
+- Minute schedules for general relays, optionally restricted to light-on periods.
+- Temperature-controlled heating through a local relay or Shelly, with predictive trend handling.
+- Shelly main power, light, humidifier, heater, fan and exhaust integration; heating-mat monitoring without switching it.
+- Power, energy and cost display with configurable electricity price and energy-counter reset.
+- ESP-owned irrigation plan, individual pump enable switches, sequential watering and manual pump tests.
+- Shelly Flood S Gen4 webhooks, watering start interlock and optional active-cycle abort.
+- Humidifier fan relay coupling with cached Shelly Auto-Off timing.
+- Pushover/Gotify notifications, local Grow Diary in LittleFS, system log and GitHub OTA updates.
 
-Irrigation is available on 8-relay configurations.
+## Web interface and screenshots
 
-- Pumps use relays 6–8
-- Pumps can be enabled/disabled individually
-- Each pump has its own calibration
-- Watering runs sequentially
-- Pump outputs do not overlap
-- Disabled pumps are skipped
-- Manual 10-second tests are blocked for disabled pumps
+Open `http://<esp-ip>:8080/`. The application and its assets are embedded in the firmware; no separate web hosting is required. Status polling runs on the Status page, log polling on System Log; settings pages stay static while being edited.
 
-GrowTent also supports a Flood interlock. When configured, an active Flood alarm can prevent watering from starting and can optionally abort an active watering cycle.
+The screenshots show a classic ESP32 with an eight-relay configuration. Names, device addresses and readings are examples; sensitive fields were redacted in the supplied images.
 
----
+### Status
 
-## 🔌 Shelly integration
+Current climate and target values, named DS18B20 measurement, relay controls, pump states, tank level, local-plan readiness, next irrigation and Shelly power/energy/cost telemetry. The header shows grow/flowering age, Flood status and HMAC configuration status.
 
-GrowTent supports Shelly devices for several roles, including:
+![Status dashboard with climate, irrigation and Shelly telemetry](docs/images/status.jpg)
 
-- main power
-- light
-- heater
-- humidifier
-- fan
-- exhaust
-- heating mat monitoring
+### Operating settings
 
-The firmware supports the different Shelly API generations used by configured devices and automatically detects the required generation where supported.
+Grow/flowering/drying dates and phase, temperature and VPD targets, leaf offset, minimum-VPD monitoring, irrigation interval and offset after light-on, last-watering date, enabled pumps, pulse/pause/volume calibration, heating source, humidifier fan coupling and relay minute schedules.
 
-Shelly actions are handled asynchronously through queued runtime ownership rather than performing blocking network operations directly inside Async HTTP callbacks.
+Use **Save plan** for the irrigation plan and **Save coupling** for the fan assignment. Other operating settings use their page save action.
 
----
+![Operating settings with local irrigation plan and relay schedules](docs/images/operating-settings.jpg)
 
-## 📓 Grow Diary / LittleFS
+### Shelly settings
 
-The Grow Diary is stored locally in LittleFS.
+Seven device roles with IP addresses and detected generation, light-on time and duration, shared optional credentials, and Flood webhook setup. The heating mat is monitoring-only. Flood events are pushed by the battery sensor; the ESP does not poll it.
 
-Relevant endpoints include:
+![Shelly settings with device roles, light schedule and Flood webhooks](docs/images/shelly-settings.jpg)
 
-- `GET /api/diary/list`
-- `GET /api/diary.csv`
-- `POST /api/diary/add`
-- `POST /api/diary/update`
-- `POST /api/diary/delete`
-- `POST /api/diary/clear`
-- `POST /api/fs/format`
-- `GET /api/fs/status`
-- `GET /api/storage/action-status`
+### Push settings
 
-Storage-changing operations use the firmware handoff model and are not performed as long blocking work inside Async HTTP callbacks.
+Pushover and Gotify have separate permanently visible provider sections and enable switches. Stored credentials are write-only; leaving a secret field empty keeps its saved value. Notification payloads preserve UTF-8 and special characters.
 
----
+![Push settings for Pushover and Gotify](docs/images/push-settings.jpg)
 
-## 🔗 API overview
+### System settings
 
-All normal application endpoints use **TCP/8080**.
+Six open cards group Device, Display, Time, DS18B20 sensor, Backend access (HMAC), and Relay names. Configure box name, electricity price, language/theme, units, date/time format, NTP/POSIX timezone, sensor name and backend access here.
 
-### State and diagnostics
+![System settings with display, time, sensor and HMAC configuration](docs/images/system-settings.jpg)
 
-- `GET /api/state`
-- `GET /api/stats`
-- `GET /api/async/health`
-- `GET /api/hint`
-- `GET /api/fs/status`
-- `GET /api/logbuffer`
-- `POST /api/logbuffer/clear`
-- `GET /log`
-- `GET /download/log`
+Additional pages provide the Grow Diary, System Log, variable diagnostics, OTA updates and Factory Reset.
 
-`/api/state` is the primary endpoint for the web interface and external integrations.
+## Climate control and measurement freshness
 
-It includes areas such as:
-
-- temperature / humidity / VPD
-- DS18B20 water temperature
-- grow phase and targets
-- relay configuration and schedules
-- irrigation state and pump enable flags
-- tank level
-- Shelly power/energy telemetry
-- Flood sensor state
-
-Sensitive credentials such as Wi-Fi passwords, Shelly passwords, Pushover credentials and Gotify tokens are not exposed through `/api/state`. Notification credentials and the Shelly password are also treated as write-only in the dashboard and are never embedded back into the delivered HTML. The Shelly Flood webhook token is intentionally visible because it is required for webhook configuration.
-
-### Authenticated backend Grow-profile write API
-
-v0.5.0 adds a deliberately narrow write endpoint for the GrowTent backend:
-
-- `PATCH /api/backend/grow-profile`
-
-The endpoint is disabled by default and can modify only:
-
-- `targetTemperature` (18.0–30.0 °C; API/internal value is always Celsius)
-- `targetVPD` (0.50–3.50 kPa)
-- `floweringStart` (`YYYY-MM-DD` or `null` when the resulting phase allows deletion)
-- `dryingStart` (`YYYY-MM-DD` or `null` when the resulting phase allows deletion)
-- `currentPhase` (`1..3`)
-
-Backend Write API configuration is available under System Settings. Enabling it requires an exact allowed IPv4 source address and a 256-bit HMAC secret. The stored secret is write-only: it is never returned in dashboard HTML, `/api/state`, or the settings GET response.
-
-Every write request must satisfy all of the following:
-
-1. Backend Write API is enabled.
-2. The TCP peer IPv4 address exactly matches the configured backend IP.
-3. `X-GrowTent-Timestamp` is a Unix timestamp in seconds within ±60 seconds of the controller clock.
-4. `X-GrowTent-Nonce` is exactly 32 lowercase hexadecimal characters and has not been accepted in the current replay window.
-5. `X-GrowTent-Signature` is a valid lowercase HMAC-SHA256 signature.
-
-The signing input is exactly:
+VPD uses air temperature, relative humidity and the configured leaf-temperature offset. With `svp(T) = 0.6107 × 10^(7.5 × T / (237.3 + T))` in kPa:
 
 ```text
-PATCH
-/api/backend/grow-profile
-<TIMESTAMP>
-<NONCE>
-<SHA256_HEX_OF_EXACT_REQUEST_BODY>
+leafTemperature = airTemperature + leafOffset
+VPD = max(0, svp(leafTemperature) - RH / 100 × svp(airTemperature))
 ```
 
-There is no trailing newline. The configured 64-character secret is decoded from hexadecimal into 32 raw key bytes before HMAC-SHA256 is calculated.
+Adaptive smoothing stabilizes temperature/humidity. The control path has an additional dedicated alpha-0.10 filter; raw VPD calculation never advances that filter. Consequently a reference calculated from displayed values can differ from the ESP control value.
 
-A successful authenticated request returns `202 Accepted` with a request ID. The Async callback never writes Preferences/NVS or mutates climate runtime state. It validates and queues the complete resulting Grow profile; the Arduino main loop performs the NVS write/readback verification, rollback on failure, runtime update and `/api/state` cache invalidation.
+Internal calculations, stored temperatures and API values remain Celsius-based. Fahrenheit conversion applies only to browser display/input, including correct conversion of temperature differences.
 
-Date/phase invariants are validated against the complete resulting state:
+Invalid climate readings immediately block heater/humidifier ON commands; readings without fresh BME data expire after 30 seconds. Invalid/stale temperature, humidity and VPD become JSON `null`. Climate diagnostics expose `sensors.climate.fresh`, `.status` and `.ageMs`. Fault handling retries OFF commands through the responsible runtime workers; normal control resumes after valid measurements return.
 
-- Phase 1: flowering/drying dates may be empty.
-- Phase 2: `floweringStart` must be set; `dryingStart` may be empty.
-- Phase 3: both `floweringStart` and `dryingStart` must be set.
-- `floweringStart: null` is accepted only when the resulting phase is 1 and `dryingStart` is also empty (or cleared in the same PATCH).
-- `dryingStart: null` is rejected when the resulting phase is 3.
-- No implicit cascading date deletion is performed.
-- Empty date strings (`""`) are rejected; deletion requires explicit JSON `null`.
-- When dates are present: Grow start ≤ flowering start ≤ drying start.
+Shelly status failures immediately invalidate the affected reading; otherwise it expires after 60 seconds without a successful status read. The UI shows **Unknown** rather than OFF, and switch/power/energy/cost fields become `null`. Each role exposes `cur.shelly.<role>.fresh` and `.ageMs`. A switch acknowledgement does not renew telemetry freshness.
 
-HMAC interoperability test vector:
+## Local irrigation and backend integration
 
-```text
-secretHex = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
-timestamp = 1793530800
-nonce     = 00112233445566778899aabbccddeeff
-body      = {"targetTemperature":22.5,"targetVPD":0.8,"currentPhase":2,"floweringStart":"2026-11-01"}
-bodySha256 = 46074f3052a1b48a26d3b71211937536cb24f99016f85566b6ff4a445ca3014d
-signature  = a9487688764f8b09fb2ccc49db29667f7ff9fe1831e3147e502e3eeec32edc4c
-```
+The ESP executes the automatic plan. Configure an interval in calendar days, an offset after the light Shelly's scheduled ON time, and known last-watering history. The plan is disabled by default. Disable independent backend scheduling before enabling it.
 
-The request body is signed byte-for-byte as transmitted. Backend implementations must serialize the JSON once, hash those exact bytes, and send those same bytes as the HTTP body.
+- Light schedules are refreshed at startup, on phase changes and hourly; supported Gen1 schedules and Gen2/3 `Schedule.List` jobs provide the time source.
+- The ESP calculates the next run; the backend displays the signed ESP forecast instead of deriving another schedule. Missing/blocked forecasts include a reason.
+- Known watering history may be imported from the backend; it is not estimated, cleared or moved backwards.
+- Enabled pumps run sequentially with shared volume/calibration settings and no pump overlap. Disabled pumps and their manual tests are skipped/rejected.
+- Drying blocks full watering cycles. Dedicated calibration pulses retain their separate behavior.
+- Valid clock, verified storage, event capacity and physical interlocks are required for full cycles. Interrupted or missed scheduled occurrences are not replayed after reboot.
+- Durable command identities make signed backend manual starts idempotent across retries. A `202 Accepted` only acknowledges queuing; check the matching result.
+- The durable event stream supports backend notification handling for scheduled and full manual cycles. Calibration pulses remain separate.
 
-### Relays
+See [IRRIGATION_PLAN_API.md](IRRIGATION_PLAN_API.md) for the signed protocol, schedule support, event acknowledgements, recovery rules and next-run status fields.
 
-- `GET|POST /api/relay/{1..5}/state`
-- `POST /relay/{1..5}/toggle`
+## Humidifier fan coupling
 
-### Irrigation
+Assign a permitted general relay under **Operating settings → Humidifier fan**. It follows successful ESP-origin commands to the configured humidifier Shelly using its cached Auto-Off duration. The cache refreshes on assignment/startup and hourly. Pumps and the active local heater cannot be selected.
 
-- `GET /api/watering/state`
-- `POST /api/watering/action`
-- `POST /api/watering/start`
-- `POST /api/watering/stop`
-- `POST /startWatering`
-- `POST /toggleWatering`
-- `POST /pump/6/triggerPump10s`
-- `POST /pump/7/triggerPump10s`
-- `POST /pump/8/triggerPump10s`
-- `POST /pingTank`
-- `GET|POST /api/flood/event`
+While coupled, independent relay controls and minute scheduling are unavailable; saved minute values are retained and resume when coupling is disabled. Direct commands from another Shelly client are not mirrored. See [HUMIDIFIER_FAN.md](HUMIDIFIER_FAN.md) for timing and failure behavior.
 
-### Shelly
+## API and access boundary
 
-- `POST /shelly/main/toggle`
-- `POST /shelly/light/toggle`
-- `POST /shelly/humidifier/toggle`
-- `POST /shelly/heater/toggle`
-- `POST /shelly/fan/toggle`
-- `POST /shelly/exhaust/toggle`
-- `POST /api/shelly/reset-energy`
-- `GET /api/shelly/action-status`
+The normal dashboard/API uses **ESPAsyncWebServer on TCP/8080**. TCP/80 and captive DNS are reserved for Wi-Fi provisioning and stop after normal STA connectivity returns. Credentials are tested before replacing stored Wi-Fi settings.
 
-### System actions
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/state` | Primary state and diagnostics |
+| GET | `/api/stats`, `/api/async/health` | Compatibility telemetry and health |
+| PATCH | `/api/backend/grow-profile` | Narrow authenticated grow-profile update |
+| POST | `/api/backend/irrigation-start` | Signed idempotent manual full-cycle request |
+| GET | `/api/watering/state` | Irrigation state |
+| POST | `/startWatering`, `/toggleWatering`, `/pingTank` | Local watering/tank actions |
+| GET | `/api/diary/list`, `/api/diary.csv`, `/api/fs/status` | Diary and storage reads |
+| POST | `/api/diary/add`, `/api/diary/update`, `/api/diary/delete` | Queued diary changes |
+| GET | `/api/storage/action-status`, `/api/shelly/action-status` | Queued operation results |
+| GET | `/api/logbuffer` | System log |
+| GET | `/api/ota/check`, `/api/ota/check-status` | Update discovery/result |
+| POST / GET | `/api/ota/update`, `/api/ota/update-status` | Install update/read result |
+| GET / POST | `/api/flood/event` | Token-protected Flood webhook |
 
-- `POST /api/system/restart`
-- `GET /api/system/restart-status`
-- `POST /factory-reset`
-- `GET /api/system/factory-reset-status`
+Async callbacks queue hardware, network, storage and restart work for the main loop or responsible task. Follow operation status rather than treating an accepted HTTP request as proof of a physical action. Exact route schemas and board-specific relay restrictions are defined in `src/main.cpp`.
 
-### OTA
+Backend writes are disabled by default. Enabling them requires an exact allowed backend IPv4 address and a 256-bit secret stored as 64 hexadecimal characters. Requests use HMAC-SHA256 over the exact body bytes, timestamp validation (±60 seconds) and replay-protected nonces. The grow-profile endpoint permits only target temperature/VPD, flowering/drying dates and phase, with date/phase consistency checks.
 
-- `GET /api/ota/check`
-- `GET /api/ota/check-status`
-- `POST /api/ota/update`
-- `GET /api/ota/update-status`
+Secrets are not exposed by `/api/state`. Stored HMAC, notification and Shelly credentials are write-only; the Flood token remains available locally for configuring webhook URLs. The local dashboard operates within a trusted-LAN boundary; enabling backend HMAC does not authenticate every dashboard route. See [SECURITY.md](SECURITY.md).
 
----
+## Storage and defaults
 
-## ⚙️ Default configuration
+Configuration is stored in Preferences/NVS; the Grow Diary is stored in LittleFS. LittleFS is not automatically formatted during boot or OTA. Use the explicit repair/clear action if needed, understanding that formatting removes diary data.
 
-- Wi-Fi setup AP SSID: `new growtent`
-- Wi-Fi setup AP password: `GT-12$34`
-- Default NTP server: `de.pool.ntp.org`
-- Default language: German (`de`)
-- Default theme: light
-- Default temperature display: Celsius
-- Default time format: 24-hour
+- Setup AP: `new growtent`, password `GT-12$34`
+- Default NTP server: `de.pool.ntp.org`; configurable POSIX timezone
+- Default display: German, light theme, Celsius, 24-hour time
 - BME280 address: `0x76`
 
-Persistent configuration is stored in ESP32 Preferences/NVS. Grow Diary data is stored in LittleFS.
+## Build and OTA
 
----
-
-## 🛠️ Build
-
-The project uses PlatformIO:
-
-```text
-platform = espressif32@6.11.0
-board = nodemcu-32s
-framework = arduino
-```
-
-Important dependencies are defined in `platformio.ini`, including:
-
-- ArduinoJson
-- Adafruit BME280 Library
-- Adafruit Unified Sensor
-- OneWire
-- DallasTemperature
-- ESP32Async/AsyncTCP 3.5.0
-- ESP32Async/ESPAsyncWebServer 3.12.1
-
-Build:
+Dependencies and board settings are maintained in [platformio.ini](platformio.ini). Install PlatformIO, then:
 
 ```bash
 pio run -e nodemcu-32s
-```
-
-USB upload:
-
-```bash
 pio run -e nodemcu-32s -t upload
 ```
 
----
+For first installation, upload through USB. The build output is `.pio/build/nodemcu-32s/firmware.bin`.
 
-## 🧪 Diagnostics and regression tests
+OTA downloads `firmware.bin` from this repository's [latest GitHub release](https://github.com/syschelle/GrowTent/releases/latest). Classic ESP32 and ESP32-S3 have separate firmware channels; use the channel matching the hardware.
 
-The `tests/` directory contains three shell diagnostics for real GrowTent hardware.
+Branch/PR workflows validate builds without publishing. A `v*` tag triggers the release workflow, building the board-specific environment and publishing `firmware.bin` and `manifest.json`, with the matching `RELEASE_NOTES_<tag>.md` as the release/OTA changelog.
 
-### `test_async_webserver.sh`
+## Testing and troubleshooting
 
-Full release/regression test for the AsyncWebServer firmware. It checks:
+See [TESTING.md](TESTING.md) for checks, results and open hardware validation. Hardware-dependent checks remain open where documented; feature availability does not imply those checks passed.
 
-- firmware version / Async phase
-- TCP/80 isolation
-- dashboard and static assets
-- `/api/state` and `/api/stats`
-- Async transport headers
-- settings/action handoffs
-- Wi-Fi provisioning behavior
-- OTA check/status handling
-- burst/load behavior
-- recovery after load
+- Dashboard unavailable: use port `8080`; check STA connection or the setup AP.
+- BME280 missing: check I2C wiring, power and address `0x76`.
+- DS18B20 unavailable: check sensor enable setting, GPIO4 and wiring.
+- Unknown climate/Shelly values: inspect freshness diagnostics, device connectivity and System Log.
+- No next irrigation: inspect plan readiness, clock, phase, pump enable flags, Flood state and Shelly schedule cache.
+- Relay problems: verify the board-specific GPIO mapping and reserved pump roles.
+- OTA issues: use `tests/test_ota_transport.sh`; transport issues: `tests/test_async_transport_stress.sh`.
 
-> This is **not a read-only test**. Run it only when configuration/action tests are acceptable on the target controller.
+The hardware regression script `tests/test_async_webserver.sh` includes configuration/action tests and is not read-only. Run such checks only on a suitable test controller. No hardware behavior is verified merely by a documentation update.
 
-```bash
-./tests/test_async_webserver.sh <ESP-IP>
-```
+## Project guide and release information
 
-### `test_async_transport_stress.sh`
+| Path | Contents |
+| --- | --- |
+| `src/main.cpp` | Initialization, Async routes and main-loop handoffs |
+| `src/function.h`, `src/runtime.h` | Control/API helpers, settings and rendering |
+| `src/index_html.h`, `src/java_script.h`, `src/style_css.h` | Embedded web interface |
+| `src/task_Check_Sensor.h`, `src/vpd_calculation.h` | Sensor/control task and VPD calculation |
+| `src/task_CheckShellyStatus.h`, `src/task_Watering.h` | Shelly and irrigation tasks |
+| `src/ota.cpp`, `src/ota.h` | GitHub OTA handling |
+| `docs/images/` | README screenshots |
+| `tests/`, `scripts/` | Regression diagnostics and repository checks |
 
-Focused **read-only** transport stress test.
-
-It generates parallel requests to:
-
-- `/api/state`
-- `/api/stats`
-- `/api/diary/list`
-- `/api/diary.csv`
-
-The test records HTTP/curl errors, response lengths and health data. Failed requests are deliberately **not retried**, so sporadic transfer stalls remain visible.
-
-```bash
-./tests/test_async_transport_stress.sh <ESP-IP>
-```
-
-### `test_ota_transport.sh`
-
-Non-flashing OTA transport diagnostic.
-
-It checks:
-
-- OTA update check / target discovery
-- DNS
-- TLS connectivity
-- GitHub release redirects
-- redirect-host TLS
-- release-asset response headers
-- normal runtime and/or exclusive OTA-maintenance mode
-
-No firmware bytes are written by this diagnostic.
-
-```bash
-./tests/test_ota_transport.sh <ESP-IP>
-./tests/test_ota_transport.sh <ESP-IP> --normal
-./tests/test_ota_transport.sh <ESP-IP> --exclusive
-./tests/test_ota_transport.sh <ESP-IP> --both
-```
-
-Exclusive mode intentionally reboots the ESP after the test because application tasks are stopped for the maintenance environment.
-
----
-
-## ⬆️ GitHub release and OTA
-
-The release workflow is triggered by a `v*` Git tag.
-
-For the current release the authoritative release-notes file is:
-
-```text
-RELEASE_NOTES_v0.5.24.md
-```
-
-The release workflow:
-
-1. generates `src/build_version.h` from the Git tag
-2. builds the `nodemcu-32s` PlatformIO environment
-3. creates `firmware.bin`
-4. creates `manifest.json`
-5. uses `RELEASE_NOTES_<tag>.md` for the GitHub Release and OTA changelog
-
-The normal OTA installer downloads the published GitHub Release `firmware.bin`.
-
----
-
-## 📁 Project structure
-
-```text
-.github/workflows/release-firmware.yml
-include/
-lib/
-src/
-tests/test_async_webserver.sh
-tests/test_async_transport_stress.sh
-tests/test_ota_transport.sh
-platformio.ini
-README.md
-RELEASE_NOTES_v0.5.24.md
-LICENSE
-```
-
-Important source files:
-
-- `src/main.cpp` — initialization, Async routes and main-loop handoffs
-- `src/function.h` — control logic and API helpers
-- `src/runtime.h` — runtime settings and rendering helpers
-- `src/java_script.h` — embedded dashboard JavaScript
-- `src/index_html.h` — embedded dashboard HTML
-- `src/style_css.h` — embedded dashboard CSS
-- `src/task_Check_Sensor.h` — sensor and climate-control task
-- `src/task_CheckShellyStatus.h` — Shelly polling task
-- `src/task_Watering.h` — irrigation task
-- `src/ota.cpp` / `src/ota.h` — GitHub OTA handling
-
----
-
-## 🧪 Troubleshooting
-
-- BME280 not found → check wiring and I2C address `0x76`
-- DS18B20 unavailable → check enable setting and GPIO 4
-- Relays not switching → verify relay configuration and GPIO mapping
-- Dashboard unavailable in normal operation → use port `8080`
-- Wi-Fi setup required → connect to the `new growtent` provisioning AP
-- OTA issues → use `tests/test_ota_transport.sh`
-- suspected Async transport stalls → use `tests/test_async_transport_stress.sh`
-
----
-
-## Release information
-
-The current development changes are documented in:
-
-[`RELEASE_NOTES_v0.5.24.md`](RELEASE_NOTES_v0.5.24.md)
-
-The README references only the current release notes. Previous release history remains available through Git history and GitHub Releases.
-
----
+Release-specific changes belong in the root `RELEASE_NOTES_*.md` file and [GitHub Releases](https://github.com/syschelle/GrowTent/releases). The repository keeps one current release-notes file; historical notes remain in Git history and published releases. Run `python scripts/check_release_notes.py` before pushing.
 
 ## License
 
-Licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE).
-
-### Local irrigation plan editor (v0.5.6)
-
-In Operating Settings, configure the local plan and press **Save plan** separately. The last-watering date can be transferred from known backend history; existing history cannot be cleared or moved back. Disable independent backend scheduling before enabling the ESP plan. Backend HMAC APIs remain available and share the same revisioned persistent plan.
-
-## v0.5.10 backend integration
-
-See IRRIGATION_PLAN_API.md for protocol v2 and signed idempotent manual starts. Command claims persist before starts; unknown expired commands cannot run. Full manual cycles use the backend event stream and require a valid clock and event capacity even with scheduling disabled. Real-device power-failure, pump/phase interlock and push integration validation remain OPEN.
-
-## Humidifier fan coupling (v0.5.14)
-
-See [HUMIDIFIER_FAN.md](HUMIDIFIER_FAN.md) for setup, hourly Auto-Off caching, exclusive relay ownership and limitations.
-
-In v0.5.15, the coupled fan relay’s scheduling controls are disabled and marked in the operating-settings UI. Existing minute values are retained and restored when coupling is removed.
-
-## Shelly settings layout (v0.5.16)
-
-Shared credentials, seven device-role cards and Flood S Gen4 settings now use the operating-settings panel style. Light schedule fields have individual labels. Responsive columns collapse to one on mobile. Existing save, detection and webhook behavior is retained.
-
-## Compact Shelly settings (v0.5.17)
-
-Device function, IP and generation now form aligned rows. The light plan has its own section; credentials and Flood settings are always visible (v0.5.18). All settings still use the same save button.
-
-In v0.5.19, irrigation-plan status spacing is compact and the Auto-Off explanation is removed from the fan settings UI. Controller behavior remains unchanged; [HUMIDIFIER_FAN.md](HUMIDIFIER_FAN.md) retains the technical details.
-
-## Push settings layout (v0.5.20)
-
-Pushover and Gotify now have compact, permanently visible provider sections, header enable switches and responsive field rows. Existing save, test-notification and restart behavior remains unchanged.
-
-## Pump OFF retries and climate freshness (v0.5.21)
-
-Pump stop/Auto-Off requests remain armed until GPIO OFF is confirmed. Invalid climate measurements immediately disable heater/humidifier ON commands; missing fresh BME data expires after 30 seconds. The main loop retries a local heater OFF, while the existing Shelly worker sends fault-only, rate-limited OFF requests for the humidifier and a configured Shelly heating source. No additional normal-operation polling is added. New diagnostic state keys are `sensors.climate.fresh`, `sensors.climate.status` (`unavailable`, `invalid`, `stale`, `ok`) and `sensors.climate.ageMs` (null until the first valid reading). Invalid/stale temperature, humidity and VPD values are returned as JSON null. Control resumes after valid measurements return. GPIO feedback does not measure relay contacts; a disconnected Shelly cannot receive an OFF command. See [RELEASE_NOTES_v0.5.21.md](https://github.com/syschelle/GrowTent/blob/f58c2576219e5fa0effa1b181bea37312b09031d/RELEASE_NOTES_v0.5.21.md) and TESTING.md.
-
-## Shelly freshness and notification encoding (v0.5.22)
-
-Status failures immediately make the corresponding Shelly reading unavailable; otherwise readings expire after 60 seconds without a successful status read. Existing switch/power/energy/cost API fields return null in that state, and the ESP UI shows neutral Unknown/Unbekannt rather than OFF. Each role adds `cur.shelly.<role>.fresh` and `.ageMs` (null until the first valid sample). Configuration changes invalidate cached values and in-flight status requests. Normal staggered polling and 30-second failure backoff are retained; switch command acknowledgements do not renew measurement age. Pushover fields and Gotify JSON/query values are encoded safely, preserving UTF-8 and special characters. TLS and VPD smoothing are unchanged.
-
-## VPD filter isolation (v0.5.23)
-
-Raw VPD is calculated directly from raw climate readings without changing filter state. The central control VPD retains its dedicated alpha-0.10 filter after Adaptive Climate Smoothing. API field names and controller thresholds remain unchanged. See [RELEASE_NOTES_v0.5.23.md](https://github.com/syschelle/GrowTent/blob/f58c2576219e5fa0effa1b181bea37312b09031d/RELEASE_NOTES_v0.5.23.md).
-
-## Compact system settings (v0.5.24)
-
-System settings use six permanently open cards: Device (including electricity price), Display, Time (including the POSIX timezone-list link), DS18B20 sensor, Backend access (HMAC) and Relay names. The layout adapts to mobile and supports German/English plus light/dark themes. Existing save behavior and secret retention are unchanged. The S3 board remains fixed at six channels with pump outputs 1–3 reserved.
-
-## Release notes policy
-
-Keep exactly one versioned release-notes file in the repository root: `RELEASE_NOTES_<current-version>.md`, matching `FW_VERSION` in `src/build_version.h`. When bumping the version, replace the previous file rather than accumulating notes. Historical notes remain available in Git history and published GitHub Releases. Never delete tags/releases or rewrite Git history for this cleanup.
-
-Run `python scripts/check_release_notes.py` before pushing. Branch/PR and release builds enforce this invariant; tag builds also require the tag to match the source version.
+Apache License 2.0. See [LICENSE](LICENSE).
