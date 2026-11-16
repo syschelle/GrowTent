@@ -1761,11 +1761,11 @@ async function startNewGrow(){
         // by this dashboard. Keep the red/green ON/OFF status strip visible,
         // but leave it empty instead of showing misleading metric values.
         stateEl.style.display = 'flex';
-        setShellyStateClass(stateEl,status);
         const meter = status === null && window._lastApiState?.[`cur.shelly.${baseId}.fresh`] === true && isNum(power);
+        // Green means a fresh PM1 measurement here, not a relay ON state.
+        setShellyStateClass(stateEl,meter ? true : status);
         const known = typeof status === 'boolean' || meter;
         stateEl.innerHTML = !known ? (currentLang === 'de' ? 'Unbekannt' : 'Unknown') : hideMetrics ? '' : `
-            ${meter ? `<div class="sub">${currentLang === 'de' ? 'Online · Messgerät' : 'Online · Power meter'}</div>` : ''}
             <div>${p}</div>
             <div class="sub">${kwh} - ${eur}</div>
         `;

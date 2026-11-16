@@ -108,3 +108,7 @@ Host regression checks execute the production status reader with mock HTTP for P
 ## v0.5.26 HTTP status validation
 
 PM1 reader tests now model transport success for every received HTTP response, including 404 and 401. This reproduces the previously missed PM1 discovery failure.
+
+## v0.5.27 PM1 card appearance
+
+DE/EN UI regression checks require a green fresh PM1 card without the extra Online label and a neutral stale card. Relay API state remains null for meters.

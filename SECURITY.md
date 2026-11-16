@@ -73,3 +73,7 @@ PM1 uses the existing Digest-authenticated read path. It supplies metering only:
 ## v0.5.26 HTTP status validation
 
 Only HTTP 2xx responses may become trusted status samples; authentication failures are not treated as component discovery evidence.
+
+## v0.5.27 PM1 card appearance
+
+Presentation-only change: green denotes fresh PM1 telemetry and does not create a relay state or enable switching.
