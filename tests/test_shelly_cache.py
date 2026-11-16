@@ -13,6 +13,8 @@ class CacheTests(unittest.TestCase):
   wrapper=function(f,'ShellyValues getShellyValues(ShellyDevice& dev, int switchId, int port) {')
   poll=function((ROOT/'src/task_CheckShellyStatus.h').read_text(),'  auto pollDevice =')+';'
   poll='struct PollState {uint32_t epoch=0,retryAfterMs=0;bool backingOff=false;}; constexpr uint32_t RETRY_BACKOFF_MS=30000UL; void poll(ShellyDevice& d,ShellyDevice& r,PollState& s){'+poll+'pollDevice(d,r,s);}'
+  registry=(ROOT/'src/vars_registry.cpp').read_text()
+  serializers='\n'.join(function(registry,sig) for sig in ['static String jBool(','static String jNumOrNull(','static String jShellyState(','static String jShellyMetric('])
   code=r"""
 #include <Arduino.h>
 #include <cassert>
@@ -35,7 +37,7 @@ ShellyValues fetchShellyValuesSnapshot(ShellyDevice& d,int,int,const String&,con
  return v;
 }
 bool refreshShellyLightSchedule(bool){return true;}
-"""+wrapper+poll+r"""
+"""+wrapper+poll+"\nfloat powerPriceKwhEur=0.30f;\n"+serializers+r"""
 int main(){
  assert(initShellyCache());auto& d=settings.shelly.main;d.ip="A";d.gen=2;
  assert(!shellyCachedValues(d).ok&&!shellyCachedValues(d).hasReading);
@@ -75,6 +77,18 @@ int main(){
  {ShellyCacheLock lock;invalidateShellyCacheLocked();d.ip="E";}readOK=true;poll(d,mirror,state);assert(mirror.values.ok&&!state.backingOff);
  clockMs=UINT32_MAX-29999;readOK=false;poll(d,mirror,state);assert(state.backingOff&&state.retryAfterMs==0);
  const int atWrap=requests;++clockMs;poll(d,mirror,state);assert(requests==atWrap);clockMs=0;poll(d,mirror,state);assert(requests==atWrap+1);
+ // The actual /api/state and /api/stats registry serializes fresh PM1 as
+ // permanently connected, without modifying internal switch capability/state.
+ d.values=ShellyValues{};d.values.ok=true;d.values.hasReading=true;
+ d.values.cacheEpoch=shellyCacheEpoch();d.values.sampledAtMs=clockMs;
+ d.values.switchCapable=false;d.values.isOn=false;d.values.powerW=46.1f;d.values.energyWh=40.7f;
+ assert(jShellyState(d)=="true"&&jShellyMetric(d,0)=="46.1"&&jShellyMetric(d,1)=="40.7");
+ assert(!d.values.switchCapable&&!d.values.isOn);
+ d.values.powerW=0;assert(jShellyState(d)=="true"&&jShellyMetric(d,0)=="0.0");
+ d.values.switchCapable=true;assert(jShellyState(d)=="false");d.values.isOn=true;assert(jShellyState(d)=="true");
+ d.values.switchCapable=false;clockMs+=SHELLY_STATUS_MAX_AGE_MS;
+ assert(jShellyState(d)=="null"&&jShellyMetric(d,0)=="null");
+
 }
 """
   with tempfile.TemporaryDirectory() as td:
