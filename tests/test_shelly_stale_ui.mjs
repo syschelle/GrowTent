@@ -11,10 +11,12 @@ for(const lang of ['de','en']){
   if(status==null)assert.equal(state.innerHTML,lang==='de'?'Unbekannt':'Unknown');
  }
  ctx.window._lastApiState={'cur.shelly.main.fresh':true};
- vm.runInContext("setSwitchWithMetrics('main',null,42.7,1234.5,0.37,3)",ctx);
- assert.ok(state.innerHTML.includes('42.7 W'));assert.ok(state.innerHTML.includes(lang==='de'?'Online · Messgerät':'Online · Power meter'));assert.equal(classes.has('shelly-off'),false);
+ for(const power of [0,46.5]){ctx.power=power;
+ vm.runInContext("setSwitchWithMetrics('main',null,power,1234.5,0.37,3)",ctx);
+ assert.ok(state.innerHTML.includes(power.toFixed(1)+' W'));assert.ok(!state.innerHTML.includes('Online'));assert.equal(classes.has('shelly-on'),true);assert.equal(classes.has('shelly-off'),false);
+ }
  ctx.window._lastApiState={'cur.shelly.main.fresh':false};
  vm.runInContext("setSwitchWithMetrics('main',null,42.7,1234.5,0.37,3)",ctx);
- assert.equal(state.innerHTML,lang==='de'?'Unbekannt':'Unknown');
+ assert.equal(state.innerHTML,lang==='de'?'Unbekannt':'Unknown');assert.equal(classes.has('shelly-unknown'),true);assert.equal(classes.has('shelly-on'),false);
 }
 console.log('Shelly UI: unknown is neutral, never OFF; Gen1/Gen2/Gen3 and DE/EN passed');
