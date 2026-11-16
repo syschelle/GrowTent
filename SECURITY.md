@@ -81,3 +81,7 @@ Presentation-only change: green denotes fresh PM1 telemetry and does not create 
 ## v0.5.28 PM1 API state
 
 The PM1 API isOn=true value represents a permanently connected output, not a controllable relay. Internal switchCapable remains false and switching stays blocked.
+
+## v0.5.29 Shelly HTTP reader
+
+The change only drains already-available response bytes. Existing response validation, Digest credentials, safety policies and switching permissions remain unchanged.

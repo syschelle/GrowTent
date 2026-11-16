@@ -22,6 +22,7 @@ jobs:
       - run: node tests/test_local_plan_editor.mjs
       - run: node tests/test_shelly_settings.mjs
       - run: python tests/test_shelly_cache.py
+      - run: python tests/test_shelly_http_reader.py
       - run: node tests/test_shelly_stale_ui.mjs
       - run: python tests/test_vpd_calculation.py
       - run: python tests/test_safety_runtime.py
