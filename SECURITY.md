@@ -69,3 +69,7 @@ This release reorganizes existing controls only. HMAC secrets remain password fi
 ## v0.5.25 PM1 meters
 
 PM1 uses the existing Digest-authenticated read path. It supplies metering only: no relay state is inferred from power, and known PM1 devices reject switch commands.
+
+## v0.5.26 HTTP status validation
+
+Only HTTP 2xx responses may become trusted status samples; authentication failures are not treated as component discovery evidence.

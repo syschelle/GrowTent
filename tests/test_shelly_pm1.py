@@ -18,7 +18,7 @@ using std::isfinite;
 """+values+r"""
 struct ShellyDevice {String ip="192.0.2.1";int gen=3;ShellyValues values;};
 struct Response {int code;String body;};std::vector<Response> responses;std::vector<String> paths;
-bool request(const String& path,int& code,String& body){paths.push_back(path);assert(!responses.empty());auto r=responses.front();responses.erase(responses.begin());code=r.code;body=r.body;return code==200;}
+bool request(const String& path,int& code,String& body){paths.push_back(path);assert(!responses.empty());auto r=responses.front();responses.erase(responses.begin());code=r.code;body=r.body;return code>0;}
 bool httpGetWithDigestAutoAuth(const String&,int,const String& path,const String&,const String&,int& code,String& body){return request(path,code,body);}
 bool httpGetGen1(const String&,int,const String& path,const String&,const String&,int& code,String& body){return request(path,code,body);}
 bool hasValidIPv4(const String&){return true;}
@@ -37,6 +37,12 @@ int main(){
  }
  d.values=ShellyValues{};responses={{200,"{\"id\":0,\"output\":true,\"apower\":7.5,\"aenergy\":{\"total\":9}}"}};
  v=fetchShellyValuesSnapshot(d,0,80,"","");assert(v.ok&&v.switchCapable&&v.isOn&&v.powerW==7.5f);
+ // Reproduce the user's exact zero-load PM1 response, without a relay output.
+ d.values=v;d.values.switchCapable=false;d.values.hasReading=true;
+ responses={{200,R"({"id":0,"voltage":239.9,"current":0.000,"apower":0.0,"freq":50.0,"aenergy":{"total":28.919,"by_minute":[0.000,0.000,0.000],"minute_ts":1794821340},"ret_aenergy":{"total":0.000,"by_minute":[0.000,0.000,0.000],"minute_ts":1794821340}})"}};
+ v=fetchShellyValuesSnapshot(d,0,80,"","");assert(v.ok&&!v.switchCapable&&v.powerW==0&&std::abs(v.energyWh-28.919f)<0.0001);
+ d.values=ShellyValues{};
+ responses={{404,"{}"},{404,"{}"},{404,"{}"}};assert(!fetchShellyValuesSnapshot(d,0,80,"","").ok);
  // Authentication failure must not probe PM1. Existing Gen1 fallback remains.
  paths.clear();responses={{401,""},{401,""}};assert(!fetchShellyValuesSnapshot(d,0,80,"","").ok);for(auto p:paths)assert(p!="/rpc/PM1.GetStatus?id=0");
  d.gen=1;responses={{200,"{\"relays\":[{\"ison\":false}],\"meters\":[{\"power\":2,\"total\":4}]}"}};

@@ -104,3 +104,7 @@ Existing v0.5.21 safety, irrigation/fan, S3 contracts and full firmware/layout c
 ## v0.5.25 PM1 meters
 
 Host regression checks execute the production status reader with mock HTTP for PM1 fallback/cached reads, zero/nonzero power, invalid payloads, authentication failure, Switch and Gen1 samples. Full firmware builds and existing cache/UI tests remain required.
+
+## v0.5.26 HTTP status validation
+
+PM1 reader tests now model transport success for every received HTTP response, including 404 and 401. This reproduces the previously missed PM1 discovery failure.

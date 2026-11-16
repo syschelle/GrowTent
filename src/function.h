@@ -1581,12 +1581,16 @@ static ShellyValues fetchShellyValuesSnapshot(ShellyDevice& dev, int switchId, i
                                    code, body);
   }
 
+  // Transport success does not imply HTTP success: rawHttpGet also returns
+  // true after receiving an HTTP 404/500 response.
+  ok = ok && code >= 200 && code < 300;
+
   // Plug PM Gen3 exposes PM1, not Switch. Probe only after a received RPC
   // failure, never on a network failure or authentication rejection.
   if (!ok && !parseAsGen1 && !parseAsPm1 && code > 0 && code != 401 && code != 403) {
     int pmCode = 0; String pmBody;
     const String pmPath = "/rpc/PM1.GetStatus?id=" + String(switchId);
-    if (httpGetWithDigestAutoAuth(dev.ip, port, pmPath, user, pass, pmCode, pmBody)) {
+    if (httpGetWithDigestAutoAuth(dev.ip, port, pmPath, user, pass, pmCode, pmBody) && pmCode >= 200 && pmCode < 300) {
       ok = true; code = pmCode; body = pmBody; path = pmPath; parseAsPm1 = true;
     }
   }
@@ -1599,7 +1603,7 @@ static ShellyValues fetchShellyValuesSnapshot(ShellyDevice& dev, int switchId, i
     const bool fallbackOk = httpGetGen1(dev.ip, port, "/status",
                                         user, pass,
                                         fallbackCode, fallbackBody);
-    if (fallbackOk && fallbackBody.length() > 0) {
+    if (fallbackOk && fallbackCode >= 200 && fallbackCode < 300 && fallbackBody.length() > 0) {
       ok = true;
       code = fallbackCode;
       body = fallbackBody;
