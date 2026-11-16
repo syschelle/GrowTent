@@ -77,3 +77,7 @@ Only HTTP 2xx responses may become trusted status samples; authentication failur
 ## v0.5.27 PM1 card appearance
 
 Presentation-only change: green denotes fresh PM1 telemetry and does not create a relay state or enable switching.
+
+## v0.5.28 PM1 API state
+
+The PM1 API isOn=true value represents a permanently connected output, not a controllable relay. Internal switchCapable remains false and switching stays blocked.
