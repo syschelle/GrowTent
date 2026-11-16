@@ -1762,8 +1762,10 @@ async function startNewGrow(){
         // but leave it empty instead of showing misleading metric values.
         stateEl.style.display = 'flex';
         setShellyStateClass(stateEl,status);
-        const known = typeof status === 'boolean';
+        const meter = status === null && window._lastApiState?.[`cur.shelly.${baseId}.fresh`] === true && isNum(power);
+        const known = typeof status === 'boolean' || meter;
         stateEl.innerHTML = !known ? (currentLang === 'de' ? 'Unbekannt' : 'Unknown') : hideMetrics ? '' : `
+            ${meter ? `<div class="sub">${currentLang === 'de' ? 'Online · Messgerät' : 'Online · Power meter'}</div>` : ''}
             <div>${p}</div>
             <div class="sub">${kwh} - ${eur}</div>
         `;

@@ -202,7 +202,7 @@ static String g_irrigation_tank_level_percent() { return jNumOrNull(tankLevel, 0
 
 
 
-static String jShellyState(const ShellyDevice& device){const auto v=shellyCachedValues(device);return v.ok?jBool(v.isOn):String("null");}
+static String jShellyState(const ShellyDevice& device){const auto v=shellyCachedValues(device);return v.ok&&v.switchCapable?jBool(v.isOn):String("null");}
 static String jShellyMetric(const ShellyDevice& device,int metric){
   const auto v=shellyCachedValues(device);if(!v.ok)return String("null");
   return metric==0?jNumOrNull(v.powerW,1):metric==1?jNumOrNull(v.energyWh,1):jNumOrNull(v.energyWh/1000.0f*powerPriceKwhEur,2);
