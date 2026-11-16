@@ -100,3 +100,7 @@ Existing v0.5.21 safety, irrigation/fan, S3 contracts and full firmware/layout c
 ## Current-only release notes
 
 `python scripts/check_release_notes.py` requires exactly one root release-notes file matching the source version and title. Build/release CI invokes it; tag publishing also verifies tag/source agreement. This repository-only cleanup does not alter firmware or runtime behavior.
+
+## v0.5.25 PM1 meters
+
+Host regression checks execute the production status reader with mock HTTP for PM1 fallback/cached reads, zero/nonzero power, invalid payloads, authentication failure, Switch and Gen1 samples. Full firmware builds and existing cache/UI tests remain required.

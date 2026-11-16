@@ -49,6 +49,7 @@ struct ShellySchedules {
 struct ShellyValues {
   bool  ok = false;
   bool  isOn = false;
+  bool  switchCapable = true; // PM1 meters have no relay/output state.
   bool  hasReading = false;
   uint32_t sampledAtMs = 0;
   uint32_t cacheEpoch = 0;

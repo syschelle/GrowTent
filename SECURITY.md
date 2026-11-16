@@ -65,3 +65,7 @@ Raw VPD telemetry cannot mutate the control VPD filter. Nonfinite inputs do not 
 ## v0.5.24 system settings layout
 
 This release reorganizes existing controls only. HMAC secrets remain password fields with empty-input retention, and the existing validated save/ACK/restart sequence is unchanged. The external timezone lookup opens with noopener/noreferrer. No authentication, GPIO or control-policy changes.
+
+## v0.5.25 PM1 meters
+
+PM1 uses the existing Digest-authenticated read path. It supplies metering only: no relay state is inferred from power, and known PM1 devices reject switch commands.

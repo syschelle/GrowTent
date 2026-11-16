@@ -1560,10 +1560,11 @@ static ShellyValues fetchShellyValuesSnapshot(ShellyDevice& dev, int switchId, i
   }
 
   bool parseAsGen1 = (configuredGen == 1);
+  bool parseAsPm1 = !parseAsGen1 && dev.values.hasReading && !dev.values.switchCapable;
   bool autoDetectedGen1 = false;
   String path = parseAsGen1
     ? "/status"
-    : ("/rpc/Switch.GetStatus?id=" + String(switchId));
+    : ((parseAsPm1 ? "/rpc/PM1.GetStatus?id=" : "/rpc/Switch.GetStatus?id=") + String(switchId));
   (void)autoDetectedUnknownGeneration;
 
   int code = 0;
@@ -1580,9 +1581,19 @@ static ShellyValues fetchShellyValuesSnapshot(ShellyDevice& dev, int switchId, i
                                    code, body);
   }
 
+  // Plug PM Gen3 exposes PM1, not Switch. Probe only after a received RPC
+  // failure, never on a network failure or authentication rejection.
+  if (!ok && !parseAsGen1 && !parseAsPm1 && code > 0 && code != 401 && code != 403) {
+    int pmCode = 0; String pmBody;
+    const String pmPath = "/rpc/PM1.GetStatus?id=" + String(switchId);
+    if (httpGetWithDigestAutoAuth(dev.ip, port, pmPath, user, pass, pmCode, pmBody)) {
+      ok = true; code = pmCode; body = pmBody; path = pmPath; parseAsPm1 = true;
+    }
+  }
+
   // A legacy Gen1 may have been saved as Gen2/3 in older dashboard versions.
   // If RPC status fails, probe the read-only Gen1 /status endpoint once.
-  if (!ok && configuredGen >= 2) {
+  if (!ok && configuredGen >= 2 && !parseAsPm1) {
     int fallbackCode = 0;
     String fallbackBody;
     const bool fallbackOk = httpGetGen1(dev.ip, port, "/status",
@@ -1638,12 +1649,20 @@ static ShellyValues fetchShellyValuesSnapshot(ShellyDevice& dev, int switchId, i
                " (configured Gen" + String(configuredGen) + ") runtime corrected");
     }
   } else {
-    // A syntactically valid error/wrong-channel response is not a status sample.
-    if(!doc["output"].is<bool>() || !doc["id"].is<int>() || doc["id"].as<int>()!=switchId)return v;
-    // Gen2+: Switch.GetStatus
-    v.isOn     = doc["output"] | false;
-    v.powerW   = doc["apower"] | NAN;
-    v.energyWh = doc["aenergy"]["total"] | NAN;
+    // Never accept an RPC error, wrong channel or incomplete PM1 sample.
+    if(!doc["id"].is<int>() || doc["id"].as<int>()!=switchId || !doc["error"].isNull())return v;
+    if (parseAsPm1) {
+      if(!doc["apower"].is<float>() || !doc["aenergy"]["total"].is<float>())return v;
+      v.powerW = doc["apower"].as<float>();
+      v.energyWh = doc["aenergy"]["total"].as<float>();
+      if(!isfinite(v.powerW) || !isfinite(v.energyWh) || v.energyWh<0)return ShellyValues{};
+      v.switchCapable = false;
+    } else {
+      if(!doc["output"].is<bool>())return v;
+      v.isOn = doc["output"] | false;
+      v.powerW = doc["apower"] | NAN;
+      v.energyWh = doc["aenergy"]["total"] | NAN;
+    }
   }
 
   v.ok = true;
@@ -1735,6 +1754,12 @@ static bool shellySwitchSet(const String& host, uint8_t gen, bool on, uint8_t sw
     return false;
   }
 
+  // A known PM1 meter must never be treated as a switch actuator.
+  {
+    ShellyCacheLock lock; if(!lock.held)return false;
+    const ShellyDevice* devices[]={&settings.shelly.main,&settings.shelly.light,&settings.shelly.humidifier,&settings.shelly.heater,&settings.shelly.fan,&settings.shelly.exhaust,&settings.shelly.heatmat};
+    for(const auto* device:devices)if(device->ip==host && device->values.hasReading && !device->values.switchCapable)return false;
+  }
   const uint32_t commandCacheEpoch=shellyCacheEpoch();
   const uint64_t fanGeneration=(switchId==0 && port==80)?humidifierFanCommandGeneration(host,gen):0;
   const uint32_t fanStartedMs=millis();
@@ -2163,7 +2188,7 @@ static void applyRelaySchedules() {
 
   // Determine whether Shelly light status is reliable
   const ShellyValues light=shellyCachedValues(settings.shelly.light);
-  const bool lightStatusValid = light.ok;
+  const bool lightStatusValid = light.ok && light.switchCapable;
   const bool lightIsOn = lightStatusValid ? light.isOn : false;
 
   // Only relays 1..5 currently support minute scheduling
