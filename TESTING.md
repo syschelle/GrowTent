@@ -120,3 +120,7 @@ Production API serializer tests cover fresh PM1 as true with measured watts/ener
 ## v0.5.29 Shelly HTTP reader
 
 Compile and execute the actual readAllFromClient with a timed mock client: complete replies must return promptly instead of consuming a trailing four-second Stream timeout; fragmented responses, silent peers and millis rollover remain covered. GitHub CI runs this test alongside full firmware/cache/safety/layout checks. No physical switching reproduction is claimed.
+
+## v0.5.30 light-independent relay schedules
+
+The compiled production scheduler is exercised across all 60 minutes with changing light freshness/state. Coverage includes permanent 0/0 without OFF pulses, normal/wrapped windows, light-dependent fail-safe OFF, disabled schedules, heater climate safety, fan ownership and board pump-relay separation.
