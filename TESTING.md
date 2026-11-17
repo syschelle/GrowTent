@@ -116,3 +116,7 @@ DE/EN UI regression checks require a green fresh PM1 card without the extra Onli
 ## v0.5.28 PM1 API state
 
 Production API serializer tests cover fresh PM1 as true with measured watts/energy, stale PM1 as null and unchanged Switch ON/OFF states.
+
+## v0.5.29 Shelly HTTP reader
+
+Compile and execute the actual readAllFromClient with a timed mock client: complete replies must return promptly instead of consuming a trailing four-second Stream timeout; fragmented responses, silent peers and millis rollover remain covered. GitHub CI runs this test alongside full firmware/cache/safety/layout checks. No physical switching reproduction is claimed.

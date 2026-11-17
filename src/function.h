@@ -881,8 +881,12 @@ static bool readAllFromClient(WiFiClient& client, String& outRaw) {
   start = millis();
   while ((client.connected() || client.available()) && (millis() - start) < 4000) {
     while (client.available()) {
-      outRaw += client.readString();
-      start = millis(); // reset timeout while data arrives
+      // Drain only bytes already available. Stream::readString() waits for
+      // the full Stream timeout after the last byte (4 s on this client).
+      const int nextByte = client.read();
+      if (nextByte < 0) break;
+      outRaw += static_cast<char>(nextByte);
+      start = millis(); // reset idle timeout only when a byte was received
     }
     delay(5);
   }
