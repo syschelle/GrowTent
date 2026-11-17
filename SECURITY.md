@@ -85,3 +85,7 @@ The PM1 API isOn=true value represents a permanently connected output, not a con
 ## v0.5.29 Shelly HTTP reader
 
 The change only drains already-available response bytes. Existing response validation, Digest credentials, safety policies and switching permissions remain unchanged.
+
+## v0.5.30 light-independent relay schedules
+
+Only schedules explicitly marked Also when light off bypass the Shelly light gate. Heating sensor-fault OFF protection and relay ownership checks remain enforced. Light-dependent schedules still require confirmed light ON.

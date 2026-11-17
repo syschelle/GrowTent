@@ -2224,12 +2224,9 @@ static void applyRelaySchedules() {
     // Determine desired relay state by schedule window
     bool shouldBeOn = permanentOn ? true : isMinuteInWindowHour(nowMin, sc.onMin, sc.offMin);
 
-    // Light gating always applies:
-    // - If light status is unknown -> fail-safe OFF
-    // - If light is OFF -> relay may run only if ifLightOff is true
-    if (!lightStatusValid) {
-      shouldBeOn = false;
-    } else if (!lightIsOn && !sc.ifLightOff) {
+    // "Also when light off" makes this schedule independent of the light.
+    // Only light-dependent schedules require a fresh, confirmed ON state.
+    if (!sc.ifLightOff && (!lightStatusValid || !lightIsOn)) {
       shouldBeOn = false;
     }
 
